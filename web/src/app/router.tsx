@@ -10,10 +10,13 @@ import { NotFoundPage } from '@/pages/NotFoundPage'
 
 export const router = createBrowserRouter([
   { element: <RootLayout />, hydrateFallbackElement: <div className="atlas-state" role="status"><p>Opening your workspace…</p></div>, children: [
+  { path: '/', lazy: async () => ({ Component: (await import('@/pages/landing/LandingPage')).LandingPage }) },
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
   // Public: global drought and weather data only. Signed-in users also reach the same page inside the workspace.
   { path: '/climate', lazy: async () => ({ Component: (await import('@/pages/climate/PublicClimatePage')).PublicClimatePage }) },
+  // Public: the data and services Polle is built on, linked from the landing page.
+  { path: '/sources', lazy: async () => ({ Component: (await import('@/pages/sources/SourcesPage')).SourcesPage }) },
   { element: <ProtectedRoute />, children: [{ element: <AppShell />, children: [
     { path: '/dashboard', element: <DashboardPage /> },
     // Farms, Fields and Planning are one workspace with a view switch. Map pages pull in Leaflet; load them on demand.
