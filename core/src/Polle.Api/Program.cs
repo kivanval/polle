@@ -6,7 +6,12 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Polle.Api.Common;
 using Polle.Api.Features.Auth;
+using Polle.Api.Features.Climate;
 using Polle.Api.Features.Drought;
+using Polle.Api.Features.Finance;
+using Polle.Api.Features.Solver;
+using Polle.Api.Features.Strategies;
+using Polle.Api.Features.Weather;
 using Polle.Domain.Users;
 using Polle.Infrastructure;
 using Polle.Infrastructure.Persistence;
@@ -23,6 +28,9 @@ builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, relo
 // Log sanitized failure types through ApiExceptionHandler, not database driver details.
 builder.Logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.None);
 builder.Logging.AddFilter("Microsoft.AspNetCore.Diagnostics.ExceptionHandlerMiddleware", LogLevel.None);
+// Default HttpClient information logs include the query string and therefore the field point.
+builder.Logging.AddFilter("System.Net.Http.HttpClient.NasaPowerHistoricalWeather", LogLevel.None);
+builder.Logging.AddFilter("System.Net.Http.HttpClient.NasaPowerDailyClimate", LogLevel.None);
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 16 * 1024);
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddEndpoints(typeof(Program).Assembly);
@@ -58,8 +66,41 @@ builder.Services.Configure<PasswordHasherOptions>(options => options.IterationCo
 builder.Services.AddSingleton<DummyPassword>();
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<SessionCookieEvents>();
+builder.Services.AddScoped<SolverRequestBuilder>();
+builder.Services.AddScoped<IMonthlyWeatherProvider, UnavailableMonthlyWeatherProvider>();
+builder.Services.AddSingleton<HistoricalWeatherCache>();
 builder.Services.AddSingleton<Polle.Api.Features.Catalog.CatalogSchemaReader>();
+builder.Services.AddTransient<ClimateScenarioService>();
 builder.Services.AddSingleton<ClimateTrendStore>();
+builder.Services.AddHttpClient<NasaPowerHistoricalWeather>((services, client) =>
+{
+    var address = services.GetRequiredService<IConfiguration>()["Weather:NasaPowerBaseUrl"]
+        ?? "https://power.larc.nasa.gov/";
+    client.BaseAddress = new Uri(address.EndsWith('/') ? address : address + "/");
+    client.Timeout = TimeSpan.FromSeconds(8);
+});
+builder.Services.AddSingleton<DailyClimateBaselineCache>();
+builder.Services.AddHttpClient<NasaPowerDailyClimate>((services, client) =>
+{
+    var address = services.GetRequiredService<IConfiguration>()["Weather:NasaPowerBaseUrl"]
+        ?? "https://power.larc.nasa.gov/";
+    client.BaseAddress = new Uri(address.EndsWith('/') ? address : address + "/");
+    // Ten years of daily values is a larger response than a monthly read; each attempt also has its own 20 s budget.
+    client.Timeout = TimeSpan.FromSeconds(25);
+});
+// felder solver (Solver:BaseUrl). Unset leaves the client without an address and the strategy routes answer 503.
+// Its status route signals completion with 303, so redirects are read, not followed.
+builder.Services.AddHttpClient<FelderClient>((services, client) =>
+{
+    var address = services.GetRequiredService<IConfiguration>()["Solver:BaseUrl"];
+    if (!string.IsNullOrWhiteSpace(address)) client.BaseAddress = new Uri(address.EndsWith('/') ? address : address + "/");
+    client.Timeout = TimeSpan.FromSeconds(20);
+    // HttpClient sends no User-Agent by default; Cloudflare in front of the solver scores such requests as bots.
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Polle-Api/1.0");
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+// public.materials id that prices irrigation water for the solver; felder picks fertilizer products itself.
+builder.Services.AddSingleton(services =>
+    new SolverMaterials(services.GetRequiredService<IConfiguration>()["Solver:Materials:Irrigation"] ?? "2215"));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
 {
@@ -134,8 +175,28 @@ if (builder.Environment.IsProduction() && (proxySecret?.Length ?? 0) < 32)
     throw new InvalidOperationException("Proxy:SharedSecret must be configured with at least 32 characters in production.");
 
 var app = builder.Build();
-// Only the solver may read its data routes: each needs its own key (e.g. Fields:ApiKey), named by the route's
-// SolverServiceKey metadata. Without a key a route is open in Development only, and closed everywhere else.
+// Only the solver may read prices: it reaches this route directly with its own key, and the frontend's proxy must not
+// open it to browsers. Without a key the route is open in Development only, and closed everywhere else.
+// Routing has already run here, so every path spelling that reaches the route is covered, such as a trailing slash.
+var financeKey = builder.Configuration["Finance:ApiKey"];
+var financeOpen = string.IsNullOrEmpty(financeKey) && app.Environment.IsDevelopment();
+var expectedFinanceKey = SHA256.HashData(Encoding.UTF8.GetBytes(financeKey ?? ""));
+var financeKeySet = !string.IsNullOrEmpty(financeKey);
+app.Use(async (context, next) =>
+{
+    if (FinanceEndpoints.IsFinanceRoute(context) && !financeOpen)
+    {
+        var supplied = SHA256.HashData(Encoding.UTF8.GetBytes(context.Request.Headers[FinanceEndpoints.ApiKeyHeader].ToString()));
+        if (!financeKeySet || !CryptographicOperations.FixedTimeEquals(supplied, expectedFinanceKey))
+        {
+            context.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return;
+        }
+    }
+    await next(context);
+});
+// The solver's climate and field topology routes follow the same rule, each with its own key (Climate:ApiKey,
+// Fields:ApiKey) named by the route's SolverServiceKey metadata.
 app.Use(async (context, next) =>
 {
     if (SolverServiceKey.Of(context) is { } route && !SolverServiceKey.Allows(app.Configuration[route.ConfigurationKey],
@@ -157,7 +218,7 @@ if (!string.IsNullOrEmpty(proxySecret))
             // The hosting platform's health probe reaches the container directly.
             if (context.Request.Path.Equals("/api/health/live", StringComparison.OrdinalIgnoreCase)) { await next(context); return; }
             // The solver backend calls these read-only routes directly, not through the frontend's proxy; its keys were checked above.
-            if (SolverServiceKey.Of(context) is not null)
+            if (FinanceEndpoints.IsFinanceRoute(context) || SolverServiceKey.Of(context) is not null)
             {
                 context.Request.Scheme = "https";
                 await next(context);
@@ -190,7 +251,9 @@ app.UseAuthorization();
 app.Use(async (context, next) =>
 {
     if (context.Request.Path.StartsWithSegments("/api") && !HttpMethods.IsGet(context.Request.Method)
-        && !HttpMethods.IsHead(context.Request.Method) && !HttpMethods.IsOptions(context.Request.Method))
+        && !HttpMethods.IsHead(context.Request.Method) && !HttpMethods.IsOptions(context.Request.Method)
+        // Authenticated by a key header, not a cookie, so a forged browser request has nothing to ride on.
+        && !FinanceEndpoints.IsFinanceRoute(context))
     {
         try { await context.RequestServices.GetRequiredService<IAntiforgery>().ValidateRequestAsync(context); }
         catch (AntiforgeryValidationException)
