@@ -2,18 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING
 
+from dishka import FromDishka
 from dishka.integrations.taskiq import inject
 
 from app.api.mappers import map_request_to_domain, map_result_to_response
-
-if TYPE_CHECKING:
-    from dishka import FromDishka
-
-    from app.autogen.api.schemas import OptimizeFieldRequest, OptimizeFieldResponse
-    from app.preprocessing.preparer import CanvasPreparer
-    from app.solver.pipeline import SolverPipeline
+from app.autogen.api.schemas import OptimizeFieldRequest, OptimizeFieldResponse
+from app.preprocessing.preparer import CanvasPreparer
+from app.solver.pipeline import SolverPipeline
 
 logger = logging.getLogger(__name__)
 
