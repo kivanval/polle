@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
-import { ArrowUpRight, LayoutDashboard, Map, Menu, UserRound, X } from 'lucide-react'
+import { ArrowUpRight, CloudSun, Database, LayoutDashboard, Map, Menu, UserRound, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '@/features/auth/useAuth'
 import { Brand } from '@/shared/ui/Brand'
@@ -12,6 +12,7 @@ const sections: { label: string; to: string; icon: LucideIcon; end?: boolean }[]
   { label: 'Overview', to: '/dashboard', icon: LayoutDashboard, end: true },
   // Farms and their fields: one workspace (see FarmsWorkspace).
   { label: 'Farms & planning', to: '/dashboard/farms', icon: Map },
+  { label: 'Climate intelligence', to: '/dashboard/climate', icon: CloudSun },
 ]
 export function AppShell() {
   const { data: user } = useAuth()
@@ -19,7 +20,7 @@ export function AppShell() {
   const location = useLocation()
   const path = location.pathname.toLowerCase().replace(/\/+$/, '')
   const section = [...sections].reverse().find(s => path === s.to || path.startsWith(`${s.to}/`))
-  const title = path === '/profile' ? 'Account' : section?.label ?? 'Overview'
+  const title = path === '/profile' ? 'Account' : path === '/admin' ? 'Expert data' : section?.label ?? 'Overview'
   // A page for one record (a farm) adds its name after the section: the published name, or "Farm" while it loads, never the id.
   const record = idPlaceholder(path)
   const pageName = usePageName()
@@ -30,7 +31,7 @@ export function AppShell() {
     <aside id="workspace-sidebar" className={`app-sidebar ${menuOpen ? 'is-open' : ''}`}>
       <Brand light /><span className="sidebar-caption mono">YOUR FIELD ATLAS</span>
       <nav aria-label="Workspace navigation">{sections.map(({ label, to, icon: Icon, end }) => <NavLink key={to} to={to} end={end} onClick={() => setMenuOpen(false)}><Icon size={18} strokeWidth={1.5} />{label}</NavLink>)}
-        <div className="sidebar-divider" />
+        <div className="sidebar-divider" /><NavLink to="/admin" onClick={() => setMenuOpen(false)}><Database size={18} strokeWidth={1.5} />Expert data</NavLink>
         <NavLink to="/profile" onClick={() => setMenuOpen(false)}><UserRound size={18} strokeWidth={1.5} />Account</NavLink>
       </nav>
       <div className="sidebar-bottom"><div className="sidebar-person"><span className="avatar">{user?.email[0]?.toUpperCase()}</span><div><strong>Your workspace</strong><span title={user?.email}>{user?.email}</span></div></div><LogoutButton /></div>
