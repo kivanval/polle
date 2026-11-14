@@ -182,6 +182,7 @@ def _evaluate_soil_for_crop(
     slope_pct = crop.salinity_slope_pct
 
     if threshold is not None and slope_pct is not None and salinity_ds_m > threshold:
+        # Apply FAO-29 Maas-Hoffman salinity yield penalty model
         loss_fraction = (slope_pct / 100.0) * (salinity_ds_m - threshold)
         yield_mult = max(0.0, 1.0 - loss_fraction)
 

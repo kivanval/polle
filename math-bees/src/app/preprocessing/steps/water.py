@@ -416,6 +416,7 @@ class SoilWaterBucketStep(SimulationStep):
             ky = s_info.ky
 
             if stage_pot > 0.0:
+                # Quantify stage yield penalty via FAO-33 water stress (Ky) response function
                 deficit_ratio = max(MIN_DEFICIT_RATIO, 1.0 - (stage_act / stage_pot))
                 stage_factor = max(MIN_STAGE_FACTOR, 1.0 - ky * deficit_ratio)
             else:
