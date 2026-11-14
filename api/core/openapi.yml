@@ -1,0 +1,6986 @@
+openapi: 3.1.1
+info:
+  title: Polle Core API
+  version: 1.0.0
+  description: 'The API behind the Polle web app: accounts, farms and fields, crop plans, climate and drought data, resources
+    and finance, and rotation strategies from the math-bees solver. The solver-facing data endpoints have their own contracts
+    in api/climate, api/field-topology and api/finance.'
+paths:
+  /api/health/live:
+    get:
+      tags:
+      - Health
+      responses:
+        '200':
+          description: OK
+  /api/fields/{fieldId}/weather/climate-scenario:
+    get:
+      tags:
+      - Weather
+      summary: Prepare a ten-year historical monthly planning baseline for an owned field
+      parameters:
+      - name: fieldId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: targetStartMonth
+        in: query
+        schema:
+          type: string
+      - name: referenceStartYear
+        in: query
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldClimateScenarioResponse'
+  /api/fields/{fieldId}/weather/historical:
+    get:
+      tags:
+      - Weather
+      summary: Read historical NASA POWER monthly weather for an owned field
+      parameters:
+      - name: fieldId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: startMonth
+        in: query
+        schema:
+          type: string
+      - name: endMonth
+        in: query
+        schema:
+          type: string
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldHistoricalWeatherResponse'
+  /api/fields/{fieldId}/strategies:
+    get:
+      tags:
+      - Strategies
+      summary: List an owned field's saved strategies, newest first
+      parameters:
+      - name: fieldId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SavedStrategyResponse'
+    post:
+      tags:
+      - Strategies
+      summary: Save a ready strategy of a run for this field
+      parameters:
+      - name: fieldId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SaveStrategyRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SavedStrategyResponse'
+  /api/strategies/{strategyId}:
+    delete:
+      tags:
+      - Strategies
+      summary: Delete a saved strategy
+      parameters:
+      - name: strategyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '204':
+          description: No Content
+  /api/strategies/{strategyId}/apply:
+    post:
+      tags:
+      - Strategies
+      summary: Make a saved strategy the field's crop plan
+      description: Replaces the field's crops sown on or after the strategy's first month with the strategy's crops. Earlier
+        crops stay. A crop sown earlier that is still on the field when the first new crop goes in returns 409 until it gets
+        a harvest date.
+      parameters:
+      - name: strategyId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlantingResponse'
+  /api/fields/{fieldId}/strategy-runs:
+    post:
+      tags:
+      - Strategies
+      summary: Ask the solver for the rotation strategies of an owned field, or (planOnly) score its current plan
+      parameters:
+      - name: fieldId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StrategyRunRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StrategyRunResponse'
+        '422':
+          description: Unprocessable Entity
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+  /api/strategy-runs/{runId}:
+    get:
+      tags:
+      - Strategies
+      summary: Read a strategy run; jobs still processing are checked with the solver first
+      description: Poll every few seconds until no job is processing. A job's result appears once its state is ready.
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StrategyRunResponse'
+  /api/strategy-runs/{runId}/jobs/{key}/retry:
+    post:
+      tags:
+      - Strategies
+      summary: Resubmit one failed job of a run
+      parameters:
+      - name: runId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: key
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StrategyRunResponse'
+  /api/strategy-presets:
+    get:
+      tags:
+      - Strategies
+      summary: The preset strategies a run uses by default, with the solver settings of each
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/StrategyPresetResponse'
+  /api/farms/{farmId}/solver-draft:
+    get:
+      tags:
+      - Solver preparation
+      summary: Prepare an owned farm's solver draft with an optional explicit climate assumption
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: startMonth
+        in: query
+        schema:
+          type: string
+      - name: planningHorizonYears
+        in: query
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+      - name: climateScenarioType
+        in: query
+        schema:
+          type: string
+      - name: referenceStartYear
+        in: query
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolverPreparationResult'
+  /api/drought:
+    get:
+      tags:
+      - Drought
+      summary: List the trend model's months (fitted, projected) with layers, classes and sources
+      responses:
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DroughtOverviewResponse'
+  /api/drought/{month}/layers/{layer}.png:
+    get:
+      tags:
+      - Drought
+      summary: Web Mercator overlay of one grid layer (drought, temperature, rain) for one month
+      parameters:
+      - name: month
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: layer
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+  /api/drought/point:
+    get:
+      tags:
+      - Drought
+      summary: Every month of the trend model for the 0.5° grid cell containing a WGS84 point
+      parameters:
+      - name: latitude
+        in: query
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+      - name: longitude
+        in: query
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+      responses:
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '429':
+          description: Too Many Requests
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DroughtPointResponse'
+  /api/fields/{fieldId}/climate/monthly-rain:
+    get:
+      tags:
+      - Weather
+      summary: Typical rain per calendar month at an owned field, from the ten-year daily baseline the solver uses
+      parameters:
+      - name: fieldId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldRainfallResponse'
+  /api/catalog:
+    get:
+      tags:
+      - Expert catalog
+      summary: List editable reference tables with row counts
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CatalogTableSummary'
+  /api/catalog/changes:
+    get:
+      tags:
+      - Expert catalog
+      summary: Latest catalog edits, newest first
+      parameters:
+      - name: table
+        in: query
+        schema:
+          type: string
+      - name: limit
+        in: query
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CatalogChangeResponse'
+  /api/catalog/{table}:
+    get:
+      tags:
+      - Expert catalog
+      summary: Columns, key, links and rules of one table
+      parameters:
+      - name: table
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogTableResponse'
+  /api/catalog/{table}/rows:
+    get:
+      tags:
+      - Expert catalog
+      summary: Rows of one table, searchable and paged
+      parameters:
+      - name: table
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: search
+        in: query
+        schema:
+          type: string
+      - name: offset
+        in: query
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+      - name: limit
+        in: query
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogRowsResponse'
+    post:
+      tags:
+      - Expert catalog
+      summary: Add a row
+      parameters:
+      - name: table
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogWriteRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogRow'
+    put:
+      tags:
+      - Expert catalog
+      summary: Change a row identified by its key
+      parameters:
+      - name: table
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogWriteRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogRow'
+  /api/catalog/{table}/options:
+    get:
+      tags:
+      - Expert catalog
+      summary: Key and label of every row, for link pickers
+      parameters:
+      - name: table
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CatalogOption'
+  /api/catalog/{table}/rows/delete:
+    post:
+      tags:
+      - Expert catalog
+      summary: Delete a row, or with preview=true report what cascading foreign keys would also remove
+      parameters:
+      - name: table
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CatalogDeleteRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CatalogDeleteResponse'
+  /api/auth/csrf:
+    get:
+      tags:
+      - Authentication
+      responses:
+        '200':
+          description: OK
+  /api/auth/me:
+    get:
+      tags:
+      - Authentication
+      responses:
+        '200':
+          description: OK
+  /api/auth/register:
+    post:
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+  /api/auth/login:
+    post:
+      tags:
+      - Authentication
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+  /api/auth/logout:
+    post:
+      tags:
+      - Authentication
+      responses:
+        '200':
+          description: OK
+  /api/assistant/chat:
+    post:
+      tags:
+      - Assistant
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssistantChatRequest'
+        required: true
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssistantChatResponse'
+        '502':
+          description: Bad Gateway
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '504':
+          description: Gateway Timeout
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+  /api/crops:
+    get:
+      tags:
+      - Crops
+      summary: List the crop catalog (public.crops) with each crop's growing profiles, sorted by name
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CropResponse'
+  /api/expenses:
+    get:
+      tags:
+      - Expenses
+      summary: List the current user's expenses, newest first, optionally for one farm and an inclusive date range
+      parameters:
+      - name: farmId
+        in: query
+        schema:
+          type: string
+          format: uuid
+      - name: from
+        in: query
+        schema:
+          type: string
+          format: date
+      - name: to
+        in: query
+        schema:
+          type: string
+          format: date
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ExpenseResponse'
+  /api/farms/{farmId}/expenses:
+    post:
+      tags:
+      - Expenses
+      summary: Record an expense of an owned farm
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseResponse'
+  /api/expenses/{expenseId}:
+    put:
+      tags:
+      - Expenses
+      summary: Replace an expense; its farm does not change
+      parameters:
+      - name: expenseId
+        in: path
+        required: true
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type: integer
+          format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExpenseRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExpenseResponse'
+    delete:
+      tags:
+      - Expenses
+      summary: Remove an expense
+      parameters:
+      - name: expenseId
+        in: path
+        required: true
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type: integer
+          format: int32
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '204':
+          description: No Content
+  /api/farms:
+    get:
+      tags:
+      - Farms
+      summary: List the current user's farms
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FarmResponse'
+    post:
+      tags:
+      - Farms
+      summary: Create a farm for the current user
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FarmRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FarmResponse'
+  /api/farms/{farmId}:
+    get:
+      tags:
+      - Farms
+      summary: Get an owned farm
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FarmResponse'
+    put:
+      tags:
+      - Farms
+      summary: Replace an owned farm's details
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FarmRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FarmResponse'
+    delete:
+      tags:
+      - Farms
+      summary: Delete an owned farm with its fields, subfields, plantings, budget, machinery, workers and expenses
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '204':
+          description: No Content
+  /api/farms/{farmId}/name:
+    put:
+      tags:
+      - Farms
+      summary: Rename an owned farm without changing its other details
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FarmNameRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FarmResponse'
+  /api/farms/{farmId}/fields:
+    get:
+      tags:
+      - Fields
+      summary: List fields in an owned farm
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FieldResponse'
+    post:
+      tags:
+      - Fields
+      summary: Create a field with a GeoJSON Polygon; hectares are computed by PostGIS
+      description: 'With parentFieldId the field is a subfield: a part of a top-level field of the same farm, drawn inside
+        it. Subfields may overlap only their parent.'
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldResponse'
+  /api/fields/{fieldId}:
+    get:
+      tags:
+      - Fields
+      summary: Get an owned field and its boundary
+      parameters:
+      - name: fieldId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldResponse'
+    put:
+      tags:
+      - Fields
+      summary: Replace field details, soil and climate conditions and boundary; recompute hectares
+      parameters:
+      - name: fieldId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FieldRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldResponse'
+    delete:
+      tags:
+      - Fields
+      summary: Delete a field with its subfields, crop history and saved strategies; linked expenses keep no field
+      parameters:
+      - name: fieldId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '204':
+          description: No Content
+  /api/farms/{farmId}/operator-shifts:
+    get:
+      tags:
+      - Operator schedule
+      summary: 'List recurring working-time windows: the farm default week and each labour type''s own week'
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OperatorShiftResponse'
+    post:
+      tags:
+      - Operator schedule
+      summary: Add a same-day monthly weekday shift template
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperatorShiftRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorShiftResponse'
+  /api/farms/{farmId}/operator-shifts/schedule:
+    put:
+      tags:
+      - Operator schedule
+      summary: Replace the shifts of the chosen months with one week template, atomically
+      description: Used by the schedule matrix, one labour type (or the farm default) at a time. Months and other labour types
+        not listed are untouched. Shifts of one weekday must not overlap; adjacent shifts are allowed. Another request for
+        the same farm waits for this one to finish.
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperatorScheduleRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OperatorShiftResponse'
+  /api/farms/{farmId}/operator-shifts/{shiftId}:
+    put:
+      tags:
+      - Operator schedule
+      summary: Update one owned shift template
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: shiftId
+        in: path
+        required: true
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type: integer
+          format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OperatorShiftRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperatorShiftResponse'
+    delete:
+      tags:
+      - Operator schedule
+      summary: Remove one owned shift template
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: shiftId
+        in: path
+        required: true
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type: integer
+          format: int32
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '204':
+          description: No Content
+  /api/planning-years:
+    get:
+      tags:
+      - Planning years
+      summary: List the season years the current user added for planning, oldest first
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  pattern: ^-?(?:0|[1-9]\d*)$
+                  type:
+                  - integer
+                  - string
+                  format: int32
+    post:
+      tags:
+      - Planning years
+      summary: Add a future season year to plan; returns 409 when the year is already added
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlanningYearRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  pattern: ^-?(?:0|[1-9]\d*)$
+                  type:
+                  - integer
+                  - string
+                  format: int32
+  /api/planning-years/{year}:
+    delete:
+      tags:
+      - Planning years
+      summary: Remove an added season year; plantings in that year are not touched
+      parameters:
+      - name: year
+        in: path
+        required: true
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type: integer
+          format: int32
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '204':
+          description: No Content
+  /api/farms/{farmId}/plantings:
+    get:
+      tags:
+      - Plantings
+      summary: List planting history of every field in an owned farm, grouped by field, oldest planting date first
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlantingResponse'
+  /api/fields/{fieldId}/plantings:
+    get:
+      tags:
+      - Plantings
+      summary: List an owned field's planting history, oldest planting date first
+      description: status is planned, current or historical, derived from inclusive dates using today's UTC date. seasonYear
+        is a grouping label, not a uniqueness key. History can be inserted or edited at any non-overlapping date.
+      parameters:
+      - name: fieldId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PlantingResponse'
+    post:
+      tags:
+      - Plantings
+      summary: Add a non-overlapping growing period
+      description: plantingDate is required. Both dates are inclusive; null harvestingDate reserves the field indefinitely.
+        Overlapping periods return 409 (planting_period_overlap), including concurrent writes. Sequential periods in the same
+        year are allowed. cropProfileId must be a profile id from GET /api/crops.
+      parameters:
+      - name: fieldId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlantingRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlantingResponse'
+  /api/plantings/{plantingId}:
+    get:
+      tags:
+      - Plantings
+      summary: Get an owned planting record
+      parameters:
+      - name: plantingId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlantingResponse'
+    put:
+      tags:
+      - Plantings
+      summary: Replace an owned planting record; overlapping periods return 409
+      parameters:
+      - name: plantingId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlantingRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlantingResponse'
+    delete:
+      tags:
+      - Plantings
+      summary: Delete an owned planting record
+      parameters:
+      - name: plantingId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '204':
+          description: No Content
+  /api/equipment-categories:
+    get:
+      tags:
+      - Farm resources
+      summary: List machinery types (public.equipment_categories), sorted by id
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/EquipmentCategoryResponse'
+  /api/farms/{farmId}/budget:
+    put:
+      tags:
+      - Farm resources
+      summary: Set or clear the farm's total budget in USD
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FarmResponse'
+  /api/labor-categories:
+    get:
+      tags:
+      - Farm resources
+      summary: List labour types (public.labor_categories), sorted by id
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LaborCategoryResponse'
+  /api/fertilizers:
+    get:
+      tags:
+      - Farm resources
+      summary: List the fertilizer products a planting can use (public.fertilizers), by name
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FertilizerResponse'
+  /api/farms/{farmId}/budget-allocations:
+    get:
+      tags:
+      - Farm resources
+      summary: Planned spending per category within the farm budget
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetAllocationsResponse'
+  /api/farms/{farmId}/budget-allocations/{category}:
+    put:
+      tags:
+      - Farm resources
+      summary: Set or remove one category's planned amount; the farm's total budget is not changed
+      description: Allocations are planning data. The solver keeps using budgetUsd as the farm total, and allocations may
+        exceed it; the response reports the remainder.
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: category
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BudgetAllocationRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BudgetAllocationsResponse'
+  /api/resources/overview:
+    get:
+      tags:
+      - Farm resources
+      summary: Budgets, allocations, machinery and field area of every farm of the current user
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResourceOverviewResponse'
+  /api/farms/{farmId}/fleet:
+    get:
+      tags:
+      - Farm resources
+      summary: List an owned farm's machinery, oldest first
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FleetItemResponse'
+    post:
+      tags:
+      - Farm resources
+      summary: Add a machinery category/model; quantity and historical monthly limits are optional
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FleetItemRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetItemResponse'
+  /api/fleet/{itemId}:
+    put:
+      tags:
+      - Farm resources
+      summary: Replace an owned machinery line
+      parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type: integer
+          format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FleetItemRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetItemResponse'
+    delete:
+      tags:
+      - Farm resources
+      summary: Remove an owned machinery line
+      parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type: integer
+          format: int32
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '204':
+          description: No Content
+  /api/fleet/{itemId}/details:
+    put:
+      tags:
+      - Farm resources
+      summary: Update category/model without changing stored quantity or monthly limits
+      parameters:
+      - name: itemId
+        in: path
+        required: true
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type: integer
+          format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FleetDetailsRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FleetItemResponse'
+  /api/workers:
+    get:
+      tags:
+      - Workers
+      summary: List the current user's workers with their shifts, optionally for one farm
+      parameters:
+      - name: farmId
+        in: query
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkerResponse'
+  /api/farms/{farmId}/workers:
+    post:
+      tags:
+      - Workers
+      summary: Add a worker to an owned farm
+      parameters:
+      - name: farmId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerResponse'
+  /api/workers/{workerId}:
+    put:
+      tags:
+      - Workers
+      summary: Replace a worker's details and pay terms
+      parameters:
+      - name: workerId
+        in: path
+        required: true
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type: integer
+          format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerResponse'
+    delete:
+      tags:
+      - Workers
+      summary: Remove a worker and their shifts; expenses linked to them are kept without the link
+      parameters:
+      - name: workerId
+        in: path
+        required: true
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type: integer
+          format: int32
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '204':
+          description: No Content
+  /api/workers/{workerId}/schedule:
+    put:
+      tags:
+      - Workers
+      summary: Replace the worker's shifts in the chosen months with one week, atomically
+      description: Months not listed are untouched. Shifts of one weekday must not overlap; adjacent shifts are allowed.
+      parameters:
+      - name: workerId
+        in: path
+        required: true
+        schema:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type: integer
+          format: int32
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkerScheduleRequest'
+        required: true
+      responses:
+        '401':
+          description: Unauthorized
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '404':
+          description: Not Found
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '409':
+          description: Conflict
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: Service Unavailable
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '400':
+          description: Bad Request
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/HttpValidationProblemDetails'
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkerResponse'
+components:
+  schemas:
+    AssistantChatRequest:
+      required:
+      - message
+      - history
+      - pageContext
+      - conversationContext
+      type: object
+      properties:
+        message:
+          type:
+          - 'null'
+          - string
+        history:
+          type:
+          - 'null'
+          - array
+          items:
+            $ref: '#/components/schemas/AssistantHistoryItem'
+        pageContext:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/AssistantPageContext'
+        conversationContext:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/AssistantConversationContext'
+    AssistantChatResponse:
+      required:
+      - message
+      - conversationContext
+      - scenarioJson
+      type: object
+      properties:
+        message:
+          type: string
+        conversationContext:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/AssistantConversationContext'
+        scenarioJson:
+          type:
+          - 'null'
+          - string
+        strategyRunId:
+          type:
+          - 'null'
+          - string
+          format: uuid
+        fieldId:
+          type:
+          - 'null'
+          - string
+          format: uuid
+    AssistantConversationContext:
+      required:
+      - lastTool
+      - farmId
+      - startMonth
+      - planningHorizonYears
+      type: object
+      properties:
+        lastTool:
+          type: string
+        farmId:
+          type: string
+          format: uuid
+        startMonth:
+          type:
+          - 'null'
+          - string
+        planningHorizonYears:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          format: int32
+        fieldId:
+          type:
+          - 'null'
+          - string
+          format: uuid
+        runId:
+          type:
+          - 'null'
+          - string
+          format: uuid
+    AssistantHistoryItem:
+      required:
+      - role
+      - content
+      type: object
+      properties:
+        role:
+          type: string
+        content:
+          type: string
+    AssistantPageContext:
+      required:
+      - pageType
+      - farmId
+      - fieldId
+      type: object
+      properties:
+        pageType:
+          type:
+          - 'null'
+          - string
+        farmId:
+          type:
+          - 'null'
+          - string
+          format: uuid
+        fieldId:
+          type:
+          - 'null'
+          - string
+          format: uuid
+    BudgetAllocationItem:
+      required:
+      - category
+      - amountUsd
+      - updatedAtUtc
+      type: object
+      properties:
+        category:
+          type: string
+        amountUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        updatedAtUtc:
+          type: string
+          format: date-time
+    BudgetAllocationRequest:
+      required:
+      - amountUsd
+      type: object
+      properties:
+        amountUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          description: USD, 0 or more with at most 2 decimals; null or 0 removes the category.
+          format: double
+    BudgetAllocationsResponse:
+      required:
+      - farmId
+      - budgetUsd
+      - categories
+      - allocations
+      - allocatedUsd
+      - unallocatedUsd
+      type: object
+      properties:
+        farmId:
+          type: string
+          format: uuid
+        budgetUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        categories:
+          type: array
+          items:
+            type: string
+          description: 'Category keys in display order: seeds, fertilizers, crop_protection, fuel, machinery, labor, irrigation,
+            other.'
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetAllocationItem'
+        allocatedUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        unallocatedUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          description: BudgetUsd − AllocatedUsd; negative when over-allocated, null without a budget.
+          format: double
+    BudgetRequest:
+      required:
+      - budgetUsd
+      type: object
+      properties:
+        budgetUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          description: USD, 0 or more with at most 2 decimals; null clears the budget.
+          format: double
+    CatalogChangeResponse:
+      required:
+      - id
+      - table
+      - action
+      - key
+      - before
+      - after
+      - cascade
+      - editor
+      - byYou
+      - changedAtUtc
+      type: object
+      properties:
+        id:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int64
+        table:
+          type: string
+        action:
+          type: string
+        key:
+          $ref: '#/components/schemas/JsonElement'
+        before:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/JsonElement'
+        after:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/JsonElement'
+        cascade:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/JsonElement'
+        editor:
+          type:
+          - 'null'
+          - string
+        byYou:
+          type: boolean
+        changedAtUtc:
+          type: string
+          format: date-time
+    CatalogColumn:
+      required:
+      - name
+      - kind
+      - dbType
+      - nullable
+      - hasDefault
+      - generated
+      - maxLength
+      - options
+      - link
+      - key
+      type: object
+      properties:
+        name:
+          type: string
+        kind:
+          type: string
+        dbType:
+          type: string
+        nullable:
+          type: boolean
+        hasDefault:
+          type: boolean
+        generated:
+          type: boolean
+        maxLength:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          format: int32
+        options:
+          type:
+          - 'null'
+          - array
+          items:
+            type: string
+        link:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/CatalogLink'
+        key:
+          type: boolean
+    CatalogDeleteRequest:
+      required:
+      - key
+      type: object
+      properties:
+        key:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/JsonObject'
+        preview:
+          type: boolean
+          default: false
+    CatalogDeleteResponse:
+      required:
+      - deleted
+      - cascade
+      type: object
+      properties:
+        deleted:
+          type: boolean
+        cascade:
+          type: object
+          additionalProperties:
+            pattern: ^-?(?:0|[1-9]\d*)$
+            type:
+            - integer
+            - string
+            format: int64
+    CatalogLink:
+      required:
+      - table
+      - column
+      type: object
+      properties:
+        table:
+          type: string
+        column:
+          type: string
+    CatalogOption:
+      required:
+      - key
+      - label
+      type: object
+      properties:
+        key:
+          $ref: '#/components/schemas/JsonElement'
+        label:
+          type: string
+    CatalogReference:
+      required:
+      - table
+      - columns
+      - onDelete
+      type: object
+      properties:
+        table:
+          type: string
+        columns:
+          type: array
+          items:
+            type: string
+        onDelete:
+          type: string
+    CatalogRow:
+      required:
+      - values
+      - label
+      type: object
+      properties:
+        values:
+          $ref: '#/components/schemas/JsonElement'
+        label:
+          type: string
+    CatalogRowsResponse:
+      required:
+      - total
+      - rows
+      type: object
+      properties:
+        total:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int64
+        rows:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogRow'
+    CatalogTableResponse:
+      required:
+      - name
+      - title
+      - group
+      - description
+      - key
+      - columns
+      - uniques
+      - checks
+      - referencedBy
+      type: object
+      properties:
+        name:
+          type: string
+        title:
+          type: string
+        group:
+          type: string
+        description:
+          type: string
+        key:
+          type: array
+          items:
+            type: string
+        columns:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogColumn'
+        uniques:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogUnique'
+        checks:
+          type: array
+          items:
+            type: string
+        referencedBy:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatalogReference'
+    CatalogTableSummary:
+      required:
+      - name
+      - title
+      - group
+      - description
+      - rows
+      type: object
+      properties:
+        name:
+          type: string
+        title:
+          type: string
+        group:
+          type: string
+        description:
+          type: string
+        rows:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int64
+    CatalogUnique:
+      required:
+      - name
+      - columns
+      type: object
+      properties:
+        name:
+          type: string
+        columns:
+          type: array
+          items:
+            type: string
+    CatalogWriteRequest:
+      required:
+      - values
+      type: object
+      properties:
+        values:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/JsonObject'
+        key:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/JsonObject'
+    ClimateScenarioMonth:
+      required:
+      - month
+      - avgTempC
+      - minTempC
+      - maxTempC
+      - precipitationMm
+      - referenceYearCount
+      type: object
+      properties:
+        month:
+          type: string
+        avgTempC:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        minTempC:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        maxTempC:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        precipitationMm:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        referenceYearCount:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+    ClimateScenarioPoint:
+      required:
+      - latitude
+      - longitude
+      type: object
+      properties:
+        latitude:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        longitude:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+    ClimateScenarioProvenance:
+      required:
+      - source
+      - dataset
+      - parameters
+      - point
+      - retrievedAtUtc
+      - apiVersion
+      - cacheHit
+      - aggregation
+      - interpretation
+      - spatialLimitation
+      - revisionLimitation
+      type: object
+      properties:
+        source:
+          type: string
+        dataset:
+          type: string
+        parameters:
+          type: array
+          items:
+            type: string
+        point:
+          $ref: '#/components/schemas/ClimateScenarioPoint'
+        retrievedAtUtc:
+          type: string
+          format: date-time
+        apiVersion:
+          type:
+          - 'null'
+          - string
+        cacheHit:
+          type: boolean
+        aggregation:
+          type: string
+        interpretation:
+          type: string
+        spatialLimitation:
+          type: string
+        revisionLimitation:
+          type: string
+    ClimateScenarioSourceMonth:
+      required:
+      - month
+      - avgTempC
+      - minTempC
+      - maxTempC
+      - precipitationMm
+      type: object
+      properties:
+        month:
+          type: string
+        avgTempC:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        minTempC:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        maxTempC:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        precipitationMm:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+    CostBreakdown:
+      required:
+      - operatingUsd
+      - plantingUsd
+      - waterUsd
+      - fertilizerUsd
+      type: object
+      properties:
+        operatingUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        plantingUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        waterUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        fertilizerUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - number
+          - string
+          format: double
+    CropProfileResponse:
+      required:
+      - id
+      - systemName
+      - isPerennial
+      type: object
+      properties:
+        id:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int64
+        systemName:
+          type: string
+        isPerennial:
+          type: boolean
+    CropResponse:
+      required:
+      - id
+      - name
+      - nameUk
+      - scientificName
+      - profiles
+      type: object
+      properties:
+        id:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int64
+        name:
+          type: string
+        nameUk:
+          type:
+          - 'null'
+          - string
+        scientificName:
+          type:
+          - 'null'
+          - string
+        profiles:
+          type: array
+          items:
+            $ref: '#/components/schemas/CropProfileResponse'
+          description: Ways to grow this crop, ordered by id. A planting names one of them.
+    CycleFertilizer:
+      required:
+      - materialId
+      - name
+      - applications
+      type: object
+      properties:
+        materialId:
+          type:
+          - 'null'
+          - string
+        name:
+          type:
+          - 'null'
+          - string
+        applications:
+          type: array
+          items:
+            $ref: '#/components/schemas/FertilizerApplication'
+        rateKgHa:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+    CycleNote:
+      required:
+      - message
+      - importance
+      - category
+      type: object
+      properties:
+        message:
+          type: string
+        importance:
+          type: string
+        category:
+          type: string
+    CycleNutrients:
+      required:
+      - nitrogenAppliedKgHa
+      - nitrogenFixedKgHa
+      - nitrogenRemovedKgHa
+      - phosphorusAppliedKgHa
+      - phosphorusRemovedKgHa
+      - potassiumAppliedKgHa
+      - potassiumRemovedKgHa
+      type: object
+      properties:
+        nitrogenAppliedKgHa:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        nitrogenFixedKgHa:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        nitrogenRemovedKgHa:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        phosphorusAppliedKgHa:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        phosphorusRemovedKgHa:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        potassiumAppliedKgHa:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        potassiumRemovedKgHa:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+    DroughtClass:
+      required:
+      - code
+      - label
+      - percentile_max
+      - color
+      type: object
+      properties:
+        code:
+          type: string
+        label:
+          type: string
+        percentile_max:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        color:
+          type: string
+    DroughtIndexInfo:
+      required:
+      - name
+      - window_days
+      - base_period
+      type: object
+      properties:
+        name:
+          type: string
+        window_days:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        base_period:
+          type: string
+    DroughtLevel:
+      required:
+      - label
+      - color
+      type: object
+      properties:
+        label:
+          type: string
+        color:
+          type: string
+    DroughtMonthResponse:
+      required:
+      - month
+      - kind
+      type: object
+      properties:
+        month:
+          type: string
+        kind:
+          type: string
+    DroughtOverviewResponse:
+      required:
+      - generatedAtUtc
+      - fitYears
+      - projectedFrom
+      - imageBounds
+      - layers
+      - index
+      - method
+      - classes
+      - noDrought
+      - kinds
+      - sources
+      - months
+      type: object
+      properties:
+        generatedAtUtc:
+          type: string
+          format: date-time
+        fitYears:
+          type: array
+          items:
+            pattern: ^-?(?:0|[1-9]\d*)$
+            type:
+            - integer
+            - string
+            format: int32
+        projectedFrom:
+          type: string
+        imageBounds:
+          type: array
+          items:
+            type: array
+            items:
+              pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+              type:
+              - number
+              - string
+              format: double
+        layers:
+          $ref: '#/components/schemas/JsonElement'
+        index:
+          $ref: '#/components/schemas/DroughtIndexInfo'
+        method:
+          type: string
+        classes:
+          type: array
+          items:
+            $ref: '#/components/schemas/DroughtClass'
+        noDrought:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/DroughtLevel'
+        kinds:
+          type: object
+          additionalProperties:
+            type: string
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/DroughtSource'
+        months:
+          type: array
+          items:
+            $ref: '#/components/schemas/DroughtMonthResponse'
+    DroughtPointResponse:
+      required:
+      - status
+      - latitude
+      - longitude
+      - cellLatitude
+      - cellLongitude
+      - months
+      - reason
+      type: object
+      properties:
+        status:
+          type: string
+        latitude:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        longitude:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        cellLatitude:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        cellLongitude:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        months:
+          type: array
+          items:
+            $ref: '#/components/schemas/TrendCell'
+        reason:
+          type:
+          - 'null'
+          - string
+    DroughtSource:
+      required:
+      - name
+      - url
+      type: object
+      properties:
+        name:
+          type: string
+        url:
+          type: string
+    EquipmentCategoryResponse:
+      required:
+      - id
+      - slug
+      - name
+      - description
+      type: object
+      properties:
+        id:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        slug:
+          type: string
+        name:
+          type: string
+        description:
+          type:
+          - 'null'
+          - string
+    ExpenseRequest:
+      required:
+      - spentOn
+      - category
+      - description
+      type: object
+      properties:
+        spentOn:
+          type: string
+          description: Day the money was spent or billed, YYYY-MM-DD; with allYear, any day of that year.
+          format: date
+        category:
+          type: string
+          description: 'Budget category key: seeds, fertilizers, crop_protection, fuel, machinery, labor, irrigation, other.'
+        description:
+          maxLength: 200
+          type: string
+          description: What was bought or paid, e.g. Diesel for spring sowing.
+        amountUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          description: 'Total in USD with cents. Optional when quantity and unit price are both given: the API then stores
+            quantity × unit price rounded to cents.'
+          format: double
+        quantity:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          description: Amount bought, above 0, up to 3 decimals.
+          format: double
+        unit:
+          maxLength: 20
+          type:
+          - 'null'
+          - string
+          description: Unit of the quantity, e.g. l, kg, t, h.
+        unitPriceUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          description: USD per unit, up to 4 decimals.
+          format: double
+        supplier:
+          maxLength: 150
+          type:
+          - 'null'
+          - string
+        documentNumber:
+          maxLength: 60
+          type:
+          - 'null'
+          - string
+          description: Invoice, receipt or payslip number.
+        isPaid:
+          type:
+          - 'null'
+          - boolean
+          description: False for a bill not paid yet. Defaults to true.
+        fieldId:
+          type:
+          - 'null'
+          - string
+          description: Field of the same farm the cost belongs to.
+          format: uuid
+        workerId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          description: Worker of the same farm the payment went to.
+          format: int32
+        equipmentId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          description: Machinery line of the same farm the cost belongs to.
+          format: int32
+        notes:
+          maxLength: 2000
+          type:
+          - 'null'
+          - string
+        allYear:
+          type: boolean
+          description: True for a cost of the whole year of spentOn (a lease, insurance); it is stored on January 1.
+          default: false
+    ExpenseResponse:
+      required:
+      - id
+      - farmId
+      - spentOn
+      - category
+      - description
+      - quantity
+      - unit
+      - unitPriceUsd
+      - amountUsd
+      - supplier
+      - documentNumber
+      - isPaid
+      - fieldId
+      - workerId
+      - equipmentId
+      - notes
+      - createdAtUtc
+      - updatedAtUtc
+      type: object
+      properties:
+        id:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        farmId:
+          type: string
+          format: uuid
+        spentOn:
+          type: string
+          format: date
+        category:
+          type: string
+        description:
+          type: string
+        quantity:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        unit:
+          type:
+          - 'null'
+          - string
+        unitPriceUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        amountUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        supplier:
+          type:
+          - 'null'
+          - string
+        documentNumber:
+          type:
+          - 'null'
+          - string
+        isPaid:
+          type: boolean
+        fieldId:
+          type:
+          - 'null'
+          - string
+          format: uuid
+        workerId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          format: int32
+        equipmentId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          format: int32
+        notes:
+          type:
+          - 'null'
+          - string
+        createdAtUtc:
+          type: string
+          format: date-time
+        updatedAtUtc:
+          type: string
+          format: date-time
+        allYear:
+          type: boolean
+          default: false
+    FarmNameRequest:
+      required:
+      - name
+      type: object
+      properties:
+        name:
+          maxLength: 150
+          type: string
+    FarmRequest:
+      required:
+      - name
+      type: object
+      properties:
+        name:
+          type:
+          - 'null'
+          - string
+        description:
+          type:
+          - 'null'
+          - string
+        location:
+          type:
+          - 'null'
+          - string
+        homePoint:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/PointGeometry'
+    FarmResourceSummary:
+      required:
+      - id
+      - name
+      - location
+      - budgetUsd
+      - allocations
+      - allocatedUsd
+      - unallocatedUsd
+      - fieldCount
+      - areaHectares
+      - fleet
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        location:
+          type:
+          - 'null'
+          - string
+        budgetUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        allocations:
+          type: array
+          items:
+            $ref: '#/components/schemas/BudgetAllocationItem'
+        allocatedUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        unallocatedUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        fieldCount:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        areaHectares:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        fleet:
+          type: array
+          items:
+            $ref: '#/components/schemas/FleetItemResponse'
+    FarmResponse:
+      required:
+      - id
+      - name
+      - description
+      - location
+      - homePoint
+      - budgetUsd
+      - createdAtUtc
+      - updatedAtUtc
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type:
+          - 'null'
+          - string
+        location:
+          type:
+          - 'null'
+          - string
+        homePoint:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/PointGeometry'
+        budgetUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          description: Total farm budget in USD; null until set. Changed only through PUT /api/farms/{farmId}/budget.
+          format: double
+        createdAtUtc:
+          type: string
+          format: date-time
+        updatedAtUtc:
+          type: string
+          format: date-time
+    FertilizerApplication:
+      required:
+      - month
+      - nitrogenKgHa
+      - phosphorusKgHa
+      - potassiumKgHa
+      type: object
+      properties:
+        month:
+          type: string
+        nitrogenKgHa:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        phosphorusKgHa:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        potassiumKgHa:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+    FertilizerResponse:
+      required:
+      - id
+      - name
+      - nitrogenPercent
+      - phosphatePercent
+      - potashPercent
+      type: object
+      properties:
+        id:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int64
+        name:
+          type: string
+        nitrogenPercent:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        phosphatePercent:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        potashPercent:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+    FieldClimateScenarioResponse:
+      required:
+      - status
+      - fieldId
+      - scenarioType
+      - targetStartMonth
+      - targetEndMonth
+      - referenceStartYear
+      - referenceEndYear
+      - temperatureUnit
+      - precipitationUnit
+      - months
+      - historicalSourceMonths
+      - provenance
+      - reason
+      type: object
+      properties:
+        status:
+          type: string
+        fieldId:
+          type: string
+          format: uuid
+        scenarioType:
+          type: string
+        targetStartMonth:
+          type: string
+        targetEndMonth:
+          type: string
+        referenceStartYear:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        referenceEndYear:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        temperatureUnit:
+          type: string
+        precipitationUnit:
+          type: string
+        months:
+          type:
+          - 'null'
+          - array
+          items:
+            $ref: '#/components/schemas/ClimateScenarioMonth'
+        historicalSourceMonths:
+          type:
+          - 'null'
+          - array
+          items:
+            $ref: '#/components/schemas/ClimateScenarioSourceMonth'
+        provenance:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/ClimateScenarioProvenance'
+        reason:
+          type:
+          - 'null'
+          - string
+    FieldHistoricalWeatherResponse:
+      required:
+      - status
+      - fieldId
+      - source
+      - startMonth
+      - endMonth
+      - temperatureUnit
+      - precipitationUnit
+      - months
+      - retrievedAtUtc
+      - cacheHit
+      - apiVersion
+      - reason
+      type: object
+      properties:
+        status:
+          type: string
+        fieldId:
+          type: string
+          format: uuid
+        source:
+          type: string
+        startMonth:
+          type: string
+        endMonth:
+          type: string
+        temperatureUnit:
+          type: string
+        precipitationUnit:
+          type: string
+        months:
+          type:
+          - 'null'
+          - array
+          items:
+            $ref: '#/components/schemas/SolverMonthlyWeather'
+        retrievedAtUtc:
+          type:
+          - 'null'
+          - string
+          format: date-time
+        cacheHit:
+          type: boolean
+        apiVersion:
+          type:
+          - 'null'
+          - string
+        reason:
+          type:
+          - 'null'
+          - string
+    FieldRainfallResponse:
+      required:
+      - referenceStartYear
+      - referenceEndYear
+      - monthlyRainMm
+      type: object
+      properties:
+        referenceStartYear:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        referenceEndYear:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        monthlyRainMm:
+          type: array
+          items:
+            pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+            type:
+            - number
+            - string
+            format: double
+    FieldRequest:
+      required:
+      - name
+      - boundary
+      type: object
+      properties:
+        name:
+          type:
+          - 'null'
+          - string
+        boundary:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/PolygonGeometry'
+        description:
+          type:
+          - 'null'
+          - string
+        parentFieldId:
+          type:
+          - 'null'
+          - string
+          description: 'Create only: a top-level field of the same farm that this subfield divides. Its boundary must lie
+            inside the parent. Ignored on update.'
+          format: uuid
+        droughtLevel:
+          type:
+          - 'null'
+          - string
+          description: 'How dry the field runs: drought_prone, moderate or low; null when unknown. Replaced on update like
+            the other details.'
+        soilDrainage:
+          type:
+          - 'null'
+          - string
+          description: 'Soil drainage: well_drained, moderate or poor; null keeps the estimated soil''s.'
+        soilTexture:
+          type:
+          - 'null'
+          - string
+          description: 'Soil texture: sand, loamy_sand, sandy_loam, loam, silt_loam, clay_loam, clay or peat; null keeps the
+            estimated soil''s.'
+        initialNKg:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          description: Plant-available nitrogen when the plan starts, kg/ha, 0-2000 (a soil test); null keeps the estimate.
+            The solver gets it as soil.nutrients.nitrogen.initial_kg_ha.
+          format: double
+        initialPKg:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          description: Plant-available phosphorus when the plan starts, kg/ha, 0-2000; null keeps the estimate.
+          format: double
+        initialKKg:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          description: Plant-available potassium when the plan starts, kg/ha, 0-2000; null keeps the estimate.
+          format: double
+        initialDepletionMm:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          description: Water missing from the root zone when the plan starts, mm below field capacity (0 = fully wet), 0-1000;
+            null derives it from the drought level.
+          format: double
+    FieldResponse:
+      required:
+      - id
+      - farmId
+      - parentFieldId
+      - name
+      - description
+      - areaHectares
+      - boundary
+      - createdAtUtc
+      - updatedAtUtc
+      - soilAvailable
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        farmId:
+          type: string
+          format: uuid
+        parentFieldId:
+          type:
+          - 'null'
+          - string
+          description: Set for a subfield. Its area is part of the parent's, so totals and the solver count top-level fields
+            only.
+          format: uuid
+        name:
+          type: string
+        description:
+          type:
+          - 'null'
+          - string
+        areaHectares:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        boundary:
+          $ref: '#/components/schemas/PolygonGeometry'
+        createdAtUtc:
+          type: string
+          format: date-time
+        updatedAtUtc:
+          type: string
+          format: date-time
+        soilAvailable:
+          type: boolean
+          description: False when the field has no soil data (it lies in the sea), so the solver cannot model it and strategy
+            runs are refused with 422.
+        droughtLevel:
+          type:
+          - 'null'
+          - string
+        soilDrainage:
+          type:
+          - 'null'
+          - string
+        soilTexture:
+          type:
+          - 'null'
+          - string
+        initialNKg:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        initialPKg:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        initialKKg:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        initialDepletionMm:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+    FleetDetailsRequest:
+      required:
+      - equipmentCategoryId
+      type: object
+      properties:
+        equipmentCategoryId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          description: Id from GET /api/equipment-categories.
+          format: int32
+        customName:
+          maxLength: 100
+          type:
+          - 'null'
+          - string
+    FleetItemRequest:
+      required:
+      - equipmentCategoryId
+      type: object
+      properties:
+        equipmentCategoryId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          description: Id from GET /api/equipment-categories.
+          format: int32
+        unitsCount:
+          maximum: 1000
+          minimum: 1
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          description: Optional known number of units; null means unknown, not one.
+          format: int32
+        monthlyHoursPerUnit:
+          type:
+          - 'null'
+          - array
+          items:
+            pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+            type:
+            - number
+            - string
+            format: double
+          description: 'Hour limit for one unit in each month, January first: exactly 12 values from 0 to 744 with one decimal.
+            Null = availability unspecified; no solver fallback is implied.'
+        customName:
+          maxLength: 100
+          type:
+          - 'null'
+          - string
+          description: Optional make/model, e.g. John Deere 8R 410.
+    FleetItemResponse:
+      required:
+      - id
+      - farmId
+      - equipmentCategoryId
+      - customName
+      - unitsCount
+      - monthlyHoursPerUnit
+      - annualHoursPerUnit
+      - annualHoursTotal
+      - createdAtUtc
+      - updatedAtUtc
+      type: object
+      properties:
+        id:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        farmId:
+          type: string
+          format: uuid
+        equipmentCategoryId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        customName:
+          type:
+          - 'null'
+          - string
+        unitsCount:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          format: int32
+        monthlyHoursPerUnit:
+          type:
+          - 'null'
+          - array
+          items:
+            pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+            type:
+            - number
+            - string
+            format: double
+        annualHoursPerUnit:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          description: Sum of MonthlyHoursPerUnit; null without limits.
+          format: double
+        annualHoursTotal:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          description: UnitsCount × AnnualHoursPerUnit; null when quantity or limits are unknown.
+          format: double
+        createdAtUtc:
+          type: string
+          format: date-time
+        updatedAtUtc:
+          type: string
+          format: date-time
+    HttpValidationProblemDetails:
+      type: object
+      properties:
+        type:
+          type:
+          - 'null'
+          - string
+        title:
+          type:
+          - 'null'
+          - string
+        status:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          format: int32
+        detail:
+          type:
+          - 'null'
+          - string
+        instance:
+          type:
+          - 'null'
+          - string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+    JsonElement: {}
+    JsonObject:
+      type: object
+    LaborCategoryResponse:
+      required:
+      - id
+      - name
+      type: object
+      properties:
+        id:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        name:
+          type: string
+    LoginRequest:
+      required:
+      - email
+      - password
+      type: object
+      properties:
+        email:
+          type:
+          - 'null'
+          - string
+        password:
+          type:
+          - 'null'
+          - string
+    MonthlyWater:
+      required:
+      - month
+      - irrigationMm
+      - waterUseMm
+      type: object
+      properties:
+        month:
+          type: string
+        irrigationMm:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        waterUseMm:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+    OperatorScheduleRequest:
+      required:
+      - months
+      - shifts
+      type: object
+      properties:
+        months:
+          type: array
+          items:
+            pattern: ^-?(?:0|[1-9]\d*)$
+            type:
+            - integer
+            - string
+            format: int32
+          description: 'Months to replace, January = 1: one to twelve distinct values.'
+        shifts:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperatorShiftTemplate'
+          description: Every shift of the week template, up to 168. An empty list clears the chosen months.
+        laborCategoryId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          description: Labour type id from GET /api/labor-categories whose week is replaced; null replaces the farm default
+            week. A type with no shifts of its own follows the default.
+          format: int32
+    OperatorShiftRequest:
+      required:
+      - month
+      - dayOfWeek
+      - startTime
+      - endTime
+      type: object
+      properties:
+        month:
+          maximum: 12
+          minimum: 1
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          description: Month number, January = 1.
+          format: int32
+        dayOfWeek:
+          maximum: 7
+          minimum: 1
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          description: ISO weekday, Monday = 1 and Sunday = 7.
+          format: int32
+        startTime:
+          type: string
+          description: Local same-day start, HH:mm; no timezone or year is assigned.
+          format: time
+        endTime:
+          type: string
+          description: Local same-day end, HH:mm; must be later than start.
+          format: time
+        laborCategoryId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          description: Labour type id from GET /api/labor-categories; null is the farm default week.
+          format: int32
+    OperatorShiftResponse:
+      required:
+      - id
+      - farmId
+      - laborCategoryId
+      - month
+      - dayOfWeek
+      - startTime
+      - endTime
+      - createdAtUtc
+      - updatedAtUtc
+      type: object
+      properties:
+        id:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        farmId:
+          type: string
+          format: uuid
+        laborCategoryId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          description: Labour type id; null for the farm default week.
+          format: int32
+        month:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        dayOfWeek:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        startTime:
+          type: string
+          format: time
+        endTime:
+          type: string
+          format: time
+        createdAtUtc:
+          type: string
+          format: date-time
+        updatedAtUtc:
+          type: string
+          format: date-time
+    OperatorShiftTemplate:
+      required:
+      - dayOfWeek
+      - startTime
+      - endTime
+      type: object
+      properties:
+        dayOfWeek:
+          maximum: 7
+          minimum: 1
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          description: ISO weekday, Monday = 1 and Sunday = 7.
+          format: int32
+        startTime:
+          type: string
+          description: Local same-day start, HH:mm.
+          format: time
+        endTime:
+          type: string
+          description: Local same-day end, HH:mm; later than start. Use 23:59 for the end of the day.
+          format: time
+    PlanningYearRequest:
+      required:
+      - year
+      type: object
+      properties:
+        year:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          description: Season year to plan ahead, from this year up to 20 years ahead.
+          format: int32
+    PlantingRequest:
+      required:
+      - cropProfileId
+      - seasonYear
+      - plantingDate
+      type: object
+      properties:
+        cropProfileId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          description: Crop profile id from GET /api/crops (crops[].profiles[].id).
+          format: int64
+        seasonYear:
+          maximum: 9999
+          minimum: 1
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          description: Grouping label; multiple sequential plantings in the same year are allowed.
+          format: int32
+        plantingDate:
+          type: string
+          description: Inclusive start, YYYY-MM-DD. Required to establish a non-overlapping growing period.
+          format: date
+        harvestingDate:
+          type:
+          - 'null'
+          - string
+          description: Inclusive final growing day; null reserves the field indefinitely.
+          format: date
+        notes:
+          maxLength: 4000
+          type:
+          - 'null'
+          - string
+        irrigationMm:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          description: Irrigation planned over the whole season, mm (0–5000); null or 0 is rain-fed.
+          format: double
+        fertilizerMaterialId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          description: Fertilizer product from GET /api/fertilizers; null for none. Needs fertilizerRateKgHa.
+          format: int64
+        fertilizerRateKgHa:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          description: Kilograms of the fertilizer product per hectare over the season (above 0, up to 10000).
+          format: double
+    PlantingResponse:
+      required:
+      - id
+      - fieldId
+      - cropProfileId
+      - cropId
+      - seasonYear
+      - plantingDate
+      - harvestingDate
+      - notes
+      - createdAtUtc
+      - updatedAtUtc
+      - status
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fieldId:
+          type: string
+          format: uuid
+        cropProfileId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int64
+        cropId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int64
+        seasonYear:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        plantingDate:
+          type: string
+          format: date
+        harvestingDate:
+          type:
+          - 'null'
+          - string
+          format: date
+        notes:
+          type:
+          - 'null'
+          - string
+        createdAtUtc:
+          type: string
+          format: date-time
+        updatedAtUtc:
+          type: string
+          format: date-time
+        status:
+          type: string
+          description: 'Derived from today''s UTC date: planned, current or historical. Not a stored flag.'
+        irrigationMm:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        fertilizerMaterialId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          format: int64
+        fertilizerRateKgHa:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+    PointGeometry:
+      required:
+      - type
+      - coordinates
+      type: object
+      properties:
+        type:
+          type:
+          - 'null'
+          - string
+        coordinates:
+          type:
+          - 'null'
+          - array
+          items:
+            pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+            type:
+            - number
+            - string
+            format: double
+    PolygonGeometry:
+      required:
+      - type
+      - coordinates
+      type: object
+      properties:
+        type:
+          type:
+          - 'null'
+          - string
+        coordinates:
+          type:
+          - 'null'
+          - array
+          items:
+            type: array
+            items:
+              type: array
+              items:
+                pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+                type:
+                - number
+                - string
+                format: double
+    ProblemDetails:
+      type: object
+      properties:
+        type:
+          type:
+          - 'null'
+          - string
+        title:
+          type:
+          - 'null'
+          - string
+        status:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          format: int32
+        detail:
+          type:
+          - 'null'
+          - string
+        instance:
+          type:
+          - 'null'
+          - string
+    RegisterRequest:
+      required:
+      - email
+      - password
+      - confirmPassword
+      type: object
+      properties:
+        email:
+          type:
+          - 'null'
+          - string
+        password:
+          type:
+          - 'null'
+          - string
+        confirmPassword:
+          type:
+          - 'null'
+          - string
+    ResourceOverviewResponse:
+      required:
+      - farms
+      - budgetCategories
+      type: object
+      properties:
+        farms:
+          type: array
+          items:
+            $ref: '#/components/schemas/FarmResourceSummary'
+        budgetCategories:
+          type: array
+          items:
+            type: string
+    SavedStrategyResponse:
+      required:
+      - id
+      - key
+      - name
+      - summary
+      - startMonth
+      - endMonth
+      - savedAtUtc
+      - result
+      - baseline
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        key:
+          type: string
+        name:
+          type: string
+        summary:
+          type: string
+        startMonth:
+          type: string
+        endMonth:
+          type: string
+        savedAtUtc:
+          type: string
+          format: date-time
+        result:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/StrategyResult'
+        baseline:
+          oneOf:
+          - type: 'null'
+          - description: The farmer's own plan scored in the same run; null when it had no crops in the horizon.
+            $ref: '#/components/schemas/StrategyResult'
+    SaveStrategyRequest:
+      required:
+      - runId
+      - jobKey
+      type: object
+      properties:
+        runId:
+          type: string
+          format: uuid
+        jobKey:
+          type:
+          - 'null'
+          - string
+          description: Key of a ready strategy job, e.g. medium or custom-010-ter-qua.
+        planRunId:
+          type:
+          - 'null'
+          - string
+          description: 'Optional "Evaluate my plan" run of the same field and months: its score of the current plan is kept
+            as the baseline when the strategy''s run has none.'
+          format: uuid
+    SolverClimateFieldProvenance:
+      required:
+      - field_id
+      - status
+      - point
+      - retrieved_at_utc
+      - api_version
+      - cache_hit
+      - reason
+      type: object
+      properties:
+        field_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        point:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/ClimateScenarioPoint'
+        retrieved_at_utc:
+          type:
+          - 'null'
+          - string
+          format: date-time
+        api_version:
+          type:
+          - 'null'
+          - string
+        cache_hit:
+          type:
+          - 'null'
+          - boolean
+        reason:
+          type:
+          - 'null'
+          - string
+    SolverClimateProvenance:
+      required:
+      - scenario_type
+      - reference_start_year
+      - reference_end_year
+      - target_start_month
+      - target_end_month
+      - source
+      - aggregation
+      - interpretation
+      - fields
+      type: object
+      properties:
+        scenario_type:
+          type: string
+        reference_start_year:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        reference_end_year:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        target_start_month:
+          type: string
+        target_end_month:
+          type: string
+        source:
+          type: string
+        aggregation:
+          type: string
+        interpretation:
+          type: string
+        fields:
+          type: array
+          items:
+            $ref: '#/components/schemas/SolverClimateFieldProvenance'
+    SolverFarmContext:
+      required:
+      - budget_usd
+      - planning_horizon_years
+      - start_month
+      - fields
+      type: object
+      properties:
+        budget_usd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        planning_horizon_years:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        start_month:
+          type: string
+        fields:
+          type:
+          - 'null'
+          - array
+          items:
+            $ref: '#/components/schemas/SolverField'
+    SolverField:
+      required:
+      - field_id
+      - area_ha
+      - weather
+      type: object
+      properties:
+        field_id:
+          type: string
+          format: uuid
+        area_ha:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        weather:
+          type:
+          - 'null'
+          - array
+          items:
+            $ref: '#/components/schemas/SolverMonthlyWeather'
+    SolverMissingInput:
+      required:
+      - path
+      - reason
+      type: object
+      properties:
+        path:
+          type: string
+        reason:
+          type: string
+    SolverMonthlyLimits:
+      required:
+      - effective_machine_hours
+      - manual_labor_hours
+      type: object
+      properties:
+        effective_machine_hours:
+          type:
+          - 'null'
+          - object
+          additionalProperties:
+            pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+            type:
+            - number
+            - string
+            format: double
+        manual_labor_hours:
+          type:
+          - 'null'
+          - object
+          additionalProperties:
+            pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+            type:
+            - number
+            - string
+            format: double
+    SolverMonthlyWeather:
+      required:
+      - month
+      - avg_temp_c
+      - min_temp_c
+      - max_temp_c
+      - precipitation_mm
+      type: object
+      properties:
+        month:
+          type: string
+        avg_temp_c:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        min_temp_c:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        max_temp_c:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        precipitation_mm:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+    SolverPreparationResult:
+      required:
+      - status
+      - draft_request
+      - missing_inputs
+      type: object
+      properties:
+        status:
+          type: string
+        draft_request:
+          $ref: '#/components/schemas/SolverRequest'
+        missing_inputs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SolverMissingInput'
+        climate_provenance:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/SolverClimateProvenance'
+    SolverRequest:
+      required:
+      - farm_context
+      - resource_capacities
+      type: object
+      properties:
+        farm_context:
+          $ref: '#/components/schemas/SolverFarmContext'
+        resource_capacities:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/SolverResourceCapacities'
+    SolverResourceCapacities:
+      required:
+      - monthly_limits
+      type: object
+      properties:
+        monthly_limits:
+          $ref: '#/components/schemas/SolverMonthlyLimits'
+    StrategyChoice:
+      type: object
+      properties:
+        preset:
+          type:
+          - 'null'
+          - string
+          description: Key of a preset from GET /api/strategy-presets; leave the other fields out.
+        allowMissingData:
+          type:
+          - 'null'
+          - boolean
+        allowAgronomicRisks:
+          type:
+          - 'null'
+          - boolean
+        allowSoilDepletion:
+          type:
+          - 'null'
+          - boolean
+        irrigation:
+          type:
+          - 'null'
+          - string
+        fertilizer:
+          type:
+          - 'null'
+          - string
+        name:
+          type:
+          - 'null'
+          - string
+          description: 'Custom strategies only: the farmer''s name for it, up to 80 characters; blank uses one made from the
+            settings.'
+        description:
+          type:
+          - 'null'
+          - string
+          description: 'Custom strategies only: a description, up to 400 characters; blank uses one made from the settings.'
+    StrategyCycle:
+      required:
+      - cropProfileId
+      - cropId
+      - cropName
+      - systemName
+      - plantingMonth
+      - clearanceMonth
+      - harvestMonths
+      - revenueUsd
+      - costsUsd
+      - yieldPercent
+      - irrigationMm
+      - notes
+      - nutrients
+      - risks
+      - warnings
+      - monthlyWater
+      - noteDetails
+      type: object
+      properties:
+        cropProfileId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int64
+        cropId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int64
+        cropName:
+          type: string
+        systemName:
+          type: string
+        plantingMonth:
+          type: string
+        clearanceMonth:
+          type: string
+        harvestMonths:
+          type: array
+          items:
+            type: string
+        revenueUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        costsUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        yieldPercent:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        irrigationMm:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        notes:
+          type: array
+          items:
+            type: string
+        nutrients:
+          $ref: '#/components/schemas/CycleNutrients'
+        risks:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        monthlyWater:
+          type: array
+          items:
+            $ref: '#/components/schemas/MonthlyWater'
+        noteDetails:
+          type: array
+          items:
+            $ref: '#/components/schemas/CycleNote'
+        fertilizer:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/CycleFertilizer'
+        operatingCostsUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        costBreakdown:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/CostBreakdown'
+        estimated:
+          type: boolean
+          default: false
+        plantingDate:
+          type:
+          - 'null'
+          - string
+        clearanceDate:
+          type:
+          - 'null'
+          - string
+        harvestDates:
+          type:
+          - 'null'
+          - array
+          items:
+            type: string
+    StrategyJobResponse:
+      required:
+      - key
+      - name
+      - summary
+      - state
+      - result
+      - error
+      type: object
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        summary:
+          type: string
+        state:
+          type: string
+          description: processing, ready or failed
+        result:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/StrategyResult'
+        error:
+          type:
+          - 'null'
+          - string
+        settings:
+          oneOf:
+          - type: 'null'
+          - description: What the solver was allowed to do for this strategy; null for the current plan, which is scored with
+              each crop's own water and fertilizer.
+            $ref: '#/components/schemas/StrategySettings'
+        estimated:
+          type: boolean
+          description: 'The current plan only: true when the solver left it unscored and the result is this API''s audit from
+            the crop catalog, the field''s climate and its soil settings.'
+          default: false
+    StrategyPresetResponse:
+      required:
+      - key
+      - name
+      - summary
+      - settings
+      type: object
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        summary:
+          type: string
+        settings:
+          $ref: '#/components/schemas/StrategySettings'
+    StrategyResult:
+      required:
+      - status
+      - profitUsd
+      - revenueUsd
+      - costsUsd
+      - irrigationMm
+      - nitrogenBalanceKgHa
+      - cycles
+      - risks
+      - dataGaps
+      - warnings
+      - waterUseMm
+      type: object
+      properties:
+        status:
+          type: string
+        profitUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        revenueUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        costsUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        irrigationMm:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        nitrogenBalanceKgHa:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        cycles:
+          type: array
+          items:
+            $ref: '#/components/schemas/StrategyCycle'
+        risks:
+          type: array
+          items:
+            type: string
+        dataGaps:
+          type: array
+          items:
+            type: string
+        warnings:
+          type: array
+          items:
+            type: string
+        waterUseMm:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        operatingCostsUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        costBreakdown:
+          oneOf:
+          - type: 'null'
+          - $ref: '#/components/schemas/CostBreakdown'
+    StrategyRunRequest:
+      required:
+      - startMonth
+      - endMonth
+      type: object
+      properties:
+        startMonth:
+          type:
+          - 'null'
+          - string
+          description: First month of the horizon, YYYY-MM; at most five years before this month, so past seasons can be evaluated
+            too.
+        endMonth:
+          type:
+          - 'null'
+          - string
+          description: Last month of the horizon, YYYY-MM; less than thirty years after the start.
+        strategies:
+          type:
+          - 'null'
+          - array
+          items:
+            $ref: '#/components/schemas/StrategyChoice'
+          description: 'The strategies to run: presets by key and custom settings. Omitted or empty runs the six presets.'
+        planOnly:
+          type: boolean
+          description: True scores only the field's current plan, with no strategies; the plan needs crops sown inside the
+            horizon. False runs only the strategies, without scoring the plan.
+          default: false
+    StrategyRunResponse:
+      required:
+      - id
+      - fieldId
+      - startMonth
+      - endMonth
+      - createdAtUtc
+      - jobs
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        fieldId:
+          type: string
+          format: uuid
+        startMonth:
+          type: string
+        endMonth:
+          type: string
+        createdAtUtc:
+          type: string
+          format: date-time
+        jobs:
+          type: array
+          items:
+            $ref: '#/components/schemas/StrategyJobResponse'
+    StrategySettings:
+      required:
+      - irrigation
+      - fertilizer
+      - allowAgronomicRisks
+      - allowSoilDepletion
+      - allowMissingData
+      type: object
+      properties:
+        irrigation:
+          type: boolean
+        fertilizer:
+          type: boolean
+        allowAgronomicRisks:
+          type: boolean
+        allowSoilDepletion:
+          type: boolean
+        allowMissingData:
+          type: boolean
+        irrigationLevel:
+          type: string
+          default: 'OFF'
+        fertilizerLevel:
+          type: string
+          default: 'OFF'
+    TrendCell:
+      required:
+      - month
+      - status
+      - percentile
+      - droughtClass
+      - tmeanC
+      - tminC
+      - tmaxC
+      - precipitation30dMm
+      - et030dMm
+      - waterBalance30dMm
+      type: object
+      properties:
+        month:
+          type: string
+        status:
+          type: string
+        percentile:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        droughtClass:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        tmeanC:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        tminC:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        tmaxC:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        precipitation30dMm:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        et030dMm:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+        waterBalance30dMm:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+-]?\d+)?$
+          type:
+          - 'null'
+          - number
+          - string
+          format: double
+    WorkerRequest:
+      required:
+      - fullName
+      - payType
+      - payRateUsd
+      type: object
+      properties:
+        fullName:
+          maxLength: 150
+          type: string
+        payType:
+          type: string
+          description: hourly (rate is USD per worked hour) or monthly (rate is a USD salary per month).
+        payRateUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - number
+          - string
+          description: USD, 0 or more with at most 2 decimals.
+          format: double
+        position:
+          maxLength: 100
+          type:
+          - 'null'
+          - string
+          description: Free-text job title, e.g. tractor driver.
+        laborCategoryId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          description: Optional labour type id from GET /api/labor-categories.
+          format: int32
+        phone:
+          maxLength: 40
+          type:
+          - 'null'
+          - string
+        hiredOn:
+          type:
+          - 'null'
+          - string
+          format: date
+        isActive:
+          type:
+          - 'null'
+          - boolean
+          description: Inactive workers keep their history but are left out of planned payroll. Defaults to true.
+        notes:
+          maxLength: 2000
+          type:
+          - 'null'
+          - string
+    WorkerResponse:
+      required:
+      - id
+      - farmId
+      - fullName
+      - position
+      - laborCategoryId
+      - phone
+      - payType
+      - payRateUsd
+      - hiredOn
+      - isActive
+      - notes
+      - shifts
+      - createdAtUtc
+      - updatedAtUtc
+      type: object
+      properties:
+        id:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        farmId:
+          type: string
+          format: uuid
+        fullName:
+          type: string
+        position:
+          type:
+          - 'null'
+          - string
+        laborCategoryId:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - 'null'
+          - integer
+          - string
+          format: int32
+        phone:
+          type:
+          - 'null'
+          - string
+        payType:
+          type: string
+        payRateUsd:
+          pattern: ^-?(?:0|[1-9]\d*)(?:\.\d+)?$
+          type:
+          - number
+          - string
+          format: double
+        hiredOn:
+          type:
+          - 'null'
+          - string
+          format: date
+        isActive:
+          type: boolean
+        notes:
+          type:
+          - 'null'
+          - string
+        shifts:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkerShiftResponse'
+          description: The worker's own recurring shifts, by month and weekday.
+        createdAtUtc:
+          type: string
+          format: date-time
+        updatedAtUtc:
+          type: string
+          format: date-time
+    WorkerScheduleRequest:
+      required:
+      - months
+      - shifts
+      type: object
+      properties:
+        months:
+          type: array
+          items:
+            pattern: ^-?(?:0|[1-9]\d*)$
+            type:
+            - integer
+            - string
+            format: int32
+          description: 'Months to replace, January = 1: one to twelve distinct values.'
+        shifts:
+          type: array
+          items:
+            $ref: '#/components/schemas/OperatorShiftTemplate'
+          description: Every shift of the week, up to 168. An empty list clears the chosen months.
+    WorkerShiftResponse:
+      required:
+      - id
+      - month
+      - dayOfWeek
+      - startTime
+      - endTime
+      type: object
+      properties:
+        id:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        month:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        dayOfWeek:
+          pattern: ^-?(?:0|[1-9]\d*)$
+          type:
+          - integer
+          - string
+          format: int32
+        startTime:
+          type: string
+          format: time
+        endTime:
+          type: string
+          format: time
+tags:
+- name: Health
+- name: Finance
+- name: Field Topology
+- name: Climate
+- name: Weather
+- name: Strategies
+- name: Solver preparation
+- name: Drought
+- name: Expert catalog
+- name: Authentication
+- name: Assistant
+- name: Crops
+- name: Expenses
+- name: Farms
+- name: Fields
+- name: Operator schedule
+- name: Planning years
+- name: Plantings
+- name: Farm resources
+- name: Workers
