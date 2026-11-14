@@ -112,7 +112,9 @@ def _apply_planting_thresholds(
         unique_vars = list(set(vars_list))
 
         is_active_var = model.new_bool_var(f"req_active_water_{ym}_{min_entry}_{max_entry}")
-        model.add_max_equality(is_active_var, unique_vars)
+        model.add_bool_or(unique_vars).OnlyEnforceIf(is_active_var)
+        for v in unique_vars:
+            model.add_implication(v, is_active_var)
 
         if max_entry is not None:
             model.add(current_depletion <= max_entry).OnlyEnforceIf(is_active_var)

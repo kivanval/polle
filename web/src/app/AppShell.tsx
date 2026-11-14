@@ -1,21 +1,30 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
-import { ArrowUpRight, Menu, UserRound, X } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { ArrowUpRight, CloudSun, Database, LayoutDashboard, Map, Menu, UserRound, Wallet, X } from 'lucide-react'
 import { useAuth } from '@/features/auth/useAuth'
 import { Brand } from '@/shared/ui/Brand'
 import { LogoutButton } from '@/shared/ui/LogoutButton'
+import { AssistantChat } from '@/pages/dashboard/AssistantChat'
+import { AssistantPageProvider } from '@/features/assistant/PageContext'
 import { idPlaceholder, usePageName } from './pageTitle'
 
-// The workspace's sections; each one joins the navigation as it lands.
-const sections: { label: string; to: string; icon: LucideIcon; end?: boolean }[] = []
-export function AppShell() {
+const sections = [
+  { label: 'Overview', to: '/dashboard', icon: LayoutDashboard, end: true },
+  // Farms, their fields and the fields' plans: one workspace (see FarmsWorkspace).
+  { label: 'Farms & planning', to: '/dashboard/farms', icon: Map },
+  { label: 'Resources & finance', to: '/dashboard/resources', icon: Wallet },
+  { label: 'Climate intelligence', to: '/dashboard/climate', icon: CloudSun },
+]
+export function AppShell() { return <AssistantPageProvider><AuthenticatedShell /></AssistantPageProvider> }
+
+function AuthenticatedShell() {
   const { data: user } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [footerElement, setFooterElement] = useState<HTMLElement | null>(null)
   const location = useLocation()
   const path = location.pathname.toLowerCase().replace(/\/+$/, '')
   const section = [...sections].reverse().find(s => path === s.to || path.startsWith(`${s.to}/`))
-  const title = path === '/profile' ? 'Account' : section?.label ?? 'Overview'
+  const title = path === '/profile' ? 'Account' : path === '/admin' ? 'Expert data' : section?.label ?? 'Overview'
   // A page for one record (a farm) adds its name after the section: the published name, or "Farm" while it loads, never the id.
   const record = idPlaceholder(path)
   const pageName = usePageName()
@@ -26,7 +35,7 @@ export function AppShell() {
     <aside id="workspace-sidebar" className={`app-sidebar ${menuOpen ? 'is-open' : ''}`}>
       <Brand light /><span className="sidebar-caption mono">YOUR FIELD ATLAS</span>
       <nav aria-label="Workspace navigation">{sections.map(({ label, to, icon: Icon, end }) => <NavLink key={to} to={to} end={end} onClick={() => setMenuOpen(false)}><Icon size={18} strokeWidth={1.5} />{label}</NavLink>)}
-        <div className="sidebar-divider" />
+        <div className="sidebar-divider" /><NavLink to="/admin" onClick={() => setMenuOpen(false)}><Database size={18} strokeWidth={1.5} />Expert data</NavLink>
         <NavLink to="/profile" onClick={() => setMenuOpen(false)}><UserRound size={18} strokeWidth={1.5} />Account</NavLink>
       </nav>
       <div className="sidebar-bottom"><div className="sidebar-person"><span className="avatar">{user?.email[0]?.toUpperCase()}</span><div><strong>Your workspace</strong><span title={user?.email}>{user?.email}</span></div></div><LogoutButton /></div>
@@ -37,7 +46,8 @@ export function AppShell() {
             : <strong className="breadcrumb-current is-loading" aria-current="page" aria-busy="true">{record}</strong>}</>
         : <strong>{title}</strong>}</nav><NavLink to="/profile" aria-label="View your profile" className="avatar">{user?.email[0]?.toUpperCase()}</NavLink></header>
       <main id="workspace" className={`workspace-content ${/^\/dashboard\/(farms\/(?!fields$|planning$)[^/]+|climate)$/.test(path) ? 'is-atlas' : ''}`}><Outlet /></main>
-      <footer className="workspace-footer mono"><span>Polle / A foundation for what’s next</span><a href="https://www.earthdata.nasa.gov/" target="_blank" rel="noreferrer">Explore Earthdata <ArrowUpRight size={13} /></a></footer>
+      <footer ref={setFooterElement} className="workspace-footer mono"><span>Polle / A foundation for what’s next</span><a href="https://www.earthdata.nasa.gov/" target="_blank" rel="noreferrer">Explore Earthdata <ArrowUpRight size={13} /></a></footer>
     </div>
+    <AssistantChat closeForNavigation={menuOpen} footerElement={footerElement} />
   </div>
 }
