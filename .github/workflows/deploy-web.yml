@@ -1,0 +1,54 @@
+# Deploys the web app and its /api proxy Function to Cloudflare Pages (Direct Upload project "polle", served at polle.pages.dev)
+# on every push to main. Requires repository secrets CLOUDFLARE_API_TOKEN (Account > Cloudflare Pages > Edit)
+# and CLOUDFLARE_ACCOUNT_ID. API_ORIGIN and API_PROXY_SECRET live in the Pages project settings, not here.
+name: Deploy web
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - web/**
+      - .github/workflows/deploy-web.yml
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Check Cloudflare secrets
+        id: secrets
+        # Runs before checkout, so web/ does not exist yet.
+        working-directory: .
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ] || [ -z "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo "::warning::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is not set; skipping the Pages deployment."
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.ready == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.ready == 'true'
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - if: steps.secrets.outputs.ready == 'true'
+        run: npm ci --no-audit --no-fund
+      - if: steps.secrets.outputs.ready == 'true'
+        run: npm run build
+      - if: steps.secrets.outputs.ready == 'true'
+        run: >-
+          npx --yes wrangler@4.154.0 pages deploy dist --project-name polle --branch main
+          --commit-hash "$GITHUB_SHA" --commit-message "${GITHUB_SHA::7}"

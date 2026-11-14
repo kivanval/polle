@@ -1,0 +1,42 @@
+services:
+  db:
+    # Multi-arch (arm64 + amd64) build of postgis/postgis — the official image has no arm64.
+    image: imresamu/postgis:17-3.5
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-polle}
+      POSTGRES_USER: ${POSTGRES_USER:-polle}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-polle}
+    ports:
+      - "127.0.0.1:${DB_PORT:-5434}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # `docker compose --profile full up` runs the whole stack; for day-to-day dev
+  # run only `db` and start api/web locally (dotnet watch / npm run dev).
+  api:
+    profiles: [full]
+    build: ./core
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Database: Host=db;Port=5432;Database=${POSTGRES_DB:-polle};Username=${POSTGRES_USER:-polle};Password=${POSTGRES_PASSWORD:-polle}
+    ports:
+      - "127.0.0.1:5080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    profiles: [full]
+    build: ./web
+    ports:
+      - "127.0.0.1:3000:80"
+    depends_on:
+      - api
+
+volumes:
+  pgdata:
