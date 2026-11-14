@@ -7,7 +7,7 @@ from ortools.sat.python import cp_model
 from ortools.sat.python.cp_model import IntVar
 
 from app.models.planning import AgronomicField, CroppingCanvas, PlantingVariant
-from app.models.types import FieldId, WaterBalanceMm
+from app.models.types import FieldId
 from app.models.year_month import YearMonth
 from app.solver.base import Component, ComponentPhase, VariableStore
 
@@ -27,14 +27,16 @@ def _build_monthly_transitions(
     bound_limit: int,
 ) -> None:
     month_active_vars: dict[YearMonth, list[tuple[IntVar, int]]] = defaultdict(list)
+    last_horizon_ym = horizon_months[-1]
     for variant in field_variants:
         var = var_store.get_variant_var(variant)
         for occ_ym in variant.occupied_months:
-            bal = round(
-                variant.monthly_water_balance_mm.get(occ_ym, WaterBalanceMm(0.0)).real
-                * PRECISION_SCALE,
-            )
-            month_active_vars[occ_ym].append((var, bal))
+            water_dyn = variant.monthly_water.get(occ_ym)
+            net_bal = float(water_dyn.net_balance_mm.real) if water_dyn is not None else 0.0
+            bal = round(net_bal * PRECISION_SCALE)
+
+            target_ym = last_horizon_ym if occ_ym > last_horizon_ym else occ_ym
+            month_active_vars[target_ym].append((var, bal))
 
     end_horizon_ym = horizon_months[-1] + 1
     fallow_balances = agronomic_field.fallow_water_balance
@@ -61,20 +63,20 @@ def _build_monthly_transitions(
                 + cp_model.LinearExpr.WeightedSum(vars_list, diff_coeffs)
             )
 
-        raw_next_var = model.NewIntVar(
+        raw_next_var = model.new_int_var(
             -bound_limit * 2,
             bound_limit * 2,
             f"raw_dep_{agronomic_field.id}_{ym}",
         )
-        model.Add(raw_next_var == raw_next)
+        model.add(raw_next_var == raw_next)
 
-        temp_capped = model.NewIntVar(
+        temp_capped = model.new_int_var(
             -bound_limit * 2,
             taw_scaled,
             f"c_{agronomic_field.id}_{ym}",
         )
-        model.AddMinEquality(temp_capped, [raw_next_var, taw_scaled])
-        model.AddMaxEquality(next_depletion, [temp_capped, 0])
+        model.add_min_equality(temp_capped, [raw_next_var, taw_scaled])
+        model.add_max_equality(next_depletion, [temp_capped, 0])
 
 
 def _apply_planting_thresholds(
@@ -109,11 +111,13 @@ def _apply_planting_thresholds(
         current_depletion = depletion_vars[ym]
         unique_vars = list(set(vars_list))
 
-        for indicator in unique_vars:
-            if max_entry is not None:
-                model.Add(current_depletion <= max_entry).OnlyEnforceIf(indicator)
-            if min_entry is not None:
-                model.Add(current_depletion >= min_entry).OnlyEnforceIf(indicator)
+        is_active_var = model.new_bool_var(f"req_active_water_{ym}_{min_entry}_{max_entry}")
+        model.add_max_equality(is_active_var, unique_vars)
+
+        if max_entry is not None:
+            model.add(current_depletion <= max_entry).OnlyEnforceIf(is_active_var)
+        if min_entry is not None:
+            model.add(current_depletion >= min_entry).OnlyEnforceIf(is_active_var)
 
 
 def _setup_depletion_variables(
@@ -122,17 +126,16 @@ def _setup_depletion_variables(
     field_id: FieldId,
     horizon_months: list[YearMonth],
     taw_scaled: int,
-    initial_depletion_mm: float | None,
+    initial_depletion_mm: float,
 ) -> dict[YearMonth, IntVar]:
     depletion: dict[YearMonth, IntVar] = {
         ym: var_store.create_depletion_var(model, field_id, ym, taw_scaled) for ym in horizon_months
     }
 
-    if initial_depletion_mm is not None:
-        first_month = horizon_months[0]
-        raw_init = initial_depletion_mm * PRECISION_SCALE
-        init_val = max(0, min(taw_scaled, round(raw_init)))
-        model.Add(depletion[first_month] == init_val)
+    first_month = horizon_months[0]
+    raw_init = initial_depletion_mm * PRECISION_SCALE
+    init_val = max(0, min(taw_scaled, round(raw_init)))
+    model.add(depletion[first_month] == init_val)
 
     end_horizon_ym = horizon_months[-1] + 1
     depletion[end_horizon_ym] = var_store.create_depletion_var(
@@ -169,7 +172,7 @@ def _apply_for_field(
         horizon_months=horizon_months,
         taw_scaled=taw_scaled,
         initial_depletion_mm=(
-            float(soil.initial_depletion_mm.real) if soil.initial_depletion_mm is not None else None
+            float(soil.initial_depletion_mm.real) if soil.initial_depletion_mm is not None else 0.0
         ),
     )
 
