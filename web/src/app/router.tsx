@@ -23,6 +23,7 @@ export const router = createBrowserRouter([
     ] },
     { path: '/dashboard/farms/new', lazy: async () => ({ Component: (await import('@/pages/farms/NewFarmPage')).NewFarmPage }) },
     { path: '/dashboard/climate', lazy: async () => ({ Component: (await import('@/pages/climate/ClimatePage')).ClimatePage }) },
+    { path: '/admin', lazy: async () => ({ Component: (await import('@/pages/admin/CatalogPage')).CatalogPage }) },
     { path: '/profile', element: <ProfilePage /> },
   ] }] },
   { path: '*', element: <NotFoundPage /> },
