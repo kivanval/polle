@@ -17,6 +17,7 @@ export const router = createBrowserRouter([
     // Farms and their fields are one workspace with a view switch. Map pages pull in Leaflet; load them on demand.
     { path: '/dashboard/farms', lazy: async () => ({ Component: (await import('@/pages/farms/FarmsWorkspace')).FarmsWorkspace }), children: [
       { index: true, lazy: async () => ({ Component: (await import('@/pages/farms/FarmsPage')).FarmsPage }) },
+      { path: 'fields', lazy: async () => ({ Component: (await import('@/pages/fields/FieldsPage')).FieldsPage }) },
     ] },
     { path: '/dashboard/farms/new', lazy: async () => ({ Component: (await import('@/pages/farms/NewFarmPage')).NewFarmPage }) },
     { path: '/profile', element: <ProfilePage /> },
