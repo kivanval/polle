@@ -68,4 +68,4 @@ class CropRotationComponent(Component[None]):
                         for clr_var in clr_vars_list:
                             for plt_var in conflicting_plants:
                                 if plt_var != clr_var:
-                                    model.AddImplication(clr_var, plt_var.Not())
+                                    model.add_implication(clr_var, plt_var.Not())
