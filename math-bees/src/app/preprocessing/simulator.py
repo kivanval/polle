@@ -68,6 +68,12 @@ class AgronomicSimulator:
     def evaluate_candidates(
         self, context: SolverContext, candidates: list[SimulationCandidate], horizon_end: date
     ) -> tuple[list[PlantingVariant], Counter[str]]:
+        """
+        Executes the biophysical simulation across a composable map-filter-flatMap pipeline:
+        - Map: Applies the current simulation step (temperature, water, nutrients) to transform candidates.
+        - Filter: Fail-fast pruning of non-viable trajectories (removes candidates with fatal death_notes).
+        - FlatMap: Unrolls and flattens the surviving branched outcomes into the next generation pool.
+        """
         death_notes: Counter[str] = Counter()
         active_candidates = candidates
 

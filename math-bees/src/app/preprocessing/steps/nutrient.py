@@ -523,6 +523,8 @@ class NutrientBalanceStep(SimulationStep):
             k_satisfied_ratio = min(1.0, total_k_app / k_removal) if k_deficit > 0 else 1.0
             k_factor = raw_texture_baseline + (1.0 - raw_texture_baseline) * k_satisfied_ratio
 
+        # Resolve final yield multiplier via Liebig's Law of the Minimum:
+        # The most limiting nutrient (N, P, or K) dictates the overall growth factor.
         fert_yield_mult = min(n_factor, p_factor, k_factor)
 
         if actual_n_fixation > ZERO_NUTRIENT_VALUE and fert_yield_mult < FULL_YIELD_MULTIPLIER:
