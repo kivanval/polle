@@ -1,23 +1,26 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
 import { ArrowUpRight, CloudSun, Database, LayoutDashboard, Map, Menu, UserRound, Wallet, X } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '@/features/auth/useAuth'
 import { Brand } from '@/shared/ui/Brand'
 import { LogoutButton } from '@/shared/ui/LogoutButton'
+import { AssistantChat } from '@/pages/dashboard/AssistantChat'
+import { AssistantPageProvider } from '@/features/assistant/PageContext'
 import { idPlaceholder, usePageName } from './pageTitle'
 
-// The workspace's sections; each one joins the navigation as it lands.
-const sections: { label: string; to: string; icon: LucideIcon; end?: boolean }[] = [
+const sections = [
   { label: 'Overview', to: '/dashboard', icon: LayoutDashboard, end: true },
-  // Farms and their fields: one workspace (see FarmsWorkspace).
+  // Farms, their fields and the fields' plans: one workspace (see FarmsWorkspace).
   { label: 'Farms & planning', to: '/dashboard/farms', icon: Map },
   { label: 'Resources & finance', to: '/dashboard/resources', icon: Wallet },
   { label: 'Climate intelligence', to: '/dashboard/climate', icon: CloudSun },
 ]
-export function AppShell() {
+export function AppShell() { return <AssistantPageProvider><AuthenticatedShell /></AssistantPageProvider> }
+
+function AuthenticatedShell() {
   const { data: user } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [footerElement, setFooterElement] = useState<HTMLElement | null>(null)
   const location = useLocation()
   const path = location.pathname.toLowerCase().replace(/\/+$/, '')
   const section = [...sections].reverse().find(s => path === s.to || path.startsWith(`${s.to}/`))
@@ -43,7 +46,8 @@ export function AppShell() {
             : <strong className="breadcrumb-current is-loading" aria-current="page" aria-busy="true">{record}</strong>}</>
         : <strong>{title}</strong>}</nav><NavLink to="/profile" aria-label="View your profile" className="avatar">{user?.email[0]?.toUpperCase()}</NavLink></header>
       <main id="workspace" className={`workspace-content ${/^\/dashboard\/(farms\/(?!fields$|planning$)[^/]+|climate)$/.test(path) ? 'is-atlas' : ''}`}><Outlet /></main>
-      <footer className="workspace-footer mono"><span>Polle / A foundation for what’s next</span><a href="https://www.earthdata.nasa.gov/" target="_blank" rel="noreferrer">Explore Earthdata <ArrowUpRight size={13} /></a></footer>
+      <footer ref={setFooterElement} className="workspace-footer mono"><span>Polle / A foundation for what’s next</span><a href="https://www.earthdata.nasa.gov/" target="_blank" rel="noreferrer">Explore Earthdata <ArrowUpRight size={13} /></a></footer>
     </div>
+    <AssistantChat closeForNavigation={menuOpen} footerElement={footerElement} />
   </div>
 }
