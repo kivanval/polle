@@ -1,9 +1,10 @@
-import { createBrowserRouter, redirect } from 'react-router'
+import { createBrowserRouter } from 'react-router'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
 import { ProtectedRoute } from '@/features/auth/ProtectedRoute'
 import { AppShell } from './AppShell'
 import { RootLayout } from './RootLayout'
+import { DashboardPage } from '@/pages/dashboard/DashboardPage'
 import { ProfilePage } from '@/pages/profile/ProfilePage'
 import { NotFoundPage } from '@/pages/NotFoundPage'
 
@@ -12,8 +13,13 @@ export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
   { element: <ProtectedRoute />, children: [{ element: <AppShell />, children: [
-    // The overview needs farms; until they land, signing in opens the account.
-    { path: '/dashboard', loader: () => redirect('/profile') },
+    { path: '/dashboard', element: <DashboardPage /> },
+    // Farms and their fields are one workspace with a view switch. Map pages pull in Leaflet; load them on demand.
+    { path: '/dashboard/farms', lazy: async () => ({ Component: (await import('@/pages/farms/FarmsWorkspace')).FarmsWorkspace }), children: [
+      { index: true, lazy: async () => ({ Component: (await import('@/pages/farms/FarmsPage')).FarmsPage }) },
+      { path: 'fields', lazy: async () => ({ Component: (await import('@/pages/fields/FieldsPage')).FieldsPage }) },
+    ] },
+    { path: '/dashboard/farms/new', lazy: async () => ({ Component: (await import('@/pages/farms/NewFarmPage')).NewFarmPage }) },
     { path: '/profile', element: <ProfilePage /> },
   ] }] },
   { path: '*', element: <NotFoundPage /> },

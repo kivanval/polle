@@ -3,6 +3,11 @@
 @import './styles/tokens.css';
 @import './styles/account.css';
 @import './styles/workspace.css';
+@import 'leaflet/dist/leaflet.css';
+@import '@geoman-io/leaflet-geoman-free/dist/leaflet-geoman.css';
+@import './styles/map.css';
+@import './styles/resources.css';
+@import './styles/rotation.css';
 
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 30px; }
