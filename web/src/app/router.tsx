@@ -22,6 +22,7 @@ export const router = createBrowserRouter([
       { path: 'fields', lazy: async () => ({ Component: (await import('@/pages/fields/FieldsPage')).FieldsPage }) },
     ] },
     { path: '/dashboard/farms/new', lazy: async () => ({ Component: (await import('@/pages/farms/NewFarmPage')).NewFarmPage }) },
+    { path: '/dashboard/resources', lazy: async () => ({ Component: (await import('@/pages/resources/ResourcesPage')).ResourcesPage }) },
     { path: '/dashboard/climate', lazy: async () => ({ Component: (await import('@/pages/climate/ClimatePage')).ClimatePage }) },
     { path: '/admin', lazy: async () => ({ Component: (await import('@/pages/admin/CatalogPage')).CatalogPage }) },
     { path: '/profile', element: <ProfilePage /> },
