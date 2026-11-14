@@ -58,23 +58,23 @@ def _build_monthly_transitions(
             raw_next = (
                 current_depletion
                 + fallow_balance
-                + cp_model.LinearExpr.weighted_sum(vars_list, diff_coeffs)
+                + cp_model.LinearExpr.WeightedSum(vars_list, diff_coeffs)
             )
 
-        raw_next_var = model.new_int_var(
+        raw_next_var = model.NewIntVar(
             -bound_limit * 2,
             bound_limit * 2,
             f"raw_dep_{agronomic_field.id}_{ym}",
         )
-        model.add(raw_next_var == raw_next)
+        model.Add(raw_next_var == raw_next)
 
-        temp_capped = model.new_int_var(
+        temp_capped = model.NewIntVar(
             -bound_limit * 2,
             taw_scaled,
             f"c_{agronomic_field.id}_{ym}",
         )
-        model.add_min_equality(temp_capped, [raw_next_var, taw_scaled])
-        model.add_max_equality(next_depletion, [temp_capped, 0])
+        model.AddMinEquality(temp_capped, [raw_next_var, taw_scaled])
+        model.AddMaxEquality(next_depletion, [temp_capped, 0])
 
 
 def _apply_planting_thresholds(
@@ -107,18 +107,13 @@ def _apply_planting_thresholds(
 
     for (ym, min_entry, max_entry), vars_list in threshold_groups.items():
         current_depletion = depletion_vars[ym]
+        unique_vars = list(set(vars_list))
 
-        if len(vars_list) == 1:
-            indicator = vars_list[0]
-        else:
-            unique_vars = list(set(vars_list))
-            indicator = model.new_bool_var(f"ind_dep_{ym}_{min_entry}_{max_entry}")
-            model.add_max_equality(indicator, unique_vars)
-
-        if max_entry is not None:
-            model.add(current_depletion <= max_entry).only_enforce_if(indicator)
-        if min_entry is not None:
-            model.add(current_depletion >= min_entry).only_enforce_if(indicator)
+        for indicator in unique_vars:
+            if max_entry is not None:
+                model.Add(current_depletion <= max_entry).OnlyEnforceIf(indicator)
+            if min_entry is not None:
+                model.Add(current_depletion >= min_entry).OnlyEnforceIf(indicator)
 
 
 def _setup_depletion_variables(
@@ -137,7 +132,7 @@ def _setup_depletion_variables(
         first_month = horizon_months[0]
         raw_init = initial_depletion_mm * PRECISION_SCALE
         init_val = max(0, min(taw_scaled, round(raw_init)))
-        model.add(depletion[first_month] == init_val)
+        model.Add(depletion[first_month] == init_val)
 
     end_horizon_ym = horizon_months[-1] + 1
     depletion[end_horizon_ym] = var_store.create_depletion_var(

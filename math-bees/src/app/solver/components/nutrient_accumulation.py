@@ -52,18 +52,13 @@ def _apply_planting_thresholds(
     for elem, groups in threshold_groups.items():
         for (ym, min_scaled, max_scaled), vars_list in groups.items():
             stock_var = stocks[elem][ym]
+            unique_vars = list(set(vars_list))
 
-            if len(vars_list) == 1:
-                indicator = vars_list[0]
-            else:
-                unique_vars = list(set(vars_list))
-                indicator = model.new_bool_var(f"ind_{elem}_{ym}_{min_scaled}_{max_scaled}")
-                model.add_max_equality(indicator, unique_vars)
-
-            if min_scaled is not None:
-                model.add(stock_var >= min_scaled).only_enforce_if(indicator)
-            if max_scaled is not None:
-                model.add(stock_var <= max_scaled).only_enforce_if(indicator)
+            for indicator in unique_vars:
+                if min_scaled is not None:
+                    model.Add(stock_var >= min_scaled).OnlyEnforceIf(indicator)
+                if max_scaled is not None:
+                    model.Add(stock_var <= max_scaled).OnlyEnforceIf(indicator)
 
 
 class NutrientAccumulationComponent(Component[None]):
@@ -159,7 +154,7 @@ class NutrientAccumulationComponent(Component[None]):
 
             first_month = horizon_months[0]
             clamped_init = max(min_scaled, min(max_scaled, init_scaled))
-            model.add(elem_stock[first_month] == clamped_init)
+            model.Add(elem_stock[first_month] == clamped_init)
 
             stocks[elem_name] = elem_stock
 
@@ -203,14 +198,14 @@ class NutrientAccumulationComponent(Component[None]):
                     raw_next = (
                         current_stock
                         + fallow_delta
-                        + cp_model.LinearExpr.weighted_sum(vars_list, coeffs_list)
+                        + cp_model.LinearExpr.WeightedSum(vars_list, coeffs_list)
                     )
 
                 bound_limit = max_scaled + RAW_NUTRIENT_BUFFER_SCALED
-                raw_next_var = model.new_int_var(
+                raw_next_var = model.NewIntVar(
                     -bound_limit,
                     bound_limit,
                     f"raw_nut_{f_id}_{elem_name}_{ym}",
                 )
-                model.add(raw_next_var == raw_next)
-                model.add_min_equality(next_stock, [raw_next_var, max_scaled])
+                model.Add(raw_next_var == raw_next)
+                model.AddMinEquality(next_stock, [raw_next_var, max_scaled])

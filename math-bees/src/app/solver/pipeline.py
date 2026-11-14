@@ -49,7 +49,6 @@ def _solve_field(
     registry: ComponentRegistry,
     config: SolverConfig,
 ) -> tuple[SolverStatus, float, list[PlantingVariant]]:
-
     if not canvas.field:
         logger.error("No field present in canvas.")
         return SolverStatus.UNKNOWN, 0.0, []
