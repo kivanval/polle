@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
-import { ArrowUpRight, CloudSun, Database, LayoutDashboard, Map, Menu, UserRound, X } from 'lucide-react'
+import { ArrowUpRight, CloudSun, Database, LayoutDashboard, Map, Menu, UserRound, Wallet, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '@/features/auth/useAuth'
 import { Brand } from '@/shared/ui/Brand'
@@ -12,6 +12,7 @@ const sections: { label: string; to: string; icon: LucideIcon; end?: boolean }[]
   { label: 'Overview', to: '/dashboard', icon: LayoutDashboard, end: true },
   // Farms and their fields: one workspace (see FarmsWorkspace).
   { label: 'Farms & planning', to: '/dashboard/farms', icon: Map },
+  { label: 'Resources & finance', to: '/dashboard/resources', icon: Wallet },
   { label: 'Climate intelligence', to: '/dashboard/climate', icon: CloudSun },
 ]
 export function AppShell() {
