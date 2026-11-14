@@ -2,16 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import TYPE_CHECKING, Any, Protocol, TypeVar
+from typing import Any, Protocol, TypeVar
+
+from ortools.sat.python import cp_model
+from ortools.sat.python.cp_model import CpModel, IntVar
 
 from app.models.planning import CroppingCanvas, PlantingVariant, VariantId
-
-if TYPE_CHECKING:
-    from ortools.sat.python import cp_model
-    from ortools.sat.python.cp_model import CpModel, IntVar
-
-    from app.models.types import FieldId
-    from app.models.year_month import YearMonth
+from app.models.types import FieldId
+from app.models.year_month import YearMonth
 
 PayloadT = TypeVar("PayloadT", contravariant=True)
 
@@ -49,7 +47,11 @@ class VariableStore:
         return self.variant_variables.get(variant_id)
 
     def create_depletion_var(
-        self, model: CpModel, field_id: FieldId, ym: YearMonth, max_val: int,
+        self,
+        model: CpModel,
+        field_id: FieldId,
+        ym: YearMonth,
+        max_val: int,
     ) -> IntVar:
         var_name = f"depletion_{field_id}_{ym}"
         var = model.new_int_var(0, max_val, var_name)
@@ -83,7 +85,11 @@ class VariableStore:
         return self.stock_variables.get((field_id, element, ym))
 
     def create_irrigation_var(
-        self, model: CpModel, field_id: FieldId, ym: YearMonth, max_val: int,
+        self,
+        model: CpModel,
+        field_id: FieldId,
+        ym: YearMonth,
+        max_val: int,
     ) -> IntVar:
         var_name = f"irr_{field_id}_{ym}"
         var = model.new_int_var(0, max_val, var_name)

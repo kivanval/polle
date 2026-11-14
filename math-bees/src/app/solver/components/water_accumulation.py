@@ -1,18 +1,15 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Final
+from typing import Final
 
 from ortools.sat.python import cp_model
+from ortools.sat.python.cp_model import IntVar
 
+from app.models.planning import AgronomicField, CroppingCanvas, PlantingVariant
 from app.models.types import FieldId, WaterBalanceMm
+from app.models.year_month import YearMonth
 from app.solver.base import Component, ComponentPhase, VariableStore
-
-if TYPE_CHECKING:
-    from ortools.sat.python.cp_model import IntVar
-
-    from app.models.planning import AgronomicField, CroppingCanvas, PlantingVariant
-    from app.models.year_month import YearMonth
 
 PRECISION_SCALE: Final[int] = 100
 TAW_BUFFER_MULTIPLIER: Final[int] = 5
@@ -61,19 +58,23 @@ def _build_monthly_transitions(
             raw_next = (
                 current_depletion
                 + fallow_balance
-                + cp_model.LinearExpr.weighted_sum(vars_list, diff_coeffs)
+                + cp_model.LinearExpr.WeightedSum(vars_list, diff_coeffs)
             )
 
-        raw_next_var = model.new_int_var(
-            -bound_limit * 2, bound_limit * 2, f"raw_dep_{agronomic_field.id}_{ym}",
+        raw_next_var = model.NewIntVar(
+            -bound_limit * 2,
+            bound_limit * 2,
+            f"raw_dep_{agronomic_field.id}_{ym}",
         )
-        model.add(raw_next_var == raw_next)
+        model.Add(raw_next_var == raw_next)
 
-        temp_capped = model.new_int_var(
-            -bound_limit * 2, taw_scaled, f"c_{agronomic_field.id}_{ym}",
+        temp_capped = model.NewIntVar(
+            -bound_limit * 2,
+            taw_scaled,
+            f"c_{agronomic_field.id}_{ym}",
         )
-        model.add_min_equality(temp_capped, [raw_next_var, taw_scaled])
-        model.add_max_equality(next_depletion, [temp_capped, 0])
+        model.AddMinEquality(temp_capped, [raw_next_var, taw_scaled])
+        model.AddMaxEquality(next_depletion, [temp_capped, 0])
 
 
 def _apply_planting_thresholds(
@@ -106,18 +107,13 @@ def _apply_planting_thresholds(
 
     for (ym, min_entry, max_entry), vars_list in threshold_groups.items():
         current_depletion = depletion_vars[ym]
+        unique_vars = list(set(vars_list))
 
-        if len(vars_list) == 1:
-            indicator = vars_list[0]
-        else:
-            unique_vars = list(set(vars_list))
-            indicator = model.new_bool_var(f"ind_dep_{ym}_{min_entry}_{max_entry}")
-            model.add_max_equality(indicator, unique_vars)
-
-        if max_entry is not None:
-            model.add(current_depletion <= max_entry).only_enforce_if(indicator)
-        if min_entry is not None:
-            model.add(current_depletion >= min_entry).only_enforce_if(indicator)
+        for indicator in unique_vars:
+            if max_entry is not None:
+                model.Add(current_depletion <= max_entry).OnlyEnforceIf(indicator)
+            if min_entry is not None:
+                model.Add(current_depletion >= min_entry).OnlyEnforceIf(indicator)
 
 
 def _setup_depletion_variables(
@@ -136,11 +132,14 @@ def _setup_depletion_variables(
         first_month = horizon_months[0]
         raw_init = initial_depletion_mm * PRECISION_SCALE
         init_val = max(0, min(taw_scaled, round(raw_init)))
-        model.add(depletion[first_month] == init_val)
+        model.Add(depletion[first_month] == init_val)
 
     end_horizon_ym = horizon_months[-1] + 1
     depletion[end_horizon_ym] = var_store.create_depletion_var(
-        model, field_id, end_horizon_ym, taw_scaled,
+        model,
+        field_id,
+        end_horizon_ym,
+        taw_scaled,
     )
 
     return depletion
