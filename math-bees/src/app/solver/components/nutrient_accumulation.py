@@ -17,6 +17,8 @@ RAW_NUTRIENT_BUFFER_SCALED: Final[int] = 5_000_000
 MIN_NUTRIENT_DOMAIN_SCALED: Final[int] = 0
 MAX_NUTRIENT_DOMAIN_SCALED: Final[int] = int(MAX_NUTRIENT_CARRYOVER_KG_HA.real * PRECISION_SCALE)
 
+CRITICAL_SOIL_DEPLETION_FLOOR_RATIO: Final[float] = 0.5
+
 
 def _get_net_nutrient_delta(variant: PlantingVariant, elem: str, ym: YearMonth) -> float:
     dyn = variant.monthly_nutrients.get(ym)
@@ -71,11 +73,13 @@ def _apply_planting_thresholds(
             stock_var = stocks[elem][ym]
             unique_vars = list(set(vars_list))
 
-            for indicator in unique_vars:
-                if min_scaled is not None:
-                    model.add(stock_var >= min_scaled).OnlyEnforceIf(indicator)
-                if max_scaled is not None:
-                    model.add(stock_var <= max_scaled).OnlyEnforceIf(indicator)
+            is_active_var = model.new_bool_var(f"req_active_{elem}_{ym}_{min_scaled}_{max_scaled}")
+            model.add_max_equality(is_active_var, unique_vars)
+
+            if min_scaled is not None:
+                model.add(stock_var >= min_scaled).OnlyEnforceIf(is_active_var)
+            if max_scaled is not None:
+                model.add(stock_var <= max_scaled).OnlyEnforceIf(is_active_var)
 
 
 class NutrientAccumulationComponent(Component[None]):
@@ -106,13 +110,16 @@ class NutrientAccumulationComponent(Component[None]):
             "k": defaultdict(list),
         }
 
+        last_horizon_ym = horizon_months[-1]
         for variant in field_variants:
             var = var_store.get_variant_var(variant)
             for occ_ym in variant.occupied_months:
+                target_ym = last_horizon_ym if occ_ym > last_horizon_ym else occ_ym
+
                 for elem in ("n", "p", "k"):
                     net_kg = _get_net_nutrient_delta(variant, elem, occ_ym)
                     bal_scaled = round(net_kg * PRECISION_SCALE)
-                    month_active_vars[elem][occ_ym].append((var, bal_scaled))
+                    month_active_vars[elem][target_ym].append((var, bal_scaled))
 
         pools: tuple[tuple[str, NutrientPool], ...] = (
             ("n", soil.nutrients.nitrogen),
@@ -154,6 +161,13 @@ class NutrientAccumulationComponent(Component[None]):
 
             if not canvas.risk.allow_soil_depletion:
                 model.add(end_var >= clamped_init)
+
+                critical_floor = max(
+                    MIN_NUTRIENT_DOMAIN_SCALED,
+                    int(clamped_init * CRITICAL_SOIL_DEPLETION_FLOOR_RATIO),
+                )
+                for ym in horizon_months:
+                    model.add(elem_stock[ym] >= critical_floor)
 
             stocks[elem_name] = elem_stock
 

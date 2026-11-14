@@ -20,9 +20,6 @@ class IrrigationSetting:
 @dataclass(slots=True, frozen=True)
 class FertilizerSetting:
     apply: bool
-    n_material_id: MaterialId | None
-    p_material_id: MaterialId | None
-    k_material_id: MaterialId | None
     levels: tuple[float, ...]
 
 

@@ -75,8 +75,7 @@ def _solve_field(
     solver.parameters.random_seed = config.random_seed
     solver.parameters.log_search_progress = config.log_search_progress
     solver.parameters.relative_gap_limit = config.relative_gap_limit
-    solver.parameters.cp_model_probing_level = 0
-    solver.parameters.find_big_linear_overlap = False
+    solver.parameters.linearization_level = 2
 
     progress_callback = SolutionProgressLogger()
 
