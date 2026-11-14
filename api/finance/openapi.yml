@@ -1,0 +1,85 @@
+openapi: 3.1.0
+info:
+  title: Finance API
+  version: 1.0.0
+  description: Service providing annual market prices for materials (seeds, fertilizers, crops, water) for agronomic simulations. All prices returned by this API are strictly per metric tonne.
+
+paths:
+  /api/v1/finance/prices:
+    post:
+      summary: Get annual prices for specified materials over a horizon
+      operationId: getPricingMatrix
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PricingRequest'
+      responses:
+        '200':
+          description: Pricing matrix for the requested time horizon
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PricingResponse'
+        '400':
+          description: Bad Request - Missing or invalid parameters
+
+components:
+  schemas:
+    PricingRequest:
+      type: object
+      required:
+        - start_year
+        - end_year
+        - material_ids
+      properties:
+        start_year:
+          type: integer
+          description: Start year of the planning horizon
+          example: 2025
+        end_year:
+          type: integer
+          description: End year of the planning horizon
+          example: 2030
+        material_ids:
+          type: array
+          items:
+            type: string
+          description: List of unique material identifiers (planting materials, products, NPK, water)
+          example: ["50", "3", "232"]
+
+    PricingResponse:
+      type: object
+      required:
+        - material_prices
+      properties:
+        material_prices:
+          type: object
+          description: A map where the key is the material_id and the value is a list of its annual rates.
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/AnnualRate'
+          example:
+            "50":
+              - year: 2025
+                price_cents: 200000
+              - year: 2026
+                price_cents: 215000
+
+    AnnualRate:
+      type: object
+      required:
+        - year
+        - price_cents
+        - unit
+      properties:
+        year:
+          type: integer
+          description: The specific year for this price
+          example: 2025
+        price_cents:
+          type: integer
+          description: Price in USD cents per metric tonne (1000 kg). For water, 1 tonne = 1 cubic meter.
+          example: 25000

@@ -1,0 +1,113 @@
+openapi: 3.1.0
+info:
+  title: Climate API
+  version: 2.0.0
+  description: Service providing daily historical and forecast agro-climatic timelines for arable fields.
+
+paths:
+  /api/v1/climate/daily/{field_id}:
+    get:
+      summary: Get daily climate timeline for a specific field
+      operationId: getFieldDailyClimate
+      parameters:
+        - name: field_id
+          in: path
+          required: true
+          description: Unique identifier of the arable field
+          schema:
+            type: string
+            examples:
+              - "fld_01"
+        - name: start_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            examples:
+              - "2026-04-01"
+        - name: end_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+            examples:
+              - "2026-10-31"
+      responses:
+        '200':
+          description: Climate timeline for the requested field
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldClimate'
+        '400':
+          description: Bad Request - Missing or invalid parameters
+        '401':
+          description: Unauthorized - Missing or wrong API key
+        '404':
+          description: Climate data not found for requested field
+        '429':
+          description: Too Many Requests - per-route limit reached; retry after the Retry-After header
+        '503':
+          description: Service Unavailable - the upstream climate source is unavailable; retry later
+
+security:
+  - ApiKeyAuth: []
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Climate-Api-Key
+  schemas:
+    FieldClimate:
+      type: object
+      required:
+        - field_id
+        - timeline
+      properties:
+        field_id:
+          type: string
+          examples:
+            - "fld_01"
+        timeline:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyClimateRecord'
+
+    DailyClimateRecord:
+      type: object
+      required:
+        - date
+        - t_min
+        - t_max
+        - t_mean
+        - precip
+      properties:
+        date:
+          type: string
+          format: date
+          examples:
+            - "2026-04-15"
+        t_min:
+          type: number
+          format: float
+          examples:
+            - 4.2
+        t_max:
+          type: number
+          format: float
+          examples:
+            - 18.6
+        t_mean:
+          type: number
+          format: float
+          examples:
+            - 11.4
+        precip:
+          type: number
+          format: float
+          examples:
+            - 1.5

@@ -1,0 +1,122 @@
+openapi: 3.1.0
+info:
+  title: Field Topology API
+  version: 1.0.0
+  description: Service providing arable land topology and soil properties.
+
+paths:
+  /api/v1/fields/{field_id}/{year_month}:
+    get:
+      summary: Retrieve field details and soil state by ID and month
+      operationId: getFieldByIdAndMonth
+      parameters:
+        - name: field_id
+          in: path
+          required: true
+          description: Unique identifier of the field
+          schema:
+            type: string
+        - name: year_month
+          in: path
+          required: true
+          description: "Reference YearMonth (e.g. 2024-10) to get current field conditions."
+          schema:
+            type: string
+            pattern: '^\d{4}-\d{2}$'
+      responses:
+        '200':
+          description: Field topology record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FieldTopology'
+        '404':
+          description: Field not found
+
+components:
+  schemas:
+    FieldTopology:
+      type: object
+      properties:
+        id:
+          type: string
+          description: Unique identifier of the field
+          example: "field_01"
+        name:
+          type: string
+          description: Human-readable field label
+          example: "North Valley"
+        area_ha:
+          type: number
+          format: float
+          description: Net arable area in hectares
+          example: 120.5
+        initial_depletion_mm:
+          type: number
+          format: float
+          nullable: true
+          description: Starting root-zone moisture depletion in mm (0 = field capacity).
+          example: 45.2
+        soil:
+          $ref: '#/components/schemas/SoilProperties'
+          description: Soil characteristics and hydraulics. Can be null if no soil data is mapped.
+
+    SoilProperties:
+      type: object
+      nullable: true
+      properties:
+        texture:
+          type: string
+          nullable: true
+          description: Soil texture classification
+          enum:
+            - sand
+            - loamy_sand
+            - sandy_loam
+            - loam
+            - silt_loam
+            - clay_loam
+            - clay
+            - peat
+        drainage:
+          type: string
+          nullable: true
+          description: Soil drainage classification
+          enum:
+            - well_drained
+            - moderate
+            - poor
+        ph:
+          type: number
+          format: float
+          nullable: true
+          description: Soil acidity level
+          example: 6.5
+        salinity_ds_m:
+          type: number
+          format: float
+          nullable: true
+          description: Soil electrical conductivity (salinity) in dS/m
+          example: 0.8
+        hydraulics:
+          $ref: '#/components/schemas/SoilHydraulics'
+
+    SoilHydraulics:
+      type: object
+      nullable: true
+      properties:
+        max_soil_depth_m:
+          type: number
+          format: float
+          description: Maximum penetrable soil depth in meters
+          example: 1.2
+        field_capacity_vol:
+          type: number
+          format: float
+          description: Volumetric water content at field capacity (FC) in m3/m3
+          example: 0.27
+        wilting_point_vol:
+          type: number
+          format: float
+          description: Volumetric water content at permanent wilting point (PWP) in m3/m3
+          example: 0.12

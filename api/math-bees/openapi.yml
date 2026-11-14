@@ -1,0 +1,262 @@
+openapi: 3.1.0
+info:
+  title: Arable Planning Solver API
+  version: 2.1.0
+  description: API for optimizing crop rotations and schedules across specified arable fields using asynchronous tasks.
+
+paths:
+  /api/v1/solver/optimize-fields:
+    post:
+      summary: Enqueue optimization for selected fields
+      description: Submits a crop rotation optimization task for the provided field IDs. The backend fetches field topologies and climate data for each field individually and processes the task in the background. Returns a task ID for polling.
+      operationId: submit_optimization_task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OptimizeFieldsRequest'
+      responses:
+        '202':
+          description: Optimization task successfully enqueued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+        '422':
+          description: Validation error for the input payload.
+
+  /api/v1/solver/optimization/{task_id}/status:
+    get:
+      summary: Check optimization task status
+      description: Returns the current status of the background task. If the task is completed, it will return a 303 Redirect or instruct the client to fetch the result.
+      operationId: get_optimization_status
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          description: Unique identifier of the background task.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Task is still processing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskStatusResponse'
+        '303':
+          description: Task is completed. The client should request the result endpoint.
+        '404':
+          description: Task ID not found.
+
+  /api/v1/solver/optimization/{task_id}/result:
+    get:
+      summary: Get optimization task result
+      description: Retrieves the final computed crop plan (schedule and profit) for a completed optimization task.
+      operationId: get_optimization_result
+      parameters:
+        - name: task_id
+          in: path
+          required: true
+          description: Unique identifier of the completed background task.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Successful crop plan result.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OptimizeFieldsResponse'
+        '404':
+          description: Task result not found (or task is still running).
+        '500':
+          description: Internal server error or the task failed during execution.
+
+components:
+  schemas:
+    OptimizationResultStatus:
+      type: string
+      enum: [OPTIMAL, FEASIBLE, INFEASIBLE, UNKNOWN]
+      description: Final resolution status of the optimization solver.
+
+    TaskProcessingState:
+      type: string
+      enum: [processing]
+      description: Current execution state of the background task.
+
+    TaskErrorState:
+      type: string
+      enum: [error]
+      description: Indicates the task failed during execution.
+
+    OptimizeFieldsRequest:
+      type: object
+      required:
+        - field_ids
+        - horizon
+      properties:
+        field_ids:
+          type: array
+          description: List of arable field identifiers to include in the optimization.
+          items:
+            type: string
+          examples:
+            - ["fld_01", "fld_02", "fld_03"]
+        horizon:
+          $ref: '#/components/schemas/PlanningHorizon'
+        strategy:
+          $ref: '#/components/schemas/SolverStrategySettings'
+          description: "Optional execution settings. If omitted, standard agronomic constraints (rotation, soil water) are enabled by default."
+
+    TaskResponse:
+      type: object
+      required:
+        - task_id
+      properties:
+        task_id:
+          type: string
+          description: Unique identifier for the dispatched background task.
+          examples:
+            - "a1b2c3d4-e5f6-7890-1234-56789abcdef0"
+
+    TaskStatusResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          $ref: '#/components/schemas/TaskProcessingState'
+
+    TaskErrorResponse:
+      type: object
+      required:
+        - status
+        - error
+      properties:
+        status:
+          $ref: '#/components/schemas/TaskErrorState'
+        error:
+          type: string
+          description: Error message details.
+
+    PlanningHorizon:
+      type: object
+      required:
+        - start_year_month
+        - end_year_month
+      properties:
+        start_year_month:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          examples:
+            - "2026-04"
+        end_year_month:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          examples:
+            - "2031-10"
+
+    SolverStrategySettings:
+      type: object
+      properties:
+        objective:
+          type: string
+          enum: [ MAX_PROFIT ]
+          description: Target objective for optimization.
+        rotation_enabled:
+          type: boolean
+          description: Whether to enforce crop rotation rules.
+        water_carryover_enabled:
+          type: boolean
+          description: Whether to simulate and enforce soil moisture carryover (fallow period) constraints.
+        allow_missing_data:
+          type: boolean
+          description: Whether to include crop variants that triggered missing data warnings.
+        allow_agronomic_stress:
+          type: boolean
+          description: Whether to include crop variants that triggered agronomic stress warnings.
+
+    OptimizeFieldsResponse:
+      type: object
+      required:
+        - status
+        - field_schedules
+      properties:
+        status:
+          $ref: '#/components/schemas/OptimizationResultStatus'
+        total_expected_profit:
+          type: ["number", "null"]
+          format: float
+          description: Total projected net economic profit in USD.
+          examples:
+            - 1850400.00
+        field_schedules:
+          type: array
+          description: Sequential schedules grouped per field.
+          items:
+            $ref: '#/components/schemas/FieldSchedule'
+
+    FieldSchedule:
+      type: object
+      required:
+        - field_id
+        - schedule
+      properties:
+        field_id:
+          type: string
+          description: Unique identifier of the arable field.
+          examples:
+            - "fld_01"
+        schedule:
+          type: array
+          description: Sequential crop cycles on this specific field.
+          items:
+            $ref: '#/components/schemas/CropProfileCycle'
+
+    CropProfileCycle:
+      type: object
+      required:
+        - crop_profile_id
+        - crop_name
+        - planting_year_month
+        - harvest_year_month
+        - expected_revenue
+        - risk_notes
+      properties:
+        crop_profile_id:
+          type: string
+          examples:
+            - "7734"
+        crop_id:
+          type: string
+          examples:
+            - "corn"
+        crop_name:
+          type: string
+          examples:
+            - "Corn (Grain)"
+        planting_year_month:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          examples:
+            - "2026-04"
+        harvest_year_month:
+          type: string
+          pattern: '^\d{4}-(0[1-9]|1[0-2])$'
+          examples:
+            - "2026-09"
+        expected_revenue:
+          type: number
+          format: float
+          description: Revenue in USD for this field cycle.
+          examples:
+            - 52400.00
+        risk_notes:
+          type: array
+          description: Risk warnings or data-absence alerts detected during sifting.
+          items:
+            type: string
+          examples:
+            - ["[DATA_MISSING] Unknown frost tolerance during 'vegetative' stage", "[AGRONOMIC] Elevated water stress observed (63d below RAW threshold)"]
