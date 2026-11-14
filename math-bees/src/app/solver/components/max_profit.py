@@ -29,3 +29,6 @@ class MaxProfitComponent(Component[None]):
 
         if vars_list:
             model.maximize(cp_model.LinearExpr.WeightedSum(vars_list, coeffs_list))
+            model.add_decision_strategy(
+                vars_list, cp_model.CHOOSE_HIGHEST_MAX, cp_model.SELECT_MAX_VALUE
+            )
