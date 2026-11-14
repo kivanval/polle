@@ -1,0 +1,58 @@
+# Render Blueprint for the Polle core API (free web service, no payment method required).
+# Secrets marked sync: false are entered once in the Render dashboard and never committed.
+services:
+  - type: web
+    # Matches the existing Render service, so the API keeps its address.
+    name: ecocrop-api
+    runtime: docker
+    plan: free
+    region: frankfurt # next to Neon eu-central-1
+    rootDir: core
+    dockerfilePath: ./core/Dockerfile
+    dockerContext: ./core
+    healthCheckPath: /api/health/live
+    autoDeployTrigger: commit
+    buildFilter:
+      paths:
+        - core/src/**
+        - core/Dockerfile
+        - core/Directory.Build.props
+        - core/Polle.sln
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: PORT
+        value: "8080"
+      # Workstation GC keeps memory well inside the free instance's 512 MB.
+      - key: DOTNET_gcServer
+        value: "0"
+      - key: ConnectionStrings__Database
+        sync: false
+      # Copy this generated value into the Cloudflare Pages secret API_PROXY_SECRET.
+      - key: Proxy__SharedSecret
+        generateValue: true
+      # Copy each generated key to the solver (felder): FINANCE_SERVICE_TOKEN, CLIMATE_SERVICE_TOKEN, FIELDS_SERVICE_TOKEN.
+      - key: Finance__ApiKey
+        generateValue: true
+      - key: Climate__ApiKey
+        generateValue: true
+      - key: Fields__ApiKey
+        generateValue: true
+      # felder solver base URL for rotation strategies: its permanent address (no longer a quick tunnel).
+      - key: Solver__BaseUrl
+        value: https://opt-felder-api.pp.ua/
+      # Base64 PKCS#12 certificate that encrypts the Data Protection key ring stored in PostgreSQL.
+      - key: DataProtection__CertificateBase64
+        sync: false
+      - key: Assistant__Provider
+        value: OpenAICompatible
+      - key: Assistant__BaseUrl
+        value: https://api.groq.com/openai/v1/
+      - key: Assistant__Model
+        value: openai/gpt-oss-20b
+      - key: Assistant__ReasoningEffort
+        value: low
+      - key: Assistant__ReasoningTokens
+        value: "1024"
+      - key: Assistant__ApiKey
+        sync: false
