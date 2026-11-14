@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TypeAlias
 
-if TYPE_CHECKING:
-    from app.models.planning import PlantingVariant
-    from app.models.types import Usd, UsdCents
+from app.models.planning import PlantingVariant
+from app.models.types import Usd, UsdCents
 
 
 class SolverStatus(StrEnum):

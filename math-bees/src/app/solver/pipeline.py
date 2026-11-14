@@ -2,24 +2,21 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import TYPE_CHECKING
 
 from ortools.sat.python import cp_model
 
+from app.config import LoggingConfig, SolverConfig
+from app.models.planning import CroppingCanvas, PlantingVariant
 from app.models.types import UsdCents
+from app.solver.assembler import ComponentAssembler
 from app.solver.formulator import ComponentRegistry, Formulator
+from app.solver.plan import SolverPlan
 from app.solver.result import (
     PlantingSchedule,
     SolverResult,
     SolverStatus,
     WallTime,
 )
-
-if TYPE_CHECKING:
-    from app.config import LoggingConfig, SolverConfig
-    from app.models.planning import CroppingCanvas, PlantingVariant
-    from app.solver.assembler import ComponentAssembler
-    from app.solver.plan import SolverPlan
 
 logger = logging.getLogger(__name__)
 

@@ -1,18 +1,15 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Final
+from typing import Final
 
 from ortools.sat.python import cp_model
+from ortools.sat.python.cp_model import IntVar
 
+from app.models.planning import CroppingCanvas, PlantingVariant
+from app.models.topology import NutrientPool
+from app.models.year_month import YearMonth
 from app.solver.base import Component, ComponentPhase, VariableStore
-
-if TYPE_CHECKING:
-    from ortools.sat.python.cp_model import IntVar
-
-    from app.models.planning import CroppingCanvas, PlantingVariant
-    from app.models.topology import NutrientPool
-    from app.models.year_month import YearMonth
 
 PRECISION_SCALE: Final[int] = 100
 RAW_NUTRIENT_BUFFER_SCALED: Final[int] = 5_000_000
@@ -142,11 +139,21 @@ class NutrientAccumulationComponent(Component[None]):
             elem_stock: dict[YearMonth, IntVar] = {}
             for ym in horizon_months:
                 elem_stock[ym] = var_store.create_stock_var(
-                    model, f_id, elem_name, ym, min_scaled, max_scaled,
+                    model,
+                    f_id,
+                    elem_name,
+                    ym,
+                    min_scaled,
+                    max_scaled,
                 )
 
             end_var = var_store.create_stock_var(
-                model, f_id, elem_name, end_horizon_ym, min_scaled, max_scaled,
+                model,
+                f_id,
+                elem_name,
+                end_horizon_ym,
+                min_scaled,
+                max_scaled,
             )
             elem_stock[end_horizon_ym] = end_var
 
@@ -201,7 +208,9 @@ class NutrientAccumulationComponent(Component[None]):
 
                 bound_limit = max_scaled + RAW_NUTRIENT_BUFFER_SCALED
                 raw_next_var = model.new_int_var(
-                    -bound_limit, bound_limit, f"raw_nut_{f_id}_{elem_name}_{ym}",
+                    -bound_limit,
+                    bound_limit,
+                    f"raw_nut_{f_id}_{elem_name}_{ym}",
                 )
                 model.add(raw_next_var == raw_next)
                 model.add_min_equality(next_stock, [raw_next_var, max_scaled])

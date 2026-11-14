@@ -1,15 +1,12 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING
 
+from ortools.sat.python.cp_model import CpModel, IntVar
+
+from app.models.planning import CroppingCanvas
+from app.models.year_month import YearMonth
 from app.solver.base import Component, ComponentPhase, VariableStore
-
-if TYPE_CHECKING:
-    from ortools.sat.python.cp_model import CpModel, IntVar
-
-    from app.models.planning import CroppingCanvas
-    from app.models.year_month import YearMonth
 
 
 class FieldOccupancyComponent(Component[None]):

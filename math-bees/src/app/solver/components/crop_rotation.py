@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import Final
 
 from ortools.sat.python import cp_model
+from ortools.sat.python.cp_model import IntVar
 
+from app.models.planning import CroppingCanvas
+from app.models.types import CropId
 from app.solver.base import Component, ComponentPhase, VariableStore
 
-if TYPE_CHECKING:
-    from ortools.sat.python.cp_model import IntVar
-
-    from app.models.planning import CroppingCanvas
-    from app.models.types import CropId
+MONTHS_IN_YEAR: Final[int] = 12
 
 
 class CropRotationComponent(Component[None]):
@@ -39,8 +38,8 @@ class CropRotationComponent(Component[None]):
         for v in canvas.variants:
             var = var_store.get_variant_var(v)
             c_id = v.profile.crop.id
-            c_idx = v.clearance_month.year * 12 + v.clearance_month.month
-            p_idx = v.plant_month.year * 12 + v.plant_month.month
+            c_idx = v.clearance_month.year * MONTHS_IN_YEAR + v.clearance_month.month
+            p_idx = v.plant_month.year * MONTHS_IN_YEAR + v.plant_month.month
 
             clearance_vars[c_id][c_idx].append(var)
             planting_vars[c_id][p_idx].append(var)

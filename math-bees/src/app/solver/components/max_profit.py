@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from ortools.sat.python import cp_model
 
+from app.models.planning import CroppingCanvas
 from app.solver.base import Component, ComponentPhase, VariableStore
-
-if TYPE_CHECKING:
-    from app.models.planning import CroppingCanvas
 
 
 class MaxProfitComponent(Component[None]):

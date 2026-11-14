@@ -1,17 +1,14 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from collections.abc import Iterable
+from typing import Any
 
 from ortools.sat.python import cp_model
 
+from app.models.planning import CroppingCanvas
 from app.solver.base import Component, VariableStore
 from app.solver.plan import ComponentConfig, FormulatedPlan, SolverPlan
-
-if TYPE_CHECKING:
-    from collections.abc import Iterable
-
-    from app.models.planning import CroppingCanvas
 
 logger = logging.getLogger(__name__)
 

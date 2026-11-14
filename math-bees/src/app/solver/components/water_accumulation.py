@@ -1,18 +1,15 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from typing import TYPE_CHECKING, Final
+from typing import Final
 
 from ortools.sat.python import cp_model
+from ortools.sat.python.cp_model import IntVar
 
+from app.models.planning import AgronomicField, CroppingCanvas, PlantingVariant
 from app.models.types import FieldId, WaterBalanceMm
+from app.models.year_month import YearMonth
 from app.solver.base import Component, ComponentPhase, VariableStore
-
-if TYPE_CHECKING:
-    from ortools.sat.python.cp_model import IntVar
-
-    from app.models.planning import AgronomicField, CroppingCanvas, PlantingVariant
-    from app.models.year_month import YearMonth
 
 PRECISION_SCALE: Final[int] = 100
 TAW_BUFFER_MULTIPLIER: Final[int] = 5
@@ -65,12 +62,16 @@ def _build_monthly_transitions(
             )
 
         raw_next_var = model.new_int_var(
-            -bound_limit * 2, bound_limit * 2, f"raw_dep_{agronomic_field.id}_{ym}",
+            -bound_limit * 2,
+            bound_limit * 2,
+            f"raw_dep_{agronomic_field.id}_{ym}",
         )
         model.add(raw_next_var == raw_next)
 
         temp_capped = model.new_int_var(
-            -bound_limit * 2, taw_scaled, f"c_{agronomic_field.id}_{ym}",
+            -bound_limit * 2,
+            taw_scaled,
+            f"c_{agronomic_field.id}_{ym}",
         )
         model.add_min_equality(temp_capped, [raw_next_var, taw_scaled])
         model.add_max_equality(next_depletion, [temp_capped, 0])
@@ -140,7 +141,10 @@ def _setup_depletion_variables(
 
     end_horizon_ym = horizon_months[-1] + 1
     depletion[end_horizon_ym] = var_store.create_depletion_var(
-        model, field_id, end_horizon_ym, taw_scaled,
+        model,
+        field_id,
+        end_horizon_ym,
+        taw_scaled,
     )
 
     return depletion

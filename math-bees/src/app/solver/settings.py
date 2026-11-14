@@ -7,7 +7,6 @@ from app.models.types import MaterialId
 class RiskSetting:
     allow_missing_data: bool
     allow_agronomic_risks: bool
-    allow_soil_depletion: bool
 
 
 @dataclass(slots=True, frozen=True)
