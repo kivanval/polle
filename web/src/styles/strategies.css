@@ -1,0 +1,366 @@
+/* Plan & strategies full-screen view */
+.strategy-view, .strategy-details { position: fixed; inset: 0; z-index: calc(var(--z-drawer) - 10); display: flex; flex-direction: column; background: var(--paper); overflow-y: auto; }
+.strategy-details { z-index: calc(var(--z-drawer) - 5); padding: 0 clamp(16px, 4vw, 48px) 32px; }
+/* Above everything that scrolls beneath it; the Gantt keeps its sticky labels and bars in its own stacking context. */
+.strategy-view-head { position: sticky; top: 0; z-index: 10; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+  padding: 18px clamp(16px, 4vw, 48px); background: var(--paper); border-bottom: 1px solid var(--line); }
+.strategy-details .strategy-view-head { margin-inline: calc(-1 * clamp(16px, 4vw, 48px)); margin-bottom: 20px; }
+.strategy-view-head h2 { margin: 2px 0 0; font-family: Georgia, serif; font-weight: 400; font-size: clamp(22px, 3vw, 30px); letter-spacing: -.03em; }
+.strategy-view-actions { display: flex; gap: 8px; align-items: center; }
+.strategy-kicker { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+.strategy-view-body { display: grid; gap: 20px; padding: 20px clamp(16px, 4vw, 48px) 48px; max-width: 1280px; width: 100%; margin: 0 auto; }
+.strategy-block { padding: 18px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); min-width: 0; }
+.strategy-block > h3 { margin: 0 0 12px; font-size: 16px; }
+.strategy-block .crop-history { margin: 0; padding: 0; border: 0; }
+.strategy-block .crop-history h3 { font-size: 16px; }
+.strategy-count { color: var(--muted); font-weight: 400; }
+.strategy-note { display: block; font-size: 12px; color: var(--muted); margin: 0; }
+.strategy-empty { margin: 0; font-size: 13px; color: var(--muted); }
+
+.strategy-saved-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.strategy-saved-list li { display: grid; grid-template-columns: minmax(140px, 220px) minmax(0, 1fr) auto; gap: 14px; align-items: center;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+.strategy-saved-actions { display: flex; gap: 6px; align-items: center; }
+.strategy-saved-actions .button { min-height: 32px; padding: 4px 10px; gap: 6px; font-size: 12px; }
+
+.strategy-horizon { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; margin-bottom: 12px; }
+.strategy-horizon label { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.strategy-horizon input { min-height: 40px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
+/* Every control on the row is 40px tall and sits on the selects' line, under the From/To legends. */
+.strategy-horizon .button { height: 40px; min-height: 40px; padding-block: 0; gap: 8px; }
+.strategy-horizon .button-icon { width: 40px; }
+.strategy-horizon .strategy-choice-count { display: inline-flex; align-items: center; align-self: flex-end; min-height: 40px; margin-left: -4px; }
+/* The second launch action beside Suggest strategies: outlined in ink so it reads as a full action, not a quiet one. */
+.strategy-horizon .button-secondary { border: 1px solid var(--ink); background: var(--surface); color: var(--ink); font-weight: 600; }
+.strategy-horizon .button-secondary:hover:not(:disabled) { background: var(--sage); }
+
+.strategy-progress-group { display: grid; gap: 8px; margin: 4px 0 14px; }
+.strategy-progress { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; min-height: 44px; box-sizing: border-box; padding: 10px 14px; border-radius: 8px; background: var(--sage); font-size: 13px; }
+.strategy-progress .tractor-loader { flex: 0 0 auto; }
+.strategy-left-out { display: grid; gap: 4px; margin: 0 0 14px; font-size: 13px; color: var(--muted); }
+.strategy-left-out p { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; }
+.strategy-left-out strong { color: var(--ink); font-weight: 600; }
+.strategy-left-out .button { min-height: 30px; padding: 4px 10px; font-size: 12px; }
+.strategy-sort { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 14px; }
+.strategy-chip { min-height: 32px; padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: #fff; color: var(--ink); font-size: 12px; }
+.strategy-chip.is-on { background: var(--forest); border-color: var(--forest); color: #fff; }
+.strategy-chip:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+.strategy-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 270px), 1fr)); gap: 14px; }
+/* Each card spans four rows of the grid and shares them (subgrid): head, timeline and numbers, the explanation, and
+   the actions. Cards side by side therefore line up their numbers and their buttons whatever each head holds. */
+.strategy-card { display: grid; grid-row: span 4; grid-template-rows: subgrid; row-gap: 10px; align-content: start; min-width: 0; padding: 14px;
+  border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.strategy-card-part { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.strategy-card > .strategy-actions { align-self: end; margin-top: 0; }
+@supports not (grid-template-rows: subgrid) {
+  .strategy-card { display: flex; flex-direction: column; }
+  .strategy-card > .strategy-actions { margin-top: auto; }
+}
+.strategy-card.is-baseline { border: 2px solid var(--forest); background: var(--paper); }
+.strategy-card h4 { margin: 0; font-size: 15px; }
+.strategy-summary { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.45; }
+.strategy-badges { display: flex; flex-wrap: wrap; gap: 4px; min-height: 18px; }
+.strategy-badge { display: inline-flex; align-items: center; gap: 4px; padding: 1px 7px; border-radius: 4px; background: var(--lime); color: var(--forest); font-size: 11px; font-weight: 700; }
+.strategy-badge.is-own { background: var(--forest); color: var(--lime); }
+.strategy-badge.is-alert { background: #f6dcd5; color: var(--error); }
+.strategy-badge.is-caution { background: #f3e6c4; color: #7a5410; }
+.strategy-issue { display: flex; gap: 8px; align-items: flex-start; margin: 0; padding: 9px 10px; border-radius: 6px; border: 1px solid #e8c2b8;
+  background: #fbefeb; color: var(--ink); font-size: 12.5px; line-height: 1.5; }
+.strategy-issue svg { flex: none; margin-top: 2px; color: var(--error); }
+.strategy-metrics dd.is-unknown { color: var(--muted); font-weight: 400; }
+.strategy-metrics { display: grid; grid-template-columns: 1fr auto; gap: 3px 10px; margin: 0; font-size: 13px; }
+.strategy-metrics dt { color: var(--muted); }
+.strategy-metrics dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; text-align: right; }
+.is-good { color: #2f7a2a; }
+.is-bad { color: var(--error); }
+.strategy-why { margin: 0; font-size: 12.5px; line-height: 1.5; }
+.strategy-risks { font-size: 12.5px; }
+.strategy-risks summary { cursor: pointer; color: var(--ink); }
+.strategy-risks h5 { margin: 8px 0 2px; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.strategy-risks ul { margin: 0; padding-left: 18px; }
+.strategy-problem { margin: 0; font-size: 13px; color: var(--muted); }
+.strategy-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: auto; padding-top: 4px; }
+.strategy-actions .button { min-height: 34px; padding: 4px 12px; gap: 6px; font-size: 12.5px; }
+.strategy-saved { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 4px 12px; border-radius: 6px; background: var(--lime); color: var(--forest); font-size: 12.5px; font-weight: 600; }
+.strategy-skeleton { display: block; height: 12px; border-radius: 4px; background: var(--sage); animation: strategy-pulse 1.4s ease-in-out infinite; }
+.strategy-skeleton.is-short { width: 55%; }
+@keyframes strategy-pulse { 50% { opacity: .5; } }
+@media (prefers-reduced-motion: reduce) { .strategy-skeleton { animation: none; } }
+
+.strategy-changes { margin: 14px 0; padding: 10px 12px; border-radius: 8px; background: var(--sage); font-size: 13px; }
+.strategy-table-wrap { overflow-x: auto; }
+.strategy-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.strategy-table th, .strategy-table td { padding: 8px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+.strategy-table th { color: var(--muted); font-weight: 500; white-space: nowrap; }
+.strategy-table-sub { display: block; font-size: 11.5px; color: var(--muted); }
+.strategy-notes { margin: 0; padding-left: 16px; min-width: 220px; max-width: 420px; line-height: 1.4; }
+.strategy-notes li + li { margin-top: 3px; }
+.strategy-notes li::marker { color: var(--muted); }
+.strategy-disclaimer { margin: 16px 0 0; font-size: 12.5px; color: var(--muted); }
+
+@media (max-width: 720px) {
+  .strategy-saved-list li { grid-template-columns: 1fr; }
+  .strategy-block { padding: 14px; }
+}
+
+/* Month fields: month + year selects under one legend */
+.month-field { display: grid; grid-template-columns: auto auto; gap: 4px 6px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.month-field legend { grid-column: 1 / -1; padding: 0; margin-bottom: 4px; font-size: 12px; color: var(--muted); }
+.month-field select { min-height: 40px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); font: inherit; font-size: 13px; }
+
+.strategy-confirm { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; padding: 12px 14px;
+  border: 1px solid var(--forest); border-radius: 8px; background: var(--lime); color: var(--forest); font-size: 13.5px; }
+.strategy-confirm p { margin: 0; max-width: 70ch; }
+.strategy-success { margin: 12px 0 0; padding: 8px 12px; border-radius: 6px; background: var(--lime); color: var(--forest); font-size: 13px; font-weight: 600; }
+/* ErrorBoundary fallback: takes the broken part's place (card, block or details overlay) with a way to redraw it. */
+.render-fallback { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--muted); }
+.render-fallback p { margin: 0; }
+.render-fallback.strategy-details { justify-content: center; align-items: center; text-align: center; }
+.render-fallback-actions { display: flex; gap: 8px; }
+
+/* Grouped strategies: one card, the others that came out the same listed as variations */
+.strategy-variations { font-size: 12px; }
+.strategy-variations summary { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border: 1px solid var(--line); border-radius: 999px;
+  background: var(--sage); color: var(--forest); font-weight: 700; cursor: pointer; list-style: none; }
+.strategy-variations summary::-webkit-details-marker { display: none; }
+.strategy-variations summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.strategy-variations p { margin: 6px 0 4px; color: var(--muted); line-height: 1.45; }
+.strategy-variations ul { margin: 0; padding-left: 16px; line-height: 1.45; }
+.strategy-variations li span { color: var(--muted); }
+
+/* Strategy Gantt chart: years open into months, each crop's bar split into stages */
+.gantt { --gantt-label: 210px; --gantt-sowing: #eb6834; --gantt-growth: #1baf7a; --gantt-harvest: #eda100; min-width: 0; margin-bottom: 8px; }
+.strategy-details > * { min-width: 0; flex-shrink: 0; }
+@media (max-width: 720px) { .gantt { --gantt-label: 140px; } }
+.gantt-toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; }
+.gantt-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; color: var(--muted); }
+.gantt-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.gantt-swatch { width: 14px; height: 10px; border-radius: 3px; }
+.gantt-swatch.is-sowing, .gantt-bar.is-sowing { background: var(--gantt-sowing); }
+.gantt-swatch.is-growth, .gantt-bar.is-growth { background: var(--gantt-growth); }
+.gantt-swatch.is-harvest, .gantt-bar.is-harvest { background: var(--gantt-harvest); }
+.gantt-swatch.is-today { width: 2px; height: 12px; border-radius: 0; background: var(--error); }
+.gantt-expand { min-height: 32px; padding: 4px 12px; font-size: 12px; }
+/* isolation: the sticky labels (z 2) and bars (z 1) stack inside the chart only, so they scroll under the sticky
+   view header instead of painting over it. */
+.gantt-scroll { position: relative; isolation: isolate; overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.gantt-sheet { width: calc(var(--gantt-label) + var(--gantt-track)); min-width: 100%; }
+.gantt-row { display: flex; min-height: 36px; border-bottom: 1px solid var(--sage); }
+.gantt-row:last-child { border-bottom: 0; }
+.gantt-label { position: sticky; left: 0; z-index: 2; flex: 0 0 var(--gantt-label); display: flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 4px 10px; background: #fff; border-right: 1px solid var(--line); font-size: 12.5px; }
+.gantt-track { position: relative; flex: 0 0 auto; }
+.gantt-head .gantt-label, .gantt-months .gantt-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+.gantt-head { min-height: 30px; border-bottom-color: var(--line); background: var(--paper); }
+.gantt-year { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; gap: 2px; padding: 0; border: 0;
+  border-left: 1px solid var(--line); background: var(--paper); color: var(--ink); font-size: 12px; cursor: pointer; }
+.gantt-year:first-child { border-left: 0; }
+.gantt-year.is-open { background: var(--sage); }
+.gantt-year:hover { background: var(--lime); }
+.gantt-year:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.gantt-months { min-height: 20px; border-bottom-color: var(--line); }
+.gantt-month { position: absolute; top: 0; bottom: 0; display: grid; place-items: center; font-size: 10.5px; color: var(--muted); }
+.gantt-group-head { min-height: 26px; background: var(--paper); }
+.gantt-group-head .gantt-label { background: var(--paper); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--forest); }
+.gantt-group.is-muted .gantt-bar { opacity: .5; }
+.gantt-group.is-muted .gantt-crop strong { font-weight: 500; }
+.gantt-empty { color: var(--muted); }
+.gantt-crop-dot { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; }
+.gantt-crop { display: grid; min-width: 0; line-height: 1.25; }
+.gantt-crop strong, .gantt-crop-dates { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.gantt-crop-dates { font-size: 11px; color: var(--muted); }
+.gantt-risk { flex: 0 0 auto; color: #b5651d; }
+.gantt-flags { display: inline-flex; flex: 0 0 auto; gap: 6px; margin-left: auto; }
+.gantt-flags > span { display: inline-flex; cursor: help; }
+.gantt-crop-button { display: flex; flex: 1 1 auto; align-items: center; gap: 8px; min-width: 0; padding: 0; border: 0; background: none; color: inherit;
+  font: inherit; text-align: left; cursor: pointer; }
+.gantt-crop-button:hover strong { text-decoration: underline; }
+.gantt-crop-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+.gantt-grid { position: absolute; inset: 0; pointer-events: none; }
+.gantt-grid-year { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line); }
+.gantt-grid-year:first-child { border-left: 0; }
+.gantt-grid-month { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--sage); }
+.gantt-today { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: var(--error); }
+/* A 2px surface gap between neighbouring stage blocks; rounded only where a crop starts and ends. */
+.gantt-bar { position: absolute; top: 7px; bottom: 7px; z-index: 1; display: flex; align-items: center; overflow: hidden; padding: 0 6px;
+  border-right: 2px solid #fff; color: #142b22; font-size: 11px; font-weight: 600; white-space: nowrap; }
+.gantt-bar.is-sowing { border-radius: 4px 0 0 4px; }
+.gantt-bar:last-child { border-radius: 0 4px 4px 0; border-right: 0; }
+.gantt-bar.is-sowing:last-child { border-radius: 4px; }
+
+/* Water and N-P-K charts under the Gantt */
+.balance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; margin: 16px 0; }
+.balance-panel { min-width: 0; padding: 16px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.balance-panel h3 { margin: 0 0 10px; font-size: 15px; }
+.balance-panel > .strategy-note { margin-top: 10px; }
+.balance-totals { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 0 0 12px; }
+.balance-totals div { display: grid; gap: 2px; }
+.balance-totals dt { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--muted); }
+.balance-totals dd { margin: 0; font-size: 15px; font-weight: 600; color: var(--ink); }
+.balance-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 12px; font-size: 12px; color: var(--muted); }
+.balance-legend > span { display: inline-flex; align-items: center; gap: 6px; }
+.balance-swatch { display: inline-block; width: 12px; height: 10px; border-radius: 3px; }
+.balance-swatch.is-rain, .balance-segment.is-rain { background: #2a78d6; }
+.balance-swatch.is-irrigation, .balance-segment.is-irrigation { background: #1baf7a; }
+.balance-swatch.is-applied, .balance-segment.is-applied { background: #2a78d6; }
+.balance-swatch.is-fixed, .balance-segment.is-fixed { background: #1baf7a; }
+.balance-swatch.is-removed, .balance-segment.is-removed { background: #eb6834; }
+.balance-rows { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.balance-row { display: grid; grid-template-columns: minmax(110px, 160px) minmax(0, 1fr); gap: 10px; align-items: center; }
+.balance-crop { display: grid; min-width: 0; font-size: 12.5px; line-height: 1.25; }
+.balance-crop strong, .balance-crop span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.balance-crop span { font-size: 11px; color: var(--muted); }
+.balance-bar { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.balance-fill { display: flex; flex: 1 1 auto; gap: 2px; min-width: 0; height: 14px; }
+.balance-segment { height: 100%; min-width: 2px; }
+.balance-fill .balance-segment:last-child { border-radius: 0 4px 4px 0; }
+.balance-value { flex: 0 0 64px; font-size: 11.5px; color: var(--ink); white-space: nowrap; }
+/* N, P and K side by side, each block in its own hue: solid = fertilizer, light tint = taken off, stripes = fixed (N) */
+.nutrient-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 14px 20px; }
+.nutrient-panel { --nutrient: #2a78d6; --nutrient-soft: #9ec5f4; min-width: 0; padding: 10px 12px; border: 1px solid var(--line); border-top: 3px solid var(--nutrient); border-radius: 8px; }
+.nutrient-panel.is-p { --nutrient: #eb6834; --nutrient-soft: #f6b79c; }
+.nutrient-panel.is-k { --nutrient: #1baf7a; --nutrient-soft: #9adcc3; }
+.nutrient-panel .balance-segment.is-applied { background: var(--nutrient); }
+.nutrient-panel .balance-segment.is-removed { background: var(--nutrient-soft); }
+.nutrient-panel .balance-segment.is-fixed { background: repeating-linear-gradient(45deg, var(--nutrient) 0 3px, var(--nutrient-soft) 3px 6px); }
+.nutrient-name { display: inline-flex; align-items: center; gap: 6px; }
+.nutrient-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--nutrient); }
+.balance-swatch.is-key-applied { background: #6f7a6c; }
+.balance-swatch.is-key-removed { background: #c9cfc6; }
+.balance-swatch.is-key-fixed { background: repeating-linear-gradient(45deg, #6f7a6c 0 3px, #c9cfc6 3px 6px); }
+.nutrient-panel h4 { display: flex; justify-content: space-between; gap: 8px; margin: 0 0 6px; font-size: 12.5px; }
+.nutrient-panel h4 .mono { font-weight: 500; }
+.nutrient-row { display: grid; grid-template-columns: minmax(80px, 120px) minmax(0, 1fr); gap: 10px; align-items: center; font-size: 12px; }
+.nutrient-crop { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.nutrient-bar { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.nutrient-fill { display: flex; flex: 1 1 0; height: 12px; min-width: 0; }
+.nutrient-fill.is-out { justify-content: flex-end; border-right: 1px solid var(--muted); }
+.nutrient-fill.is-out .balance-segment { border-radius: 4px 0 0 4px; }
+.nutrient-fill.is-in { gap: 2px; }
+.nutrient-fill.is-in .balance-segment:last-child { border-radius: 0 4px 4px 0; }
+.nutrient-value { flex: 0 0 38px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+.nutrient-value:first-child { text-align: right; }
+
+/* Risks, warnings and plain notes kept apart: on cards (folded) and in the Details table (tagged) */
+.strategy-note-group + .strategy-note-group { margin-top: 2px; }
+.strategy-note-group.is-risks h5 { color: var(--error); }
+.strategy-note-group.is-warnings h5 { color: #9a5b00; }
+.strategy-note-tag { display: inline-block; padding: 0 6px; border-radius: 4px; font-size: 10.5px; font-weight: 700; letter-spacing: .02em; white-space: nowrap; }
+.strategy-note-tag.is-risk { background: #f6dcd9; color: var(--error); }
+.strategy-note-tag.is-warning { background: #fbebc8; color: #7a4a00; }
+.strategy-note-tag.is-note { background: var(--sage); color: var(--muted); }
+.strategy-notes li.is-risk::marker { color: var(--error); }
+.strategy-notes li.is-warning::marker { color: #b5651d; }
+.gantt-warning { flex: 0 0 auto; color: #9a5b00; }
+
+/* Monthly water balance: water in (rain + irrigation) against crop use, one pair of bars per month */
+.balance-panel-wide { grid-column: 1 / -1; }
+
+/* The strategy matrix row on a card: irrigation, fertilizer, risks, soil depletion */
+.strategy-settings { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 10px; padding: 0; list-style: none; }
+.strategy-settings li { padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; font-size: 11px; color: var(--muted); white-space: nowrap; }
+
+/* The current plan's card: its water need and N-P-K balance under the metrics */
+
+/* Details: every crop's agronomic risks and warnings, open */
+.strategy-risk-crops { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.strategy-risk-crops h4 { margin: 0 0 4px; font-size: 13px; font-weight: 500; }
+.strategy-risk-crops .strategy-notes { max-width: none; }
+
+/* Details: the strategy summary, one white card with a numbered step per crop (dates, money, fertilizer, risks) */
+.strategy-summary { margin: 16px 0; }
+.strategy-summary-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px; margin-bottom: 4px; }
+.strategy-summary-head .balance-totals { margin: 0; }
+.strategy-steps { display: grid; margin: 0; padding: 0; list-style: none; }
+.strategy-step { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 12px; padding: 14px 0; border-top: 1px solid var(--line); }
+.strategy-step:first-child { border-top: 0; }
+.strategy-step-number { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: var(--sage); color: var(--ink); font-size: 12.5px; font-weight: 700; }
+.strategy-step-body { display: grid; gap: 10px; min-width: 0; }
+.strategy-step-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; margin: 3px 0 0; font-size: 14px; font-weight: 400; }
+.strategy-step-title .strategy-table-sub { display: inline; }
+.strategy-step-period { margin-left: auto; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
+.strategy-step-facts { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 8px 16px; margin: 0; }
+.strategy-step-facts div { display: grid; gap: 1px; min-width: 0; }
+.strategy-step-facts dt { font-size: 11px; color: var(--muted); }
+/* Costs by kind: the same label-over-number cells as the totals, a step quieter, set off by a rule above. */
+.strategy-cost-parts { padding-top: 8px; border-top: 1px dashed var(--line); }
+.strategy-summary-head + .strategy-cost-parts { justify-content: flex-end; margin: 10px 0 12px; }
+.strategy-summary-head + .strategy-cost-parts dd { font-size: 13.5px; font-weight: 500; }
+.strategy-step-facts.strategy-cost-parts dd { font-weight: 500; }
+.strategy-step-facts dd {margin: 0; font-size: 13px; font-weight: 600; color: var(--ink); }
+.strategy-step-none { margin: 0; font-size: 12.5px; color: var(--muted); }
+/* One crop's fertilizer purchase: a pale-green card with a flask, the amount, the product with its N:P:K grade, the rate */
+/* One width for every crop's card, so they line up down the plan instead of stretching across the whole summary. */
+.strategy-fertilizer-card { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 12px; align-items: start; justify-self: start;
+  width: min(100%, 400px); box-sizing: border-box; padding: 12px 14px;
+  border: 1px solid #c9dfa8; border-radius: 8px; background: #f2f8e8; font-family: var(--font-sans); }
+.strategy-fertilizer-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: #dcedc2; color: #3d6b1f; }
+.strategy-fertilizer-body { display: grid; gap: 3px; min-width: 0; }
+.strategy-fertilizer-body p { margin: 0; overflow-wrap: anywhere; }
+.strategy-fertilizer-action { font-size: 14px; color: var(--ink); font-variant-numeric: tabular-nums lining-nums; }
+.strategy-fertilizer-action strong { font-size: 15.5px; font-weight: 700; }
+.strategy-fertilizer-tonnes { color: var(--muted); font-size: 12.5px; }
+.strategy-fertilizer-product { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 13.5px; }
+.strategy-npk { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; background: #fff; border: 1px solid #c9dfa8;
+  font-size: 11.5px; font-weight: 600; color: #3d6b1f; white-space: nowrap; font-variant-numeric: tabular-nums lining-nums; }
+.strategy-npk-label { font-weight: 500; color: var(--muted); }
+.strategy-fertilizer-rate { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums lining-nums; }
+.strategy-fertilizer-total { margin: 0 0 12px; font-size: 13px; overflow-wrap: anywhere; }
+
+/* Strategy settings (the gear next to "Suggest strategies") */
+.strategy-choices-backdrop { position: fixed; inset: 0; z-index: calc(var(--z-drawer) - 4); display: grid; place-items: center; padding: 16px;
+  background: rgb(20 30 20 / .35); }
+.strategy-choices { display: grid; gap: 10px; width: min(640px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; padding: 0 18px 18px;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.strategy-choices .strategy-view-head { margin: 0 -18px; padding: 14px 18px; background: var(--surface); }
+.strategy-choices .strategy-view-head h3 { margin: 0; font-size: 16px; }
+.strategy-choices-heading { margin: 6px 0 0; font-size: 13px; }
+.strategy-choices-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.strategy-choice { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 13px; }
+.strategy-choice input { margin-top: 3px; }
+.strategy-choice-text { display: grid; gap: 4px; flex: 1; min-width: 0; }
+.strategy-choice-text .strategy-settings { margin: 0; }
+.strategy-custom-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin: 0; padding: 10px; border: 1px dashed var(--line); border-radius: 8px; }
+.strategy-custom-form legend { padding: 0 4px; font-size: 12px; color: var(--muted); }
+.strategy-custom-form > label:not(.strategy-choice) { display: grid; gap: 4px; font-size: 12px; color: var(--muted); }
+.strategy-custom-form select { min-height: 36px; padding: 4px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); }
+.strategy-custom-form .button { justify-self: start; gap: 6px; }
+/* Add strategy: a footer row of its own, split from the options by a hairline. */
+.strategy-custom-foot { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; margin: 4px -10px -10px; padding: 12px 10px 10px; border-top: 1px solid var(--line); border-radius: 0 0 8px 8px; background: linear-gradient(180deg, #f4f3eb00, #e7eadf80); }
+.strategy-custom-foot .strategy-note { flex: 1 1 220px; margin: 0; }
+.strategy-custom-form .strategy-add-button { flex: 0 0 auto; min-height: 42px; padding: 9px 18px; gap: 8px; border-radius: 6px; box-shadow: 0 1px 0 #0b1a1414, 0 4px 14px -6px #142b2266; transition: background .2s, transform .2s, box-shadow .2s; }
+.strategy-custom-form .strategy-add-button svg { transition: transform .25s cubic-bezier(.3, 1.4, .5, 1); }
+.strategy-custom-form .strategy-add-button:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 1px 0 #0b1a1414, 0 8px 20px -8px #142b2288; }
+.strategy-custom-form .button.strategy-add-button:hover:not(:disabled) svg { transform: rotate(90deg); }
+.strategy-custom-form .strategy-add-button:active:not(:disabled) { transform: translateY(0); }
+.strategy-custom-form .strategy-add-button:disabled { box-shadow: none; cursor: not-allowed; }
+@media (max-width: 520px) { .strategy-custom-form .strategy-add-button { width: 100%; } }
+@media (prefers-reduced-motion: reduce) { .strategy-custom-form .strategy-add-button, .strategy-custom-form .strategy-add-button svg { transition: none; transform: none !important; } }
+.strategy-custom-form > .strategy-custom-wide { grid-column: 1 / -1; }
+.strategy-custom-form > .strategy-custom-wide span { color: var(--muted); font-weight: 400; }
+.strategy-custom-form input[type="text"], .strategy-custom-form textarea { min-height: 36px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--ink); font: inherit; font-size: 13px; resize: vertical; }
+.strategy-choices-foot { display: flex; flex-wrap: wrap; gap: 10px; justify-content: space-between; align-items: center; padding-top: 6px; border-top: 1px solid var(--line); }
+.strategy-step-notes summary { width: fit-content; padding: 2px 0; font-size: 12.5px; color: var(--muted); cursor: pointer; }
+.strategy-step-notes summary:hover { color: var(--ink); }
+.strategy-step-notes summary:focus-visible { outline: 2px solid var(--forest); outline-offset: 2px; border-radius: 3px; }
+.strategy-step-notes[open] summary { margin-bottom: 6px; }
+.strategy-step .strategy-notes { max-width: none; }
+.balance-swatch.is-use, .balance-segment.is-use, .water-bar.is-use { background: #eb6834; }
+.balance-swatch.is-bare { background: var(--sage); border: 1px solid var(--line); }
+.water-chart { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 6px; margin-bottom: 10px; }
+.water-axis { position: relative; height: 196px; font-size: 10.5px; color: var(--muted); }
+.water-axis span { position: absolute; right: 0; transform: translateY(50%); }
+.water-scroll { overflow-x: auto; }
+.water-months { position: relative; display: flex; gap: 2px; height: 196px; min-width: 100%; margin: 0; padding: 0; list-style: none; }
+.water-grid { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed var(--line); pointer-events: none; }
+.water-month { position: relative; display: flex; flex: 1 0 14px; flex-direction: column; min-width: 14px; }
+.water-month.is-bare .water-bars { background: var(--sage); }
+.water-month.is-year-start { border-left: 1px solid var(--line); padding-left: 1px; }
+.water-month:hover .water-bars { background: #0000000a; }
+.water-bars { display: flex; flex: 1 1 auto; align-items: flex-end; gap: 1px; border-bottom: 1px solid var(--muted); }
+.water-bar { flex: 1 1 0; min-width: 0; }
+.water-bar.is-in { display: flex; flex-direction: column; gap: 1px; }
+.water-bar.is-in .balance-segment { width: 100%; min-width: 0; min-height: 1px; }
+.water-bar.is-in .balance-segment:first-child, .water-bar.is-use { border-radius: 3px 3px 0 0; }
+.water-label { flex: 0 0 16px; font-size: 10.5px; line-height: 16px; color: var(--muted); white-space: nowrap; overflow: visible; }

@@ -1,10 +1,11 @@
 import { NavLink, Outlet } from 'react-router'
-import { Grid2X2, Map } from 'lucide-react'
+import { CalendarRange, Grid2X2, Map } from 'lucide-react'
 
 /** The three views of one workspace: farms hold fields, and fields hold plans. */
 const FARM_VIEWS = [
   { label: 'Farms', to: '/dashboard/farms', icon: Map, end: true },
   { label: 'Fields', to: '/dashboard/farms/fields', icon: Grid2X2, end: false },
+  { label: 'Planning', to: '/dashboard/farms/planning', icon: CalendarRange, end: false },
 ] as const
 
 /**
