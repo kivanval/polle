@@ -14,6 +14,11 @@ export const router = createBrowserRouter([
   { element: <ProtectedRoute />, children: [{ element: <AppShell />, children: [
     // The overview needs farms; until they land, signing in opens the account.
     { path: '/dashboard', loader: () => redirect('/profile') },
+    // Farms and their fields are one workspace with a view switch. Map pages pull in Leaflet; load them on demand.
+    { path: '/dashboard/farms', lazy: async () => ({ Component: (await import('@/pages/farms/FarmsWorkspace')).FarmsWorkspace }), children: [
+      { index: true, lazy: async () => ({ Component: (await import('@/pages/farms/FarmsPage')).FarmsPage }) },
+    ] },
+    { path: '/dashboard/farms/new', lazy: async () => ({ Component: (await import('@/pages/farms/NewFarmPage')).NewFarmPage }) },
     { path: '/profile', element: <ProfilePage /> },
   ] }] },
   { path: '*', element: <NotFoundPage /> },

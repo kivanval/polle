@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
-import { ArrowUpRight, Menu, UserRound, X } from 'lucide-react'
+import { ArrowUpRight, Map, Menu, UserRound, X } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { useAuth } from '@/features/auth/useAuth'
 import { Brand } from '@/shared/ui/Brand'
@@ -8,7 +8,10 @@ import { LogoutButton } from '@/shared/ui/LogoutButton'
 import { idPlaceholder, usePageName } from './pageTitle'
 
 // The workspace's sections; each one joins the navigation as it lands.
-const sections: { label: string; to: string; icon: LucideIcon; end?: boolean }[] = []
+const sections: { label: string; to: string; icon: LucideIcon; end?: boolean }[] = [
+  // Farms and their fields: one workspace (see FarmsWorkspace).
+  { label: 'Farms & planning', to: '/dashboard/farms', icon: Map },
+]
 export function AppShell() {
   const { data: user } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
