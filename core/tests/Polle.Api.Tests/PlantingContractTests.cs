@@ -29,7 +29,7 @@ public sealed class PlantingContractTests
     {
         var crop = new Crop
         {
-            Id = 7726, Name = "Wheat", NameUk = "Пшениця м'яка", ScientificName = "Triticum aestivum",
+            Id = 7726, Name = "Wheat", NameUk = "Common wheat (uk)", ScientificName = "Triticum aestivum",
             Profiles = [new() { Id = 10, CropId = 7726, SystemName = "Winter Grain Harvest" },
                         new() { Id = 11, CropId = 7726, SystemName = "Spring Grain Harvest", IsPerennial = false }]
         };
@@ -37,7 +37,7 @@ public sealed class PlantingContractTests
         var response = CropResponse.From(crop);
 
         Assert.Equal("Wheat", response.Name);
-        Assert.Equal("Пшениця м'яка", response.NameUk);
+        Assert.Equal("Common wheat (uk)", response.NameUk);
         Assert.Equal([10L, 11L], response.Profiles.Select(profile => profile.Id));
         Assert.Equal("Winter Grain Harvest", response.Profiles[0].SystemName);
     }

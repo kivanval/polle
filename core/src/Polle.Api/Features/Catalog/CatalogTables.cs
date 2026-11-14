@@ -5,7 +5,7 @@ namespace Polle.Api.Features.Catalog;
 /// into SQL; columns, keys and links are read from the database itself (see <see cref="CatalogSchemaReader"/>).
 /// </summary>
 /// <param name="Label">SQL for a human label of a row, over alias <c>t</c>; used where other tables link to this one.</param>
-/// <param name="Translations">jsonb columns holding names per language, like {"en": "Corn", "uk": "Кукурудза"}.</param>
+/// <param name="Translations">jsonb columns holding names per language, like {"en": "Corn", "uk": "…"}.</param>
 public sealed record CatalogTable(string Name, string Title, string Group, string Description, string Label, string[] Translations);
 
 public static class CatalogTables
