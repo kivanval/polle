@@ -8,9 +8,7 @@ from ortools.sat.python import cp_model
 from app.config import LoggingConfig, SolverConfig
 from app.models.planning import CroppingCanvas, PlantingVariant
 from app.models.types import UsdCents
-from app.solver.assembler import ComponentAssembler
 from app.solver.formulator import ComponentRegistry, Formulator
-from app.solver.plan import SolverPlan
 from app.solver.result import (
     PlantingSchedule,
     SolverResult,
@@ -48,7 +46,6 @@ class SolutionProgressLogger(cp_model.CpSolverSolutionCallback):
 
 def _solve_field(
     canvas: CroppingCanvas,
-    plan: SolverPlan,
     registry: ComponentRegistry,
     config: SolverConfig,
 ) -> tuple[SolverStatus, float, list[PlantingVariant]]:
@@ -64,12 +61,12 @@ def _solve_field(
         return SolverStatus.OPTIMAL, 0.0, []
 
     formulator = Formulator(registry)
-    formulated_plan = formulator.formulate(canvas, plan)
+    model, var_store = formulator.formulate(canvas)
 
     logger.info(
         "Model formulated (%d vars, %d constraints). Launching CP-SAT solver...",
-        len(formulated_plan.model.proto.variables),
-        len(formulated_plan.model.proto.constraints),
+        len(model.proto.variables),
+        len(model.proto.constraints),
     )
 
     solver = cp_model.CpSolver()
@@ -85,7 +82,7 @@ def _solve_field(
     progress_callback = SolutionProgressLogger()
 
     solve_start_time = time.perf_counter()
-    raw_status = solver.Solve(formulated_plan.model, progress_callback)
+    raw_status = solver.Solve(model, progress_callback)
     solve_duration = time.perf_counter() - solve_start_time
     domain_status = STATUS_MAPPING.get(raw_status, SolverStatus.UNKNOWN)
 
@@ -95,7 +92,7 @@ def _solve_field(
     if domain_status in (SolverStatus.OPTIMAL, SolverStatus.FEASIBLE):
         field_objective = solver.ObjectiveValue()
         for variant in variants:
-            cp_var = formulated_plan.var_store.get_variant_var(variant)
+            cp_var = var_store.get_variant_var(variant)
             if solver.Value(cp_var) == 1:
                 selected_variants.append(variant)
 
@@ -121,12 +118,10 @@ def _solve_field(
 class SolverPipeline:
     def __init__(
         self,
-        assembler: ComponentAssembler,
         registry: ComponentRegistry,
         config: SolverConfig,
         logging_config: LoggingConfig,
     ) -> None:
-        self._assembler = assembler
         self._registry = registry
         self._config = config
         self._logging_config = logging_config
@@ -137,13 +132,10 @@ class SolverPipeline:
     ) -> SolverResult:
         pipeline_start_time = time.perf_counter()
 
-        plan = self._assembler.assemble()
-
         logger.info("Initiating field optimization...")
 
         domain_status, field_objective, selected_variants = _solve_field(
             canvas=canvas,
-            plan=plan,
             registry=self._registry,
             config=self._config,
         )
@@ -151,10 +143,7 @@ class SolverPipeline:
         total_wall_time = WallTime(seconds=round(time.perf_counter() - pipeline_start_time, 4))
 
         objective_cents = UsdCents(0)
-        if plan.objective is not None and domain_status in (
-            SolverStatus.OPTIMAL,
-            SolverStatus.FEASIBLE,
-        ):
+        if domain_status in (SolverStatus.OPTIMAL, SolverStatus.FEASIBLE):
             objective_cents = UsdCents(round(field_objective))
 
         logger.info(
