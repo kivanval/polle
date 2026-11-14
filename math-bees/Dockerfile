@@ -1,0 +1,60 @@
+FROM python:3.11-slim-bookworm AS builder
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+PYTHONUNBUFFERED=1
+
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+build-essential \
+&& rm -rf /var/lib/apt/lists/*
+
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip setuptools wheel
+
+COPY pyproject.toml README.md* application.conf* /build/
+RUN mkdir -p src/app && touch src/app/__init__.py
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir ".[dev]"
+
+COPY api/ /build/api/
+COPY /scripts/generate_api.sh /build/
+COPY src/ /build/src/
+
+RUN chmod +x /build/generate_api.sh && /build/generate_api.sh
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install .
+
+
+FROM python:3.11-slim-bookworm AS runner
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+PYTHONUNBUFFERED=1 \
+PATH="/opt/venv/bin:$PATH" \
+PYTHONPATH="/app/src"
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+curl \
+&& rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -g 10001 appgroup && \
+useradd -u 10001 -g appgroup -s /bin/bash -m appuser
+
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /build/src /app/src
+COPY application.conf /app/application.conf
+
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:create_app", "--factory", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--access-log"]
