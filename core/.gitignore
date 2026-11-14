@@ -1,0 +1,15 @@
+# .NET build output
+bin/
+obj/
+*.user
+.vs/
+
+# Local settings and credentials
+appsettings.Local.json
+appsettings.*.Local.json
+appsettings.Secrets.json
+*.pfx
+*.p12
+*.pem
+*.key
+*.log
