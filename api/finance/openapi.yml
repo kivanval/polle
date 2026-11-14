@@ -1,38 +1,71 @@
 openapi: 3.1.0
 info:
   title: Finance API
-  version: 1.0.0
-  description: Service providing annual market prices for materials (seeds, fertilizers, crops, water) for agronomic simulations. All prices returned by this API are strictly per metric tonne.
+  version: 2.0.0
+  description: Service providing annual market prices for materials (seeds, fertilizers, crops, water) and base operational expenditures (OpEx) for crop profiles.
 
 paths:
-  /api/v1/finance/prices:
+  /api/v2/finance/materials/prices:
     post:
       summary: Get annual prices for specified materials over a horizon
-      operationId: getPricingMatrix
+      operationId: getMaterialPricesV2
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PricingRequest'
+              $ref: '#/components/schemas/MaterialPricingRequestV2'
       responses:
         '200':
-          description: Pricing matrix for the requested time horizon
+          description: Material pricing matrix for the requested time horizon
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PricingResponse'
+                $ref: '#/components/schemas/MaterialPricingResponseV2'
         '400':
           description: Bad Request - Missing or invalid parameters
+        '401':
+          description: Unauthorized - Missing or wrong API key
+
+  /api/v2/finance/crop-profiles/opex:
+    post:
+      summary: Get annual base OpEx for specified crop profiles over a horizon
+      operationId: getCropProfileOpexV2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CropProfileOpexRequestV2'
+      responses:
+        '200':
+          description: Crop profile OpEx matrix for the requested time horizon
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CropProfileOpexResponseV2'
+        '400':
+          description: Bad Request - Missing or invalid parameters
+        '401':
+          description: Unauthorized - Missing or wrong API key
+
+security:
+  - ApiKeyAuth: []
 
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Finance-Api-Key
+
   schemas:
-    PricingRequest:
+    MaterialPricingRequestV2:
       type: object
       required:
         - start_year
         - end_year
-        - material_ids
+        - ids
       properties:
         start_year:
           type: integer
@@ -42,44 +75,76 @@ components:
           type: integer
           description: End year of the planning horizon
           example: 2030
-        material_ids:
+        ids:
           type: array
           items:
             type: string
-          description: List of unique material identifiers (planting materials, products, NPK, water)
-          example: ["50", "3", "232"]
+          description: List of unique material identifiers (seeds, fertilizers, crops, water)
 
-    PricingResponse:
+    MaterialPricingResponseV2:
       type: object
       required:
         - material_prices
       properties:
         material_prices:
           type: object
-          description: A map where the key is the material_id and the value is a list of its annual rates.
+          description: A map where the key is the material_id and the value is a list of its annual rates per metric tonne (or cubic meter for water).
+          additionalProperties:
+            type: array
+            items:
+              $ref: '#/components/schemas/AnnualRate'
+
+    CropProfileOpexRequestV2:
+      type: object
+      required:
+        - start_year
+        - end_year
+        - ids
+      properties:
+        start_year:
+          type: integer
+          description: Start year of the planning horizon
+          example: 2025
+        end_year:
+          type: integer
+          description: End year of the planning horizon
+          example: 2030
+        ids:
+          type: array
+          items:
+            type: string
+          description: List of unique crop profile identifiers
+
+    CropProfileOpexResponseV2:
+      type: object
+      required:
+        - profile_base_opex
+      properties:
+        profile_base_opex:
+          type: object
+          description: A map where the key is the profile_id and the value is a list of its annual base OpEx per hectare.
           additionalProperties:
             type: array
             items:
               $ref: '#/components/schemas/AnnualRate'
           example:
-            "50":
+            "prof_winter_wheat_intensive":
               - year: 2025
-                price_cents: 200000
+                price_cents: 35000
               - year: 2026
-                price_cents: 215000
+                price_cents: 36500
 
     AnnualRate:
       type: object
       required:
         - year
         - price_cents
-        - unit
       properties:
         year:
           type: integer
-          description: The specific year for this price
+          description: The specific year for this price or expenditure
           example: 2025
         price_cents:
           type: integer
-          description: Price in USD cents per metric tonne (1000 kg). For water, 1 tonne = 1 cubic meter.
+          description: Cost or price in USD cents. For materials, this is per metric tonne (1000 kg) or cubic meter. For crop profile OpEx, this is per hectare.
           example: 25000

@@ -30,13 +30,33 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/FieldTopology'
+        '400':
+          description: Bad Request - Invalid year_month
+        '401':
+          description: Unauthorized - Missing or wrong API key
         '404':
           description: Field not found
+        '429':
+          description: Too Many Requests - per-route limit reached; retry after the Retry-After header
+
+security:
+  - ApiKeyAuth: []
 
 components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Fields-Api-Key
   schemas:
     FieldTopology:
       type: object
+      required:
+        - id
+        - name
+        - area_ha
+        - initial_depletion_mm
+        - soil
       properties:
         id:
           type: string
@@ -54,20 +74,24 @@ components:
         initial_depletion_mm:
           type: number
           format: float
-          nullable: true
           description: Starting root-zone moisture depletion in mm (0 = field capacity).
           example: 45.2
         soil:
           $ref: '#/components/schemas/SoilProperties'
-          description: Soil characteristics and hydraulics. Can be null if no soil data is mapped.
+          description: Mandatory soil characteristics, hydraulics, and nutrient pools.
 
     SoilProperties:
       type: object
-      nullable: true
+      required:
+        - texture
+        - drainage
+        - ph
+        - salinity_ds_m
+        - hydraulics
+        - nutrients
       properties:
         texture:
           type: string
-          nullable: true
           description: Soil texture classification
           enum:
             - sand
@@ -80,7 +104,6 @@ components:
             - peat
         drainage:
           type: string
-          nullable: true
           description: Soil drainage classification
           enum:
             - well_drained
@@ -89,21 +112,63 @@ components:
         ph:
           type: number
           format: float
-          nullable: true
           description: Soil acidity level
           example: 6.5
         salinity_ds_m:
           type: number
           format: float
-          nullable: true
           description: Soil electrical conductivity (salinity) in dS/m
           example: 0.8
         hydraulics:
           $ref: '#/components/schemas/SoilHydraulics'
+        nutrients:
+          $ref: '#/components/schemas/SoilNutrients'
+
+    SoilNutrients:
+      type: object
+      description: Soil macro-nutrient reserves and dynamic balance limits (kg/ha)
+      required:
+        - nitrogen
+        - phosphorus
+        - potassium
+      properties:
+        nitrogen:
+          $ref: '#/components/schemas/NutrientPool'
+        phosphorus:
+          $ref: '#/components/schemas/NutrientPool'
+        potassium:
+          $ref: '#/components/schemas/NutrientPool'
+
+    NutrientPool:
+      type: object
+      required:
+        - initial_kg_ha
+        - min_kg_ha
+        - max_kg_ha
+      properties:
+        initial_kg_ha:
+          type: number
+          format: float
+          description: Starting available nutrient reserve in root zone (kg/ha)
+          example: 120.0
+        min_kg_ha:
+          type: number
+          format: float
+          description: Absolute minimum soil pool lower bound (kg/ha)
+          example: 20.0
+        max_kg_ha:
+          type: number
+          format: float
+          description: Absolute maximum soil pool saturation ceiling (kg/ha)
+          example: 350.0
 
     SoilHydraulics:
       type: object
-      nullable: true
+      required:
+        - max_soil_depth_m
+        - field_capacity_vol
+        - wilting_point_vol
+        - total_available_water_mm
       properties:
         max_soil_depth_m:
           type: number
