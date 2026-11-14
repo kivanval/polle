@@ -1,0 +1,22 @@
+:root {
+  --forest: #142b22;
+  --ink: #183128;
+  --paper: #f4f3eb;
+  --surface: #faf9f4;
+  --lime: #d6ed83;
+  --sage: #e7eadf;
+  --muted: #68746b;
+  --line: #d0d4c8;
+  --error: #a23029;
+  --focus: #8b9e30;
+  /* Crop bars on timelines; white labels stay readable on each. */
+  --crop-0: #5f8f3e; --crop-1: #b57a24; --crop-2: #3f6f9c; --crop-3: #7d9a2e; --crop-4: #7a6248; --crop-5: #2f7f86; --crop-6: #386641; --crop-7: #a85a48;
+  --font-sans: 'Manrope Variable', 'Segoe UI', sans-serif;
+  --font-mono: 'DM Mono', Consolas, monospace;
+  /* Stacking order, lowest first. Map controls live inside the map's own stacking context (.atlas-map is isolated),
+     so they never rise above workspace chrome; the assistant floats over pages; drawers and dialogs cover everything. */
+  --z-map-control: 1000;
+  --z-map-panel: 1010;
+  --z-assistant: 1200;
+  --z-drawer: 1300;
+}
