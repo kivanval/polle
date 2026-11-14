@@ -285,7 +285,7 @@ class SoilWaterBucketStep(SimulationStep):
                 Note(
                     NoteCategory.DATA_MISSING,
                     NoteImportance.RISK,
-                    f"Missing moisture depletion fraction for profile",
+                    "Missing moisture depletion fraction for profile",
                 ),
                 fatal_if=abort_on_fatal and not context.risk.allow_missing_data,
                 death_note=DeathNote("SoilWaterBucket:MissingDepletionFraction", is_static=True),
