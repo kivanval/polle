@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
-from ortools.sat.python import cp_model
+if TYPE_CHECKING:
+    from ortools.sat.python import cp_model
 
-from app.solver.base import VariableStore
+    from app.solver.base import VariableStore
 
 PayloadT = TypeVar("PayloadT")
 
