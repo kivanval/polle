@@ -52,7 +52,7 @@ public sealed record NutrientPool(
 /// </summary>
 public static class FieldSoil
 {
-    public const string MissingMessage = "Для даного поля відсутні дані ґрунту. Моделювання неможливе.";
+    public const string MissingMessage = "There is no soil data for this field's location, so it can't be modelled.";
 
     private const double CellDegrees = 0.05;
 
