@@ -1,0 +1,109 @@
+@import '@fontsource-variable/manrope';
+@import '@fontsource/dm-mono/400.css';
+@import './styles/tokens.css';
+@import './styles/account.css';
+@import './styles/workspace.css';
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 30px; }
+body { margin: 0; color: var(--ink); background: var(--paper); font-family: var(--font-sans); font-size: 15px; line-height: 1.65; -webkit-font-smoothing: antialiased; }
+button, input, textarea { font: inherit; }
+button, a { -webkit-tap-highlight-color: transparent; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+a { color: inherit; text-decoration: none; }
+img { display: block; max-width: 100%; }
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { font-weight: 500; line-height: 1.1; letter-spacing: -.045em; }
+svg { flex-shrink: 0; }
+::selection { background: var(--lime); color: var(--forest); }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 5px; }
+.wrap { width: min(100% - 112px, 1440px); margin-inline: auto; }
+.mono { font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; font-weight: 400; }
+.section-label { display: block; color: var(--muted); margin-bottom: 24px; }
+.button { display: inline-flex; align-items: center; justify-content: center; gap: 24px; min-height: 52px; padding: 14px 23px; border: 1px solid transparent; font-size: 13px; font-weight: 600; border-radius: 2px; line-height: 1.5; transition: background .2s, color .2s, transform .2s; }
+.button svg { transition: transform .2s; }
+/* The arrow nudge is for call-to-action buttons; icon-only, quiet and danger buttons keep their icon still. */
+.button:not(.button-icon, .button-quiet, .button-danger):hover:not(:disabled) svg { transform: translate(3px, -1px); }
+.button-lime { background: var(--lime); color: var(--forest); }
+.button-lime:hover { background: #e6f6ad; }
+.button-dark { background: var(--forest); color: var(--paper); }
+.button-dark:hover:not(:disabled) { background: #294c3b; }
+/* A disabled dark button greys out with dark text instead of fading the light text into a mid-tone background. */
+.button-dark:disabled { background: var(--sage); color: var(--muted); border-color: var(--line); opacity: 1; }
+.button-outline { border-color: var(--line); background: transparent; color: var(--ink); }
+.button-outline:hover:not(:disabled) { background: var(--sage); }
+.button:disabled { opacity: .65; }
+.button-divider { height: 16px; width: 1px; background: currentColor; opacity: .3; }
+.text-link { display: inline-flex; gap: 14px; align-items: center; border-bottom: 1px solid currentColor; padding: 7px 0; font-size: 12px; }
+.text-link.light { color: var(--paper); }
+.text-link:hover svg { transform: translate(2px, -2px); }
+.text-link svg { transition: transform .2s; }
+.brand { display: inline-flex; align-items: center; color: var(--forest); gap: 8px; font-size: 27px; font-weight: 650; letter-spacing: -1.5px; line-height: 1; white-space: nowrap; }
+.brand svg { width: 29px; height: 29px; }
+.brand-light { color: var(--paper); }
+.brand-dot { font-size: 9px; align-self: flex-start; margin-top: 4px; margin-left: -4px; }
+.skip-link { position: fixed; top: -100px; left: 16px; z-index: 100; background: var(--lime); color: var(--ink); padding: 12px 20px; }
+.skip-link:focus { top: 10px; }
+.field-lines { position: absolute; inset: 0; width: 100%; height: 100%; color: var(--lime); pointer-events: none; }
+.status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #749146; flex-shrink: 0; }
+.menu-button { display: none; background: transparent; color: inherit; border: 0; padding: 8px; }
+.route-state { min-height: 100svh; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 26px; padding: 30px; text-align: center; }
+.route-state h1 { font-size: clamp(38px, 5vw, 64px); }
+.route-state p { max-width: 460px; color: var(--muted); }
+.route-state-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+.challenge-banner { position: fixed; z-index: 90; left: 16px; right: 16px; bottom: 16px; max-width: 760px; margin: 0 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; padding: 14px 18px; background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; box-shadow: 0 12px 32px rgb(0 0 0 / .14); }
+.challenge-banner p { flex: 1 1 260px; margin: 0; }
+.challenge-banner-actions { display: flex; gap: 10px; }
+.challenge-banner-actions .button { min-height: 40px; padding: 8px 18px; }
+/* Loading: a tractor ploughs a strip of field (TractorLoader); buttons get a small chugging tractor (TractorSpinner). */
+.tractor-loader { --run: 2.8s; position: relative; display: block; flex: none; width: 176px; height: 50px; overflow: hidden; }
+.tractor-loader.is-compact { width: 120px; height: 34px; }
+.tractor-loader.is-compact .tractor-driver { transform-origin: left bottom; scale: .66; }
+.tractor-field { position: absolute; left: 0; right: 0; bottom: 0; height: 11px; border-radius: 2px;
+  background: repeating-linear-gradient(90deg, #cfc6a6 0 2px, #e3dcc4 2px 6px); }
+.tractor-furrows { position: absolute; left: 0; bottom: 0; height: 11px; width: 0; border-radius: 2px;
+  background: repeating-linear-gradient(180deg, #5e4630 0 2px, #8b6b47 2px 4px); animation: tractor-plough var(--run) linear infinite; }
+.tractor-driver { position: absolute; left: 0; bottom: 6px; display: block; line-height: 0; animation: tractor-drive var(--run) linear infinite; }
+.is-compact .tractor-furrows { height: 8px; }
+.is-compact .tractor-field { height: 8px; }
+.is-compact .tractor-driver { bottom: 4px; }
+.tractor-art { display: block; overflow: visible; }
+.tractor-body { fill: var(--forest); }
+.tractor-glass { fill: var(--lime); }
+.tractor-trim { stroke: var(--lime); stroke-width: 1.2; stroke-linecap: round; }
+.tractor-plough { stroke: var(--forest); stroke-width: 2; stroke-linecap: round; }
+.tractor-wheel circle:first-child { fill: #24302a; }
+.tractor-hub { fill: var(--lime); }
+.tractor-spokes { stroke: #9aa39b; stroke-width: 1.2; stroke-linecap: round; }
+.tractor-wheel { transform-box: fill-box; transform-origin: center; animation: tractor-wheel .7s linear infinite; }
+.tractor-wheel.is-front { animation-duration: .45s; }
+.tractor-smoke circle { fill: #9aa39b; transform-box: fill-box; transform-origin: center; animation: tractor-smoke 1.1s ease-out infinite; }
+.tractor-smoke circle + circle { animation-delay: .55s; }
+.tractor-spinner { display: inline-flex; flex: none; align-items: center; justify-content: center; vertical-align: middle; animation: tractor-chug .32s ease-in-out infinite alternate; }
+.button-dark .tractor-spinner, .button-danger .tractor-spinner { --forest: currentColor; }
+.button-dark .tractor-spinner .tractor-glass, .button-danger .tractor-spinner .tractor-glass { fill: var(--lime); }
+@keyframes tractor-drive { from { transform: translateX(-56px); } 88% { opacity: 1; } to { transform: translateX(176px); opacity: 0; } }
+/* The tractor travels 232px (−56 → 176); its plough is ~4px from its tail, so furrows start once it enters (23%) and fill the strip at 98%. */
+@keyframes tractor-plough { 0%, 23% { width: 0; opacity: 1; } 88% { opacity: 1; } 98%, 100% { width: 100%; } 100% { opacity: 0; } }
+@keyframes tractor-wheel { to { transform: rotate(360deg); } }
+@keyframes tractor-smoke { from { opacity: .8; transform: translate(0, 0) scale(.6); } to { opacity: 0; transform: translate(-6px, -7px) scale(1.6); } }
+@keyframes tractor-chug { to { transform: translateY(-1px); } }
+@media (prefers-reduced-motion: reduce) {
+  .tractor-driver { animation: none; transform: translateX(60px); }
+  .tractor-furrows { animation: tractor-breathe 1.6s ease-in-out infinite alternate; width: 60px; }
+  .tractor-wheel, .tractor-smoke circle, .tractor-spinner { animation: none; }
+  .tractor-smoke { display: none; }
+  @keyframes tractor-breathe { from { opacity: .45; } to { opacity: 1; } }
+}
+@media (max-width: 900px) { .wrap { width: calc(100% - 64px); } }
+@media (max-width: 600px) { .wrap { width: calc(100% - 40px); } .brand { font-size: 25px; } .button { gap: 18px; } }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
+/* Shown when a newer build is deployed while the tab is open. */
+.update-bar { position: fixed; left: 50%; bottom: 16px; z-index: 2000; display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px);
+  box-sizing: border-box; padding: 8px 8px 8px 16px; border-radius: 10px; background: #fff; border: 1px solid var(--line);
+  box-shadow: 0 6px 24px #0b1a1426; font-size: 13px; color: var(--ink); transform: translateX(-50%); }
