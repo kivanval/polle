@@ -29,13 +29,6 @@ def _get_net_nutrient_delta(variant: PlantingVariant, elem: str, ym: YearMonth) 
             return float(dyn.p_applied_kg_ha.real - dyn.p_removed_kg_ha.real)
         if elem == "k":
             return float(dyn.k_applied_kg_ha.real - dyn.k_removed_kg_ha.real)
-    elif variant.nutrient_balance is not None and ym == variant.clearance_month:
-        if elem == "n":
-            return float(variant.nutrient_balance.net_n_kg_ha.real)
-        if elem == "p":
-            return float(variant.nutrient_balance.net_p_kg_ha.real)
-        if elem == "k":
-            return float(variant.nutrient_balance.net_k_kg_ha.real)
     return 0.0
 
 
@@ -158,6 +151,9 @@ class NutrientAccumulationComponent(Component[None]):
                 MIN_NUTRIENT_DOMAIN_SCALED, min(MAX_NUTRIENT_DOMAIN_SCALED, init_scaled)
             )
             model.add(elem_stock[first_month] == clamped_init)
+
+            if not canvas.risk.allow_soil_depletion:
+                model.add(end_var >= clamped_init)
 
             stocks[elem_name] = elem_stock
 

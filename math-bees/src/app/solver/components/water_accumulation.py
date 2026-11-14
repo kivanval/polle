@@ -121,17 +121,16 @@ def _setup_depletion_variables(
     field_id: FieldId,
     horizon_months: list[YearMonth],
     taw_scaled: int,
-    initial_depletion_mm: float | None,
+    initial_depletion_mm: float,
 ) -> dict[YearMonth, IntVar]:
     depletion: dict[YearMonth, IntVar] = {
         ym: var_store.create_depletion_var(model, field_id, ym, taw_scaled) for ym in horizon_months
     }
 
-    if initial_depletion_mm is not None:
-        first_month = horizon_months[0]
-        raw_init = initial_depletion_mm * PRECISION_SCALE
-        init_val = max(0, min(taw_scaled, round(raw_init)))
-        model.add(depletion[first_month] == init_val)
+    first_month = horizon_months[0]
+    raw_init = initial_depletion_mm * PRECISION_SCALE
+    init_val = max(0, min(taw_scaled, round(raw_init)))
+    model.add(depletion[first_month] == init_val)
 
     end_horizon_ym = horizon_months[-1] + 1
     depletion[end_horizon_ym] = var_store.create_depletion_var(
@@ -168,7 +167,7 @@ def _apply_for_field(
         horizon_months=horizon_months,
         taw_scaled=taw_scaled,
         initial_depletion_mm=(
-            float(soil.initial_depletion_mm.real) if soil.initial_depletion_mm is not None else None
+            float(soil.initial_depletion_mm.real) if soil.initial_depletion_mm is not None else 0.0
         ),
     )
 

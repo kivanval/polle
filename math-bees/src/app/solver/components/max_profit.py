@@ -17,15 +17,31 @@ class MaxProfitComponent(Component[None]):
         var_store: VariableStore,
         payload: None = None,
     ) -> None:
-        vars_list = []
-        coeffs = []
+        objective_terms = []
 
         for variant in canvas.variants:
-            revenue_cents = variant.expected_revenue.real
-            if revenue_cents > 0:
+            profit_cents = int(variant.expected_revenue.real)
+            if profit_cents != 0:
                 var = var_store.get_variant_var(variant)
-                vars_list.append(var)
-                coeffs.append(revenue_cents)
+                objective_terms.append(profit_cents * var)
 
-        if vars_list:
-            model.maximize(cp_model.LinearExpr.weighted_sum(vars_list, coeffs))
+        if not canvas.risk.allow_soil_depletion:
+            end_ym = canvas.months[-1] + 1
+            area_ha = float(canvas.field.field.area_ha.real)
+
+            element_salvage_cents_per_kg = {
+                "n": 35,
+                "p": 45,
+                "k": 25,
+            }
+
+            for elem, price_per_kg in element_salvage_cents_per_kg.items():
+                end_stock_var = var_store.get_stock_var(canvas.field.field.id, elem, end_ym)
+                if end_stock_var is not None:
+                    raw_coeff = (price_per_kg * area_ha) / 100.0
+                    coeff = max(1, round(raw_coeff)) if raw_coeff > 0 else 0
+                    if coeff > 0:
+                        objective_terms.append(coeff * end_stock_var)
+
+        if objective_terms:
+            model.maximize(cp_model.LinearExpr.sum(objective_terms))
