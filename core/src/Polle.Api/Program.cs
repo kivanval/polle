@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Polle.Api.Common;
 using Polle.Api.Features.Auth;
+using Polle.Api.Features.Assistant;
 using Polle.Api.Features.Climate;
 using Polle.Api.Features.Drought;
 using Polle.Api.Features.Finance;
@@ -20,6 +21,7 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.OpenApi;
+using ModelContextProtocol.AspNetCore;
 using NetTopologySuite.IO.Converters;
 using Scalar.AspNetCore;
 
@@ -66,6 +68,8 @@ builder.Services.Configure<PasswordHasherOptions>(options => options.IterationCo
 builder.Services.AddSingleton<DummyPassword>();
 builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<SessionCookieEvents>();
+builder.Services.AddScoped<FarmAssistantTools>();
+builder.Services.AddScoped<AssistantStrategyTool>();
 builder.Services.AddScoped<SolverRequestBuilder>();
 builder.Services.AddScoped<IMonthlyWeatherProvider, UnavailableMonthlyWeatherProvider>();
 builder.Services.AddSingleton<HistoricalWeatherCache>();
@@ -102,6 +106,18 @@ builder.Services.AddHttpClient<FelderClient>((services, client) =>
 builder.Services.AddSingleton(services =>
     new SolverMaterials(services.GetRequiredService<IConfiguration>()["Solver:Materials:Irrigation"] ?? "2215"));
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddHttpClient<OllamaAssistant>((services, client) =>
+{
+    // Assistant:BaseUrl selects an OpenAI-compatible endpoint together with Assistant:Provider.
+    var configuration = services.GetRequiredService<IConfiguration>();
+    var address = configuration["Assistant:BaseUrl"] ?? configuration["Assistant:OllamaBaseUrl"] ?? "http://127.0.0.1:11434/";
+    client.BaseAddress = new Uri(address.EndsWith('/') ? address : address + "/");
+    client.Timeout = AssistantLimits.ModelRequestTimeout;
+});
+if (builder.Environment.IsDevelopment())
+    builder.Services.AddMcpServer().WithHttpTransport().AddAuthorizationFilters()
+        .WithTools<McpFarmTools>(McpFarmTools.SerializerOptions)
+        .WithRequestFilters(filters => filters.AddCallToolFilter(McpFarmTools.ReportInputErrors));
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie(options =>
 {
     options.Cookie.Name = "ecocrop.session";
@@ -246,11 +262,25 @@ app.Use(async (context, next) =>
 });
 app.UseCors();
 app.UseRateLimiter();
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path.StartsWithSegments("/mcp"))
+    {
+        var remoteIp = context.Connection.RemoteIpAddress;
+        if (remoteIp is null || !(IPAddress.IsLoopback(remoteIp) ||
+            remoteIp.IsIPv4MappedToIPv6 && IPAddress.IsLoopback(remoteIp.MapToIPv4())))
+        {
+            context.Response.StatusCode = StatusCodes.Status404NotFound;
+            return;
+        }
+    }
+    await next(context);
+});
 app.UseAuthentication();
 app.UseAuthorization();
 app.Use(async (context, next) =>
 {
-    if (context.Request.Path.StartsWithSegments("/api") && !HttpMethods.IsGet(context.Request.Method)
+    if ((context.Request.Path.StartsWithSegments("/api") || context.Request.Path.StartsWithSegments("/mcp")) && !HttpMethods.IsGet(context.Request.Method)
         && !HttpMethods.IsHead(context.Request.Method) && !HttpMethods.IsOptions(context.Request.Method)
         // Authenticated by a key header, not a cookie, so a forged browser request has nothing to ride on.
         && !FinanceEndpoints.IsFinanceRoute(context))
@@ -265,6 +295,7 @@ app.Use(async (context, next) =>
     await next(context);
 });
 if (app.Environment.IsDevelopment()) { app.MapOpenApi(); app.MapScalarApiReference(); }
+if (app.Environment.IsDevelopment()) app.MapMcp("/mcp").RequireAuthorization();
 var api = app.MapGroup("/api");
 api.MapGet("/health/live", () => Results.Ok(new { status = "ok" }));
 api.MapHealthChecks("/health");
