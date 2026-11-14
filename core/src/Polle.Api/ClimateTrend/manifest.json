@@ -1,0 +1,419 @@
+{
+  "schema_version": 1,
+  "generated_at_utc": "2026-10-28T15:56:25+00:00",
+  "fit_years": [
+    2016,
+    2025
+  ],
+  "centre_year": 2020.5,
+  "first_month": "2016-01",
+  "last_month": "2035-12",
+  "projected_from": "2026-01",
+  "image_bounds": [
+    [
+      -85.0511287798,
+      -180
+    ],
+    [
+      85.0511287798,
+      180
+    ]
+  ],
+  "grid": {
+    "resolution_degrees": 0.5,
+    "rows": 360,
+    "columns": 720,
+    "cell_index": "row * 720 + column, row 0 at 89.75N, column 0 at 179.75W"
+  },
+  "model": {
+    "window_days": 30,
+    "rain_factor_limits": [
+      0.7,
+      1.3
+    ],
+    "percentile_scale": 5,
+    "not_rated": 255,
+    "status_names": [
+      "ok",
+      "arid",
+      "no_data",
+      "polar"
+    ],
+    "method": "Monthly norms of 2016-2025 plus one linear trend per place from the annual values of those 10 years, carried forward. Temperature and evaporation demand change by a fixed amount per year, rain by a fixed share. Drought ranks the resulting 30-day water balance against the same season in 1991-2020. An expected climate, not a forecast."
+  },
+  "index": {
+    "name": "30-day climatic water balance percentile",
+    "window_days": 30,
+    "base_period": "1991-2020"
+  },
+  "layers": [
+    {
+      "id": "drought",
+      "kind": "grid",
+      "label": "Drought",
+      "description": "Expected 30-day water balance for the month against the same season in 1991–2020.",
+      "legend": [
+        {
+          "label": "Exceptional drought",
+          "color": "#730000"
+        },
+        {
+          "label": "Extreme drought",
+          "color": "#e60000"
+        },
+        {
+          "label": "Severe drought",
+          "color": "#ffaa00"
+        },
+        {
+          "label": "Moderate drought",
+          "color": "#fcd37f"
+        },
+        {
+          "label": "Abnormally dry",
+          "color": "#ffff00"
+        },
+        {
+          "label": "No drought",
+          "color": "#b7d9a8"
+        }
+      ]
+    },
+    {
+      "id": "temperature",
+      "kind": "grid",
+      "label": "Air temperature",
+      "description": "Expected monthly mean of the daily maximum and minimum 2 m air temperature.",
+      "unit": "°C",
+      "legend": [
+        {
+          "label": "below −20",
+          "color": "#313695"
+        },
+        {
+          "label": "−20 to −10",
+          "color": "#4575b4"
+        },
+        {
+          "label": "−10 to −5",
+          "color": "#74add1"
+        },
+        {
+          "label": "−5 to 0",
+          "color": "#abd9e9"
+        },
+        {
+          "label": "0 to 5",
+          "color": "#e0f3f8"
+        },
+        {
+          "label": "5 to 10",
+          "color": "#ffffbf"
+        },
+        {
+          "label": "10 to 15",
+          "color": "#fee090"
+        },
+        {
+          "label": "15 to 20",
+          "color": "#fdae61"
+        },
+        {
+          "label": "20 to 25",
+          "color": "#f46d43"
+        },
+        {
+          "label": "25 to 30",
+          "color": "#d73027"
+        },
+        {
+          "label": "30 to 35",
+          "color": "#a50026"
+        },
+        {
+          "label": "35 and above",
+          "color": "#67001f"
+        }
+      ],
+      "edges": [
+        -20,
+        -10,
+        -5,
+        0,
+        5,
+        10,
+        15,
+        20,
+        25,
+        30,
+        35
+      ]
+    },
+    {
+      "id": "rain",
+      "kind": "grid",
+      "label": "Rain, 30 days",
+      "description": "Expected rain over 30 days in the month.",
+      "unit": "mm",
+      "legend": [
+        {
+          "label": "under 5",
+          "color": "#f6e8c3"
+        },
+        {
+          "label": "5 to 10",
+          "color": "#dfc27d"
+        },
+        {
+          "label": "10 to 25",
+          "color": "#c7e9b4"
+        },
+        {
+          "label": "25 to 50",
+          "color": "#7fcdbb"
+        },
+        {
+          "label": "50 to 75",
+          "color": "#41b6c4"
+        },
+        {
+          "label": "75 to 100",
+          "color": "#1d91c0"
+        },
+        {
+          "label": "100 to 150",
+          "color": "#225ea8"
+        },
+        {
+          "label": "150 to 200",
+          "color": "#253494"
+        },
+        {
+          "label": "200 to 300",
+          "color": "#081d58"
+        },
+        {
+          "label": "300 and above",
+          "color": "#3f007d"
+        }
+      ],
+      "edges": [
+        5,
+        10,
+        25,
+        50,
+        75,
+        100,
+        150,
+        200,
+        300
+      ]
+    },
+    {
+      "id": "ndvi",
+      "gibs_layer": "MODIS_Terra_L3_NDVI_16Day",
+      "tile_matrix_set": "GoogleMapsCompatible_Level9",
+      "max_native_zoom": 9,
+      "label": "Vegetation (NDVI)",
+      "description": "How green and dense vegetation is, from MODIS Terra 16-day composites at 250 m.",
+      "legend_url": "https://gibs.earthdata.nasa.gov/legends/MODIS_NDVI_H.svg",
+      "kind": "gibs",
+      "tiles": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/{layer}/default/{time}/{matrix}/{z}/{y}/{x}.png",
+      "latest_date": null
+    },
+    {
+      "id": "soil_moisture",
+      "gibs_layer": "SMAP_L4_Analyzed_Root_Zone_Soil_Moisture",
+      "tile_matrix_set": "GoogleMapsCompatible_Level6",
+      "max_native_zoom": 6,
+      "label": "Root-zone soil moisture",
+      "description": "Water in the top metre of soil from NASA SMAP Level 4, daily at 9 km.",
+      "legend_url": "https://gibs.earthdata.nasa.gov/legends/SMAP_Analyzed_Soil_Moisture_H.svg",
+      "kind": "gibs",
+      "tiles": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/{layer}/default/{time}/{matrix}/{z}/{y}/{x}.png",
+      "latest_date": null
+    },
+    {
+      "id": "surface_temperature",
+      "gibs_layer": "MODIS_Terra_L3_Land_Surface_Temp_8Day_Day",
+      "tile_matrix_set": "GoogleMapsCompatible_Level7",
+      "max_native_zoom": 7,
+      "label": "Land surface temperature",
+      "description": "Daytime ground temperature from MODIS Terra 8-day composites at 1 km.",
+      "legend_url": "https://gibs.earthdata.nasa.gov/legends/MODIS_Land_Surface_Temp_H.svg",
+      "kind": "gibs",
+      "tiles": "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/{layer}/default/{time}/{matrix}/{z}/{y}/{x}.png",
+      "latest_date": null
+    }
+  ],
+  "classes": [
+    {
+      "code": "D0",
+      "label": "Abnormally dry",
+      "percentile_max": 30,
+      "color": "#ffff00"
+    },
+    {
+      "code": "D1",
+      "label": "Moderate drought",
+      "percentile_max": 20,
+      "color": "#fcd37f"
+    },
+    {
+      "code": "D2",
+      "label": "Severe drought",
+      "percentile_max": 10,
+      "color": "#ffaa00"
+    },
+    {
+      "code": "D3",
+      "label": "Extreme drought",
+      "percentile_max": 5,
+      "color": "#e60000"
+    },
+    {
+      "code": "D4",
+      "label": "Exceptional drought",
+      "percentile_max": 2,
+      "color": "#730000"
+    }
+  ],
+  "no_drought": {
+    "code": "none",
+    "label": "No drought",
+    "color": "#b7d9a8"
+  },
+  "sources": [
+    {
+      "name": "NOAA CPC Global Unified Gauge-Based Analysis of Daily Precipitation",
+      "url": "https://psl.noaa.gov/data/gridded/data.cpc.globalprecip.html"
+    },
+    {
+      "name": "NOAA CPC Global Daily Temperature",
+      "url": "https://psl.noaa.gov/data/gridded/data.cpc.globaltemp.html"
+    },
+    {
+      "name": "NASA GIBS satellite imagery (MODIS, SMAP)",
+      "url": "https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api"
+    }
+  ],
+  "arrays": [
+    {
+      "name": "cells",
+      "dtype": "int32",
+      "shape": [
+        62876
+      ],
+      "scale": 1,
+      "offset": 0,
+      "bytes": 251504
+    },
+    {
+      "name": "status",
+      "dtype": "uint8",
+      "shape": [
+        12,
+        62876
+      ],
+      "scale": 1,
+      "offset": 251504,
+      "bytes": 754512
+    },
+    {
+      "name": "percentile",
+      "dtype": "uint8",
+      "shape": [
+        240,
+        62876
+      ],
+      "scale": 1,
+      "offset": 1006016,
+      "bytes": 15090240
+    },
+    {
+      "name": "precip_norm",
+      "dtype": "uint16",
+      "shape": [
+        12,
+        62876
+      ],
+      "scale": 0.002,
+      "offset": 16096256,
+      "bytes": 1509024
+    },
+    {
+      "name": "precip_trend",
+      "dtype": "int16",
+      "shape": [
+        62876
+      ],
+      "scale": 1e-05,
+      "offset": 17605280,
+      "bytes": 125752
+    },
+    {
+      "name": "tmax_norm",
+      "dtype": "int16",
+      "shape": [
+        12,
+        62876
+      ],
+      "scale": 0.01,
+      "offset": 17731032,
+      "bytes": 1509024
+    },
+    {
+      "name": "tmax_trend",
+      "dtype": "int16",
+      "shape": [
+        62876
+      ],
+      "scale": 0.0001,
+      "offset": 19240056,
+      "bytes": 125752
+    },
+    {
+      "name": "tmin_norm",
+      "dtype": "int16",
+      "shape": [
+        12,
+        62876
+      ],
+      "scale": 0.01,
+      "offset": 19365808,
+      "bytes": 1509024
+    },
+    {
+      "name": "tmin_trend",
+      "dtype": "int16",
+      "shape": [
+        62876
+      ],
+      "scale": 0.0001,
+      "offset": 20874832,
+      "bytes": 125752
+    },
+    {
+      "name": "et0_norm",
+      "dtype": "uint16",
+      "shape": [
+        12,
+        62876
+      ],
+      "scale": 0.001,
+      "offset": 21000584,
+      "bytes": 1509024
+    },
+    {
+      "name": "et0_trend",
+      "dtype": "int16",
+      "shape": [
+        12,
+        62876
+      ],
+      "scale": 1e-05,
+      "offset": 22509608,
+      "bytes": 1509024
+    }
+  ]
+}
