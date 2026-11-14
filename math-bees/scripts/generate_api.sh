@@ -1,13 +1,13 @@
-SERVER_API_FILE="api/server/openapi.yml"
+SERVER_API_FILE="../api/server/openapi.yml"
 SERVER_OUT_FILE="src/app/autogen/api/schemas.py"
 
-CLIMATE_API_FILE="api/clients/climate/openapi.yml"
+CLIMATE_API_FILE="../api/clients/climate/openapi.yml"
 CLIMATE_OUT_DIR="src/app/autogen/clients/climate"
 
-TOPOLOGY_API_FILE="api/clients/field_topology/openapi.yml"
+TOPOLOGY_API_FILE="../api/clients/field_topology/openapi.yml"
 TOPOLOGY_OUT_DIR="src/app/autogen/clients/field_topology"
 
-FINANCE_API_FILE="api/clients/finance/openapi.yml"
+FINANCE_API_FILE="../api/clients/finance/openapi.yml"
 FINANCE_OUT_DIR="src/app/autogen/clients/finance"
 
 echo -e "\033[36mGenerating Pydantic models for Server API...\033[0m"
