@@ -27,16 +27,16 @@ def _build_monthly_transitions(
     bound_limit: int,
 ) -> None:
     month_active_vars: dict[YearMonth, list[tuple[IntVar, int]]] = defaultdict(list)
-    last_horizon_ym = horizon_months[-1]
+    horizon_months_set = set(horizon_months)
+
     for variant in field_variants:
         var = var_store.get_variant_var(variant)
         for occ_ym in variant.occupied_months:
-            water_dyn = variant.monthly_water.get(occ_ym)
-            net_bal = float(water_dyn.net_balance_mm.real) if water_dyn is not None else 0.0
-            bal = round(net_bal * PRECISION_SCALE)
-
-            target_ym = last_horizon_ym if occ_ym > last_horizon_ym else occ_ym
-            month_active_vars[target_ym].append((var, bal))
+            if occ_ym in horizon_months_set:
+                water_dyn = variant.monthly_water.get(occ_ym)
+                net_bal = float(water_dyn.net_balance_mm.real) if water_dyn is not None else 0.0
+                bal = round(net_bal * PRECISION_SCALE)
+                month_active_vars[occ_ym].append((var, bal))
 
     end_horizon_ym = horizon_months[-1] + 1
     fallow_balances = agronomic_field.fallow_water_balance
