@@ -223,7 +223,9 @@ class NutrientAccumulationComponent(Component[None]):
                 is_active_var = model.new_bool_var(
                     f"req_active_{elem}_{ym}_{min_scaled}_{max_scaled}"
                 )
-                model.add_max_equality(is_active_var, unique_vars)
+                model.add_bool_or(unique_vars).OnlyEnforceIf(is_active_var)
+                for v in unique_vars:
+                    model.add_implication(v, is_active_var)
 
                 if min_scaled is not None:
                     model.add(stock_var >= min_scaled).OnlyEnforceIf(is_active_var)
