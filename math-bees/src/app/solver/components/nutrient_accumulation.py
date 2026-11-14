@@ -7,12 +7,15 @@ from ortools.sat.python import cp_model
 from ortools.sat.python.cp_model import IntVar
 
 from app.models.planning import CroppingCanvas, PlantingVariant
-from app.models.topology import NutrientPool
+from app.models.topology import MAX_NUTRIENT_CARRYOVER_KG_HA, NutrientPool
 from app.models.year_month import YearMonth
 from app.solver.base import Component, ComponentPhase, VariableStore
 
 PRECISION_SCALE: Final[int] = 100
 RAW_NUTRIENT_BUFFER_SCALED: Final[int] = 5_000_000
+
+MIN_NUTRIENT_DOMAIN_SCALED: Final[int] = 0
+MAX_NUTRIENT_DOMAIN_SCALED: Final[int] = int(MAX_NUTRIENT_CARRYOVER_KG_HA.real * PRECISION_SCALE)
 
 
 def _get_net_nutrient_delta(variant: PlantingVariant, elem: str, ym: YearMonth) -> float:
@@ -100,10 +103,6 @@ class NutrientAccumulationComponent(Component[None]):
         agronomic_field = canvas.field
         base_field = agronomic_field.field
         soil = base_field.soil
-
-        if soil is None or soil.nutrients is None:
-            return
-
         f_id = base_field.id
         field_variants = canvas.variants
         end_horizon_ym = horizon_months[-1] + 1
@@ -131,8 +130,6 @@ class NutrientAccumulationComponent(Component[None]):
         stocks: dict[str, dict[YearMonth, IntVar]] = {}
 
         for elem_name, pool in pools:
-            min_scaled = round(float(pool.min_kg_ha.real) * PRECISION_SCALE)
-            max_scaled = round(float(pool.max_kg_ha.real) * PRECISION_SCALE)
             init_scaled = round(float(pool.initial_kg_ha.real) * PRECISION_SCALE)
 
             elem_stock: dict[YearMonth, IntVar] = {}
@@ -142,8 +139,8 @@ class NutrientAccumulationComponent(Component[None]):
                     f_id,
                     elem_name,
                     ym,
-                    min_scaled,
-                    max_scaled,
+                    MIN_NUTRIENT_DOMAIN_SCALED,
+                    MAX_NUTRIENT_DOMAIN_SCALED,
                 )
 
             end_var = var_store.create_stock_var(
@@ -151,13 +148,15 @@ class NutrientAccumulationComponent(Component[None]):
                 f_id,
                 elem_name,
                 end_horizon_ym,
-                min_scaled,
-                max_scaled,
+                MIN_NUTRIENT_DOMAIN_SCALED,
+                MAX_NUTRIENT_DOMAIN_SCALED,
             )
             elem_stock[end_horizon_ym] = end_var
 
             first_month = horizon_months[0]
-            clamped_init = max(min_scaled, min(max_scaled, init_scaled))
+            clamped_init = max(
+                MIN_NUTRIENT_DOMAIN_SCALED, min(MAX_NUTRIENT_DOMAIN_SCALED, init_scaled)
+            )
             model.add(elem_stock[first_month] == clamped_init)
 
             stocks[elem_name] = elem_stock
@@ -169,9 +168,7 @@ class NutrientAccumulationComponent(Component[None]):
             stocks=stocks,
         )
 
-        for elem_name, pool in pools:
-            min_scaled = round(float(pool.min_kg_ha.real) * PRECISION_SCALE)
-            max_scaled = round(float(pool.max_kg_ha.real) * PRECISION_SCALE)
+        for elem_name, _ in pools:
             elem_stock = stocks[elem_name]
             elem_active = month_active_vars[elem_name]
 
@@ -199,7 +196,7 @@ class NutrientAccumulationComponent(Component[None]):
                         + cp_model.LinearExpr.WeightedSum(vars_list, diff_coeffs)
                     )
 
-                bound_limit = max_scaled + RAW_NUTRIENT_BUFFER_SCALED
+                bound_limit = MAX_NUTRIENT_DOMAIN_SCALED + RAW_NUTRIENT_BUFFER_SCALED
                 raw_next_var = model.new_int_var(
                     -bound_limit,
                     bound_limit,
@@ -209,8 +206,8 @@ class NutrientAccumulationComponent(Component[None]):
 
                 temp_nut_capped = model.new_int_var(
                     -bound_limit,
-                    max_scaled,
+                    MAX_NUTRIENT_DOMAIN_SCALED,
                     f"c_nut_{f_id}_{elem_name}_{ym}",
                 )
-                model.add_min_equality(temp_nut_capped, [raw_next_var, max_scaled])
-                model.add_max_equality(next_stock, [temp_nut_capped, min_scaled])
+                model.add_min_equality(temp_nut_capped, [raw_next_var, MAX_NUTRIENT_DOMAIN_SCALED])
+                model.add_max_equality(next_stock, [temp_nut_capped, MIN_NUTRIENT_DOMAIN_SCALED])
