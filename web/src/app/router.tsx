@@ -12,6 +12,8 @@ export const router = createBrowserRouter([
   { element: <RootLayout />, hydrateFallbackElement: <div className="atlas-state" role="status"><p>Opening your workspace…</p></div>, children: [
   { path: '/login', element: <LoginPage /> },
   { path: '/register', element: <RegisterPage /> },
+  // Public: global drought and weather data only. Signed-in users also reach the same page inside the workspace.
+  { path: '/climate', lazy: async () => ({ Component: (await import('@/pages/climate/PublicClimatePage')).PublicClimatePage }) },
   { element: <ProtectedRoute />, children: [{ element: <AppShell />, children: [
     { path: '/dashboard', element: <DashboardPage /> },
     // Farms and their fields are one workspace with a view switch. Map pages pull in Leaflet; load them on demand.
@@ -20,6 +22,7 @@ export const router = createBrowserRouter([
       { path: 'fields', lazy: async () => ({ Component: (await import('@/pages/fields/FieldsPage')).FieldsPage }) },
     ] },
     { path: '/dashboard/farms/new', lazy: async () => ({ Component: (await import('@/pages/farms/NewFarmPage')).NewFarmPage }) },
+    { path: '/dashboard/climate', lazy: async () => ({ Component: (await import('@/pages/climate/ClimatePage')).ClimatePage }) },
     { path: '/profile', element: <ProfilePage /> },
   ] }] },
   { path: '*', element: <NotFoundPage /> },

@@ -1,0 +1,226 @@
+/* Climate atlas: world drought overlay with a month picker, layer toggles, legend and point reading. */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.drought-atlas .atlas-panel { overflow-y: auto; }
+.drought-atlas .atlas-panel-head .section-label { display: block; font-size: 8px; margin-bottom: 12px; }
+.drought-atlas .atlas-panel-head h1 { font-size: 30px; line-height: 1.15; }
+.drought-section { padding: 16px 22px; border-bottom: 1px solid var(--line); }
+.drought-heading { font-size: 11px; font-weight: 600; letter-spacing: .02em; color: var(--ink); margin: 0 0 10px; }
+.drought-note { margin: 10px 0 0; font-size: 12px; line-height: 1.6; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.drought-note.is-error { color: var(--error); }
+
+.drought-day { display: flex; align-items: center; gap: 10px; }
+.drought-day-label { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.drought-day-label strong { font-family: Georgia, serif; font-weight: 400; font-size: 22px; letter-spacing: -.02em; }
+.drought-step { display: flex; align-items: center; justify-content: center; width: 36px; height: 36px; border: 1px solid var(--line); border-radius: 3px; background: transparent; color: var(--ink); }
+.drought-step:hover:not(:disabled) { background: var(--sage); }
+.drought-step:disabled { opacity: .35; }
+.drought-step:focus-visible, .drought-range input:focus-visible, .drought-toggle input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.drought-kind { font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 2px 8px; border-radius: 10px; background: var(--sage); color: var(--ink); }
+.drought-kind.is-projected { background: var(--forest); color: var(--lime); }
+.drought-range { display: block; margin-top: 14px; }
+.drought-range input { width: 100%; accent-color: var(--forest); }
+.drought-range-ends { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 10px; color: var(--muted); }
+.drought-range-ends .text-link { padding: 2px 0; font-size: 11px; color: var(--ink); }
+
+.drought-toggle { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; cursor: pointer; }
+.drought-toggle input { margin-top: 3px; accent-color: var(--forest); }
+.drought-toggle span { display: flex; flex-direction: column; font-size: 12px; line-height: 1.5; }
+.drought-toggle small { color: var(--muted); font-size: 11px; }
+
+.drought-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.drought-legend li { display: grid; grid-template-columns: 16px 1fr auto; gap: 10px; align-items: center; font-size: 12px; }
+.drought-legend .mono { font-size: 10px; color: var(--muted); }
+.drought-swatch { display: inline-block; width: 16px; height: 12px; border-radius: 2px; box-shadow: inset 0 0 0 1px #0b1a1426; }
+.drought-swatch.is-empty { background: repeating-linear-gradient(135deg, transparent 0 3px, #0b1a1426 3px 4px); }
+
+/* World climate map: controls | map | focus panel. The focus panel stays in view, so a pick on the map shows at once. */
+.farm-atlas.drought-atlas { grid-template-columns: minmax(280px, 320px) minmax(0, 1fr) minmax(320px, 380px); }
+.climate-month { background: var(--paper); }
+.climate-focus { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--line); background: var(--paper); }
+.climate-focus-head { display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.climate-focus-head > div { flex: 1; min-width: 0; }
+.climate-focus-head h2 { margin: 0; font-family: Georgia, serif; font-weight: 400; font-size: 22px; line-height: 1.2; letter-spacing: -.02em; color: var(--ink); }
+.climate-focus-head h2 .mono { font-size: 15px; letter-spacing: 0; white-space: nowrap; }
+.climate-focus-head p { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin: 8px 0 0; font-size: 12px; color: var(--muted); }
+.climate-focus.is-picked .climate-focus-head { box-shadow: inset 3px 0 0 var(--forest); }
+.climate-focus-head > .climate-focus-actions { flex: none; display: flex; gap: 6px; }
+/* Collapsed: only the title and a one-word reading; the place stays picked on the map. */
+.climate-focus.is-collapsed .climate-focus-head { border-bottom: 0; }
+.climate-focus-body[hidden] { display: none; }
+.climate-focus-title { padding: 0; border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.climate-focus-title:hover { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
+.climate-focus-badge { --verdict: var(--sage); display: inline-flex; align-items: center; gap: 6px; padding: 2px 9px 2px 6px; border-radius: 10px; background: var(--sage);
+  font-size: 11px; font-weight: 600; color: var(--ink); }
+.climate-focus-badge-swatch { width: 10px; height: 10px; border-radius: 3px; background: var(--verdict); box-shadow: inset 0 0 0 1px #0b1a1426; }
+.climate-focus-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 14px; padding: 16px 20px 20px; scrollbar-width: thin; }
+.climate-focus.is-picked .climate-focus-body { animation: climate-focus-in .35s ease-out; }
+@keyframes climate-focus-in { from { opacity: .3; transform: translateY(6px); } }
+.climate-focus-empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; min-height: 200px; padding: 24px; text-align: center;
+  border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); }
+.climate-focus-empty svg { color: var(--forest); }
+.climate-focus-empty p { max-width: 240px; margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink); }
+.climate-cell { margin: 0; font-size: 11px; color: var(--muted); }
+
+.climate-verdict { --verdict: var(--sage); display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 10px; background: #fff; border: 1px solid var(--line); }
+.climate-verdict-swatch { flex: none; width: 44px; height: 44px; border-radius: 8px; background: var(--verdict); box-shadow: inset 0 0 0 1px #0b1a1426; }
+.climate-verdict-label { margin: 0; font-family: Georgia, serif; font-size: 26px; line-height: 1.1; letter-spacing: -.02em; color: var(--ink); }
+.climate-verdict-sub { margin: 4px 0 0; font-size: 12px; color: var(--muted); }
+.climate-verdict-sub strong { color: var(--ink); font-weight: 500; }
+.climate-verdict.is-unrated { align-items: flex-start; }
+.climate-verdict.is-unrated .drought-swatch { flex: none; width: 28px; height: 22px; margin-top: 2px; }
+.climate-verdict.is-unrated p { margin: 0; font-size: 13px; line-height: 1.55; color: var(--ink); }
+
+.climate-scale { position: relative; padding-top: 4px; }
+.climate-scale-track { position: relative; height: 10px; border-radius: 5px; overflow: hidden; background: var(--sage); }
+.climate-scale-track span { position: absolute; top: 0; bottom: 0; }
+.climate-scale-mark { position: absolute; top: 0; width: 4px; height: 18px; margin-left: -2px; border-radius: 2px; background: var(--forest); box-shadow: 0 0 0 2px var(--paper); }
+.climate-scale-ends { display: flex; justify-content: space-between; margin-top: 6px; font-size: 10px; color: var(--muted); }
+
+.climate-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.climate-kpi { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 12px; border-radius: 10px; background: #fff; border: 1px solid var(--line); }
+.climate-kpi-label { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 11px; line-height: 1.3; color: var(--muted); }
+.climate-kpi-label svg { flex: none; color: var(--forest); }
+.climate-kpi-value { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px; margin: 0; font-size: 22px; line-height: 1.1; color: var(--ink); }
+.climate-kpi-detail { margin: 0; font-size: 11px; color: var(--muted); }
+.climate-kpi-detail .mono { color: var(--ink); }
+.climate-tone { padding: 1px 6px; border-radius: 4px; font-family: var(--font-sans); font-size: 10px; font-weight: 700; }
+.climate-tone.is-dry { background: #f3e6c4; color: #7a5410; }
+.climate-tone.is-wet { background: #dbeadf; color: #2a6141; }
+
+.climate-bar { position: relative; height: 6px; margin-top: auto; border-radius: 3px; background: var(--sage); }
+.climate-bar-fill { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: #3f7c8a; }
+.climate-bar-fill.is-dry { background: #c08a2b; }
+.climate-bar.is-diverging::after { content: ''; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 1px; background: var(--muted); }
+.climate-bar.is-temperature { background: linear-gradient(90deg, #8fb3cf, #e7eadf 40%, #e9c46a 70%, #c8553d); }
+.climate-bar-range { position: absolute; top: -2px; bottom: -2px; border-radius: 4px; border: 2px solid var(--forest); background: #ffffff55; }
+.climate-bar-dot { position: absolute; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; background: var(--forest); box-shadow: 0 0 0 2px #fff; }
+
+.climate-subhead { margin: 6px 0 -2px; font-size: 12px; font-weight: 600; color: var(--ink); }
+.climate-strip { padding: 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); }
+.climate-strip h3 { margin: 0 0 8px; font-size: 12px; font-weight: 600; color: var(--ink); }
+.climate-strip > div { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 3px; }
+.climate-strip button { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; padding: 4px 0; border: 1px solid transparent; border-radius: 4px; background: transparent; color: var(--ink); cursor: pointer; }
+.climate-strip button:hover { background: var(--sage); }
+.climate-strip button[aria-pressed=true] { border-color: var(--forest); background: #fff; }
+.climate-strip button:focus-visible, .climate-focus .drought-step:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.climate-strip-swatch { display: block; width: 100%; max-width: 18px; height: 14px; border-radius: 3px; box-shadow: inset 0 0 0 1px #0b1a1426; }
+.climate-strip-swatch.is-empty { background: repeating-linear-gradient(135deg, transparent 0 3px, #0b1a1426 3px 4px); }
+.climate-strip small { font-size: 9px; color: var(--muted); }
+
+/* Figures in the focus panel are set in the mono face at their own sizes, not the global 10px label size. */
+.climate-focus .mono { font-size: inherit; letter-spacing: 0; }
+.climate-focus .climate-cell { font-size: 11px; }
+.climate-focus .climate-kpi-value { font-size: 24px; letter-spacing: -.02em; }
+.climate-focus .climate-scale-ends { font-size: 10px; }
+.climate-focus .climate-focus-head h2 .mono { font-size: 15px; }
+.climate-kpi-detail .mono { white-space: nowrap; }
+
+/* Wide screens: the map is the hero. A compact control rail on the left, the map across the rest, and the selected place
+   as a glass card floating over the map's right edge: small while nothing is picked, wider once a place is read. */
+@media (min-width: 1100px) {
+  .farm-atlas.drought-atlas { grid-template-columns: minmax(264px, 300px) minmax(0, 1fr); }
+  .drought-atlas > .climate-rail { grid-column: 1; grid-row: 1; }
+  .drought-atlas > .drought-map { grid-column: 2; grid-row: 1; }
+  .drought-atlas > .climate-focus { grid-column: 2; grid-row: 1; z-index: 2; align-self: start; justify-self: end; width: min(360px, calc(100% - 28px)); max-height: calc(100% - 58px - 30px);
+    margin: 58px 14px 0 0; overflow: hidden; border: 1px solid #ffffffb3; border-radius: 10px; background: color-mix(in srgb, var(--paper) 90%, transparent);
+    -webkit-backdrop-filter: blur(16px) saturate(1.15); backdrop-filter: blur(16px) saturate(1.15);
+    box-shadow: inset 0 1px 0 #fff, 0 2px 8px #0b1a1426, 0 22px 48px -20px #0b1a14a6; transition: width .3s cubic-bezier(.2, .8, .2, 1); animation: climate-card-in .3s cubic-bezier(.2, .8, .2, 1); }
+  .drought-atlas > .climate-focus:not(.is-picked) { width: min(296px, calc(100% - 28px)); }
+  .drought-atlas > .climate-focus .climate-focus-head { padding: 14px 14px 12px 16px; background: transparent; }
+  .drought-atlas > .climate-focus .climate-focus-head h2 { font-size: 19px; }
+  .drought-atlas > .climate-focus .climate-focus-body { padding: 14px 16px 16px; }
+  .drought-atlas > .climate-focus:not(.is-picked) .climate-focus-body { padding-top: 0; }
+  .drought-atlas > .climate-focus:not(.is-picked) .climate-focus-empty { flex: none; flex-direction: row; justify-content: flex-start; min-height: 0; gap: 12px; padding: 10px 12px; text-align: left; }
+  .drought-atlas > .climate-focus:not(.is-picked) .climate-focus-empty svg { flex-shrink: 0; width: 22px; height: 22px; animation: climate-pin 2.4s ease-in-out infinite; }
+  .drought-atlas > .climate-focus:not(.is-picked) .climate-focus-empty p { font-size: 13px; }
+  /* The card holds the right edge, so zoom steps to the bottom-left of the map. */
+  .drought-map .map-zoom { right: auto; left: 14px; }
+}
+@media (min-width: 1600px) { .drought-atlas > .climate-focus { width: min(392px, calc(100% - 28px)); } }@keyframes climate-card-in { from { opacity: 0; transform: translateY(-8px) scale(.985); } }
+@keyframes climate-pin { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@media (prefers-reduced-motion: reduce) {
+  .drought-atlas > .climate-focus { animation: none; transition: none; }
+  .drought-atlas > .climate-focus:not(.is-picked) .climate-focus-empty svg { animation: none; }
+}
+
+/* Narrower screens: map first, the focus panel right under it (a pick scrolls it into view), the controls last. */
+@media (max-width: 1099px) {
+  .farm-atlas.drought-atlas, .public-climate-main .farm-atlas.drought-atlas { grid-template-columns: 1fr; grid-template-rows: none; height: auto; }
+  .drought-atlas > .drought-map { order: 0; min-height: 56svh; }
+  .drought-atlas > .climate-focus { order: 1; border-left: 0; border-top: 1px solid var(--line); scroll-margin: 12px; }
+  .drought-atlas > .climate-rail { order: 2; border-right: 0; border-top: 1px solid var(--line); overflow: visible; }
+  .climate-focus-body { overflow: visible; }
+}
+@media (max-width: 420px) {
+  .climate-kpis { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .climate-focus.is-picked .climate-focus-body { animation: none; }
+}
+
+.drought-foot { font-size: 11px; line-height: 1.6; color: var(--muted); }
+.drought-foot p + p { margin-top: 8px; }
+.drought-foot ul { list-style: none; margin: 8px 0 0; padding: 0; }
+.drought-foot .text-link { font-size: 11px; gap: 6px; padding: 3px 0; color: var(--ink); }
+
+/* Farm map: drought toggle under the basemap switch, expanding into a reading card. */
+/* The open panel never grows past the map: it stops above the attribution line and scrolls inside. */
+.farm-drought { --panel-width: min(320px, calc(100% - 28px)); position: absolute; top: 56px; right: 14px; z-index: var(--z-map-panel); width: max-content; max-width: var(--panel-width); display: flex; flex-direction: column; border-radius: 3px; background: var(--forest); color: var(--paper); box-shadow: 0 2px 10px #0b1a1440; }
+.farm-drought.is-open { width: var(--panel-width); max-height: calc(100% - 56px - 30px); background: var(--surface); color: var(--ink); overflow: hidden; }
+.farm-drought-toggle { flex: none; display: flex; align-items: center; gap: 7px; border: 0; background: transparent; color: inherit; font-size: 11px; font-weight: 600; padding: 9px 12px; border-radius: 3px; }
+.farm-drought-close { margin-left: auto; }
+.farm-drought:not(.is-open) .farm-drought-toggle:hover { background: #f4f3eb18; color: var(--lime); }
+.farm-drought.is-open .farm-drought-toggle { background: var(--forest); color: var(--lime); border-radius: 3px 3px 0 0; }
+.farm-drought-toggle:focus-visible, .farm-drought button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.farm-drought-body { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 12px 12px; scrollbar-width: thin; }
+.farm-drought-body > * { flex: none; }
+/* Zoom and recenter step left of the open panel instead of hiding under it. */
+.atlas-map:has(.farm-drought.is-open) :is(.map-zoom, .map-recenter) { right: calc(min(320px, 100% - 28px) + 24px); }
+@media (max-width: 600px), (max-height: 520px) {
+  /* Small maps: the panel becomes a sheet along the bottom, leaving the top of the map (and the field) in view. */
+  .farm-drought.is-open { --panel-width: auto; top: auto; left: 10px; right: 10px; bottom: 26px; max-height: min(58%, 420px); }
+  .atlas-map:has(.farm-drought.is-open) :is(.map-zoom, .map-recenter) { right: 14px; visibility: hidden; }
+}
+.layer-chooser { display: grid; gap: 8px; }
+.layer-themes { display: flex; padding: 3px; border-radius: 3px; background: var(--sage); }
+.layer-themes button { flex: 1; min-height: 30px; padding: 4px 6px; border: 0; border-radius: 2px; background: transparent; color: var(--ink); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.layer-themes button[aria-pressed=true] { background: var(--forest); color: var(--lime); }
+.layer-chooser.is-compact .layer-option { padding: 3px 0; }
+.layer-provider { margin-top: 2px; font-style: italic; }
+.layer-source { margin: -4px 0 10px; }
+.farm-drought-day { display: flex; align-items: center; gap: 8px; }
+.farm-drought-day > span { flex: 1; display: flex; flex-direction: column; align-items: center; line-height: 1.3; }
+.farm-drought-day strong { font-size: 13px; }
+.farm-drought-day small { font-size: 10px; color: var(--muted); }
+.farm-drought-day button { display: flex; align-items: center; justify-content: center; width: 30px; height: 30px; border: 1px solid var(--line); border-radius: 3px; background: transparent; color: var(--ink); }
+.farm-drought-day button:disabled { opacity: .35; }
+.farm-drought-label { font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.farm-drought-verdict { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; font-family: Georgia, serif; font-size: 20px; letter-spacing: -.02em; }
+.farm-drought-detail { margin: 6px 0 0; font-size: 12px; line-height: 1.55; color: var(--ink); }
+.farm-drought-note { margin: 0; font-size: 11px; line-height: 1.5; color: var(--muted); display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.farm-drought-note a { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; }
+.farm-drought-strip { display: grid; grid-auto-flow: column; grid-auto-columns: 40px; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
+.farm-drought-strip button.is-uncertain { opacity: .55; }
+.farm-drought-strip button { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 2px; border: 1px solid transparent; border-radius: 3px; background: transparent; color: var(--ink); }
+.farm-drought-strip button[aria-pressed=true] { border-color: var(--forest); background: var(--sage); }
+.farm-drought-strip small { font-size: 10px; white-space: nowrap; }
+.farm-drought-legend { list-style: none; padding: 0; display: flex; gap: 10px; flex-wrap: wrap; font-family: var(--font-mono); font-size: 10px; color: var(--muted); }
+.farm-drought-legend li { display: flex; align-items: center; gap: 4px; }
+.drought-jump { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; font-size: 11px; color: var(--muted); }
+.drought-jump input, .drought-jump select { font: inherit; font-family: var(--font-mono); color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 3px; padding: 4px 6px; }
+.drought-jump input:focus-visible, .drought-jump select:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+/* Layer picker (world map) and selector (farm map), with per-layer keys. */
+.layer-picker { display: grid; gap: 2px; }
+.layer-option { display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; cursor: pointer; }
+.layer-option input { margin-top: 3px; accent-color: var(--forest); }
+.layer-option input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.layer-option span { display: flex; flex-direction: column; font-size: 12px; line-height: 1.45; }
+.layer-option small { color: var(--muted); font-size: 10px; }
+.layer-description { margin-top: 0; margin-bottom: 10px; }
+.drought-note.is-held { color: var(--ink); }
+.layer-legend { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px 12px; font-size: 11px; }
+.layer-legend li { display: flex; align-items: center; gap: 6px; }
+.layer-legend-image { display: block; max-width: 100%; height: auto; background: #fff; border-radius: 2px; }
+.farm-strip-temp { font-family: var(--font-mono); font-size: 11px; }
+.data-layer-image { image-rendering: pixelated; }
