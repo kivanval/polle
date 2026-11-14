@@ -2,6 +2,7 @@
 @import '@fontsource/dm-mono/400.css';
 @import './styles/tokens.css';
 @import './styles/account.css';
+@import './styles/workspace.css';
 
 *, *::before, *::after { box-sizing: border-box; }
 html { scroll-behavior: smooth; scroll-padding-top: 30px; }
