@@ -23,7 +23,7 @@ public sealed class SoilGuardTests
         var result = Assert.IsType<ProblemHttpResult>(StrategyRunEndpoints.NoSoil());
 
         Assert.Equal(422, result.StatusCode);
-        Assert.Equal("Для даного поля відсутні дані ґрунту. Моделювання неможливе.", result.ProblemDetails.Title);
+        Assert.Equal("There is no soil data for this field's location, so it can't be modelled.", result.ProblemDetails.Title);
         Assert.Equal(FieldSoil.MissingMessage, result.ProblemDetails.Detail);
     }
 
