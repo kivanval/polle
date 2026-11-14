@@ -59,15 +59,10 @@ class CropRotationComponent(Component[None]):
                     continue
 
                 for c_idx, clr_vars_list in pred_clears.items():
-                    conflicting_plants: list[IntVar] = []
+                    c_vars = list(set(clr_vars_list))
+
                     for m in range(c_idx + 1, c_idx + gap_int + 1):
                         plt_vars = succ_plants.get(m, [])
-                        conflicting_plants.extend(plt_vars)
-
-                    if conflicting_plants:
-                        for clr_var in clr_vars_list:
-                            filtered_conflicts = [p for p in conflicting_plants if p != clr_var]
-                            if filtered_conflicts:
-                                model.add(
-                                    cp_model.LinearExpr.sum(filtered_conflicts) == 0
-                                ).OnlyEnforceIf(clr_var)
+                        if plt_vars:
+                            p_vars = list(set(plt_vars))
+                            model.add_at_most_one(c_vars + p_vars)
