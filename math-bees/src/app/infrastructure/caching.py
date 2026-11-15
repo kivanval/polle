@@ -16,15 +16,16 @@ class Cache(Generic[K, V]):
     def __init__(self, cache: cashews.Cache, config: CachingConfig):
         self._cache = cache
         self._config = config
+        self._ttl = config.ttl
 
     async def get(self, key: K) -> V | None:
         result = await self._cache.get(f"{type(key)}_{key!s}")
         if result is not None:
             logger.debug(f"{LoggerTags.FROM_CACHE} Found cached data for %s", key)
-        return cast(V | None, result)
+        return result
 
     async def set(self, key: K, value: V) -> None:
-        await self._cache.set(f"{type(key)}_{key!s}", value)
+        await self._cache.set(f"{type(key)}_{key!s}", value, expire=self._ttl)
 
     async def using(self, key: K, get_value: Callable[[], Awaitable[V | None]]) -> V | None:
         result = await self.get(key)

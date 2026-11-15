@@ -7,9 +7,12 @@ from datetime import date
 from functools import partial
 from typing import Any, Protocol
 
+import cashews
+
 from app.autogen.clients.field_topology.api.default import get_field_by_id_and_month
 from app.autogen.clients.field_topology.client import AuthenticatedClient
 from app.autogen.clients.field_topology.types import Unset
+from app.config import CachingConfig
 from app.infrastructure.caching import Cache
 from app.models.topology import (
     Field,
@@ -309,7 +312,10 @@ class FieldsRepositoryCacheGetByIdKey:
     year_month: YearMonth
 
 
-class FieldsRepositoryCacheGetById(Cache[FieldsRepositoryCacheGetByIdKey, Field]): ...
+class FieldsRepositoryCacheGetById(Cache[FieldsRepositoryCacheGetByIdKey, Field]):
+    def __init__(self, cache: cashews.Cache, config: CachingConfig):
+        super.__init__(cache, config)
+        self._ttl = config.fields_repository.ttl
 
 
 class HttpFieldsRepository:
