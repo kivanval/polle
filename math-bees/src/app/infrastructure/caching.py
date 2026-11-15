@@ -25,6 +25,7 @@ class Cache(Generic[K, V]):
         return result
 
     async def set(self, key: K, value: V) -> None:
+        logger.debug(f"{LoggerTags.FROM_CACHE} Setting cache for %s for %s", key, self._ttl)
         await self._cache.set(f"{type(key)}_{key!s}", value, expire=self._ttl)
 
     async def using(self, key: K, get_value: Callable[[], Awaitable[V | None]]) -> V | None:
