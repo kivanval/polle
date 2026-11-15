@@ -309,7 +309,7 @@ class FieldsRepositoryCacheGetByIdKey:
     year_month: YearMonth
 
 
-FieldsRepositoryCacheGetById: TypeAlias = Cache[FieldsRepositoryCacheGetByIdKey, Field]
+class FieldsRepositoryCacheGetById(Cache[FieldsRepositoryCacheGetByIdKey, Field]):...
 
 
 class HttpFieldsRepository:

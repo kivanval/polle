@@ -346,9 +346,9 @@ class CropProfileRepository(Protocol):
 class CropProfileRepositoryCacheGetAllKey: ...
 
 
-CropProfileRepositoryCacheGetAll: TypeAlias = Cache[
-    CropProfileRepositoryCacheGetAllKey, list[CropProfile]
-]
+class CropProfileRepositoryCacheGetAll(
+    Cache[CropProfileRepositoryCacheGetAllKey, list[CropProfile]]
+): ...
 
 
 @dataclass(frozen=True)
@@ -356,9 +356,9 @@ class CropProfileRepositoryCacheGetByIdKey:
     crop_profile_id: CropProfileId
 
 
-CropProfileRepositoryCacheGetById: TypeAlias = Cache[
+class CropProfileRepositoryCacheGetById(Cache[
     CropProfileRepositoryCacheGetByIdKey, CropProfile
-]
+]):...
 
 
 class SqlCropProfileRepository(CropProfileRepository):

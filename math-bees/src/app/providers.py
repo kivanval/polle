@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from typing import Any
 
+import dishka
 import httpx
 from cashews import Cache as CashewCache
 from dishka import Provider, Scope, provide
@@ -49,24 +50,26 @@ from app.preprocessing.steps.water import ScenarioWaterStep, SoilWaterBucketStep
 from app.preprocessing.studio import CroppingStudio
 from app.repositories.climate import (
     ClimateRepository,
+    ClimateRepositoryCacheGetByFieldId,
     HttpClimateRepository,
 )
 from app.repositories.crop_profiles import (
     CropProfileRepository,
-    SqlCropProfileRepository,
+    SqlCropProfileRepository, CropProfileRepositoryCacheGetById, CropProfileRepositoryCacheGetAll,
 )
 from app.repositories.crop_rotation_rules import (
     CropRotationRuleRepository,
-    SqlCropRotationRuleRepository,
+    SqlCropRotationRuleRepository, CropRotationRuleRepositoryCacheGetIntervals,
 )
-from app.repositories.fertilizers import FertilizersRepository, SqlFertilizersRepository
+from app.repositories.fertilizers import FertilizersRepository, SqlFertilizersRepository, \
+    FertilizersRepositoryCacheGetAll, FertilizersRepositoryCacheGetById
 from app.repositories.fields import (
     FieldsRepository,
-    HttpFieldsRepository,
+    HttpFieldsRepository, FieldsRepositoryCacheGetById,
 )
 from app.repositories.finance import (
     FinanceRepository,
-    HttpFinanceRepository,
+    HttpFinanceRepository, FinanceRepositoryCacheGetMaterialPrices, FinanceRepositoryCacheGetCropProfileOpexs,
 )
 from app.solver.base import Component
 from app.solver.components.crop_rotation import CropRotationComponent
@@ -135,8 +138,25 @@ class InfrastructureProvider(Provider):
 
 class CacheProvider(Provider):
     scope = Scope.APP
+
     optimize_fields_cache = provide(OptimizeFieldsCache)
     evaluate_scenario_cache = provide(EvaluateScenarioCache)
+
+    crop_profile_repository_cache_get_by_id = provide(CropProfileRepositoryCacheGetById)
+    crop_profile_repository_cache_get_all = provide(CropProfileRepositoryCacheGetAll)
+
+    crop_rotation_rule_repository_cache_get_intervals = provide(CropRotationRuleRepositoryCacheGetIntervals)
+
+    fertilizers_repository_cache_get_all = provide(FertilizersRepositoryCacheGetAll)
+    fertilizers_repository_cache_get_by_id = provide(FertilizersRepositoryCacheGetById)
+
+    fields_repository_cache_get_by_id = provide(FieldsRepositoryCacheGetById)
+
+    climate_repository_cache_get_by_field_id = provide(ClimateRepositoryCacheGetByFieldId)
+
+    finance_repository_cache_get_material_prices = provide(FinanceRepositoryCacheGetMaterialPrices)
+    finance_repository_cache_get_crop_profile_opexs = provide(FinanceRepositoryCacheGetCropProfileOpexs)
+
 
 
 class ClientProvider(Provider):
@@ -197,51 +217,30 @@ class ClientProvider(Provider):
 class RepositoryProvider(Provider):
     scope = Scope.APP
 
-    @provide
-    def get_crop_profile_repo(
-        self, engine: Engine, cache: CashewCache, caching_config: CachingConfig
-    ) -> CropProfileRepository:
-        return SqlCropProfileRepository(
-            engine=engine,
-            cache_get_all=Cache(cache, caching_config),
-            cache_get_by_id=Cache(cache, caching_config),
-        )
-
-    @provide
-    def get_crop_rotation_rule_repo(
-        self, engine: Engine, cache: CashewCache, caching_config: CachingConfig
-    ) -> CropRotationRuleRepository:
-        return SqlCropRotationRuleRepository(engine=engine, cache=Cache(cache, caching_config))
-
-    @provide
-    def get_fertilizers_repo(
-        self, engine: Engine, cache: CashewCache, cashing_config: CachingConfig
-    ) -> FertilizersRepository:
-        return SqlFertilizersRepository(
-            engine, Cache(cache, cashing_config), Cache(cache, cashing_config)
-        )
-
-    @provide
-    def get_fields_repository(
-        self, client: TopologyClient, cache: CashewCache, caching_config: CachingConfig
-    ) -> FieldsRepository:
-        return HttpFieldsRepository(client=client, cache=Cache(cache, caching_config))
-
-    @provide
-    def get_climate_repository(
-        self, client: ClimateClient, cache: CashewCache, caching_config: CachingConfig
-    ) -> ClimateRepository:
-        return HttpClimateRepository(client=client, cache=Cache(cache, caching_config))
-
-    @provide
-    def get_finance_repository(
-        self, client: FinanceClient, cache: CashewCache, caching_config: CachingConfig
-    ) -> FinanceRepository:
-        return HttpFinanceRepository(
-            client=client,
-            material_prices_cache=Cache(cache, caching_config),
-            crop_profile_opexs_cache=Cache(cache, caching_config),
-        )
+    crop_profile_repo = provide(
+        source=SqlCropProfileRepository,
+        provides=CropProfileRepository,
+    )
+    crop_rotation_rule_repo = provide(
+        source=SqlCropRotationRuleRepository,
+        provides=CropRotationRuleRepository,
+    )
+    fertilizers_repo = provide(
+        source=SqlFertilizersRepository,
+        provides=FertilizersRepository,
+    )
+    fields_repo = provide(
+        source=HttpFieldsRepository,
+        provides=FieldsRepository,
+    )
+    climate_repo = provide(
+        source=HttpClimateRepository,
+        provides=ClimateRepository,
+    )
+    finance_repo = provide(
+        source=HttpFinanceRepository,
+        provides=FinanceRepository,
+    )
 
 
 class PreprocessingProvider(Provider):

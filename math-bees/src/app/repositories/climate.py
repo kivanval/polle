@@ -5,7 +5,7 @@ import logging
 from dataclasses import dataclass
 from datetime import date
 from functools import partial
-from typing import Any, Protocol, TypeAlias
+from typing import Any, Protocol
 
 from app.autogen.clients.climate.api.default import get_field_daily_climate
 from app.autogen.clients.climate.client import AuthenticatedClient
@@ -50,9 +50,9 @@ class ClimateRepositoryCacheGetByFieldIdKey:
     end_date: date
 
 
-ClimateRepositoryCacheGetByFieldId: TypeAlias = Cache[
-    ClimateRepositoryCacheGetByFieldIdKey, ClimateTimeline
-]
+class ClimateRepositoryCacheGetByFieldId(
+    Cache[ClimateRepositoryCacheGetByFieldIdKey, ClimateTimeline]
+): ...
 
 
 class HttpClimateRepository:

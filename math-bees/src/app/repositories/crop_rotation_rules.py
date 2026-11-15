@@ -22,9 +22,9 @@ class CropRotationRuleRepository(Protocol):
 class CropRotationRuleRepositoryCacheGetIntervalsKey: ...
 
 
-CropRotationRuleRepositoryCacheGetIntervals: TypeAlias = Cache[
+class CropRotationRuleRepositoryCacheGetIntervals(Cache[
     CropRotationRuleRepositoryCacheGetIntervalsKey, RotationIntervalsMap
-]
+]):...
 
 
 class SqlCropRotationRuleRepository(CropRotationRuleRepository):
