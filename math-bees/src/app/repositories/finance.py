@@ -110,9 +110,9 @@ class FinanceRepositoryCacheGetMaterialPricesKey:
     end_year: int
 
 
-FinanceRepositoryCacheGetMaterialPrices: TypeAlias = Cache[
+class FinanceRepositoryCacheGetMaterialPrices(Cache[
     FinanceRepositoryCacheGetMaterialPricesKey, dict[MaterialId, AnnualRates]
-]
+]):...
 
 
 @dataclass(frozen=True)
@@ -122,9 +122,9 @@ class FinanceRepositoryCacheGetCropProfileOpexsKey:
     end_year: int
 
 
-FinanceRepositoryCacheGetCropProfileOpexs: TypeAlias = Cache[
+class FinanceRepositoryCacheGetCropProfileOpexs(Cache[
     FinanceRepositoryCacheGetCropProfileOpexsKey, dict[CropProfileId, AnnualRates]
-]
+]):...
 
 
 class HttpFinanceRepository(FinanceRepository):

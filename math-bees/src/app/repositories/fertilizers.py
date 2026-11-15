@@ -20,19 +20,19 @@ class FertilizersRepository(Protocol):
 class FertilizersRepositoryCacheGetAllKey: ...
 
 
-FertilizersRepositoryCacheGetAll: TypeAlias = Cache[
+class FertilizersRepositoryCacheGetAll(Cache[
     FertilizersRepositoryCacheGetAllKey, list[Fertilizer]
-]
+]):...
 
 
 @dataclass(frozen=True)
-class SqlFertilizersRepositoryCacheGetByIdKey:
+class FertilizersRepositoryCacheGetByIdKey:
     id: MaterialId
 
 
-SqlFertilizersRepositoryCacheGetById: TypeAlias = Cache[
-    SqlFertilizersRepositoryCacheGetByIdKey, Fertilizer
-]
+class FertilizersRepositoryCacheGetById(Cache[
+    FertilizersRepositoryCacheGetByIdKey, Fertilizer
+]):...
 
 
 class SqlFertilizersRepository(FertilizersRepository):
@@ -50,7 +50,7 @@ class SqlFertilizersRepository(FertilizersRepository):
         self,
         engine: Engine,
         cache_get_all: FertilizersRepositoryCacheGetAll,
-        cache_get_by_id: SqlFertilizersRepositoryCacheGetById,
+        cache_get_by_id: FertilizersRepositoryCacheGetById,
     ) -> None:
         self._engine = engine
         self._cache_get_all = cache_get_all
@@ -98,6 +98,6 @@ class SqlFertilizersRepository(FertilizersRepository):
 
     async def get_by_id(self, material_id: MaterialId) -> Fertilizer | None:
         return await self._cache_get_by_id.using(
-            SqlFertilizersRepositoryCacheGetByIdKey(material_id),
+            FertilizersRepositoryCacheGetByIdKey(material_id),
             partial(self._get_by_id_from_db, material_id),
         )
