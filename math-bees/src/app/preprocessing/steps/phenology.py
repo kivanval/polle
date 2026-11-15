@@ -108,7 +108,7 @@ def _validate_stage_params(
             Note(
                 NoteCategory.DATA_MISSING,
                 NoteImportance.RISK,
-                f"Missing GDD base temperature: {stage.label}",
+                f"Missing base temperature data for the {stage.label} stage.",
             ),
         )
 
@@ -128,7 +128,7 @@ def _validate_stage_params(
                     Note(
                         NoteCategory.DATA_MISSING,
                         NoteImportance.RISK,
-                        f"Missing vernalization range: {stage.label}",
+                        f"Missing winter chill requirements for the {stage.label} stage.",
                     ),
                 )
         else:
@@ -140,7 +140,7 @@ def _validate_stage_params(
                     Note(
                         NoteCategory.DATA_MISSING,
                         NoteImportance.RISK,
-                        f"Invalid vernalization range ({on} C > {ox} C): {stage.label}",
+                        f"Invalid winter chill temperature limits for the {stage.label} stage.",
                     ),
                 )
 
@@ -162,7 +162,7 @@ def _validate_stage_params(
                     Note(
                         NoteCategory.DATA_MISSING,
                         NoteImportance.RISK,
-                        f"Invalid vernalization thresholds: {stage.label}",
+                        f"Invalid winter chill temperature limits for the {stage.label} stage.",
                     ),
                 )
 
@@ -218,7 +218,7 @@ class PhenologyStep(SimulationStep):
                 fatal_risk_note=Note(
                     NoteCategory.DATA_MISSING,
                     NoteImportance.RISK,
-                    "No phenological stages defined",
+                    "The crop profile is missing growth stage definitions.",
                 ),
                 stages=[],
                 is_perennial=profile.is_perennial,
@@ -232,7 +232,7 @@ class PhenologyStep(SimulationStep):
                 risk_note_exceed_climate=Note(
                     NoteCategory.AGRONOMIC,
                     NoteImportance.RISK,
-                    "Crop cycle exceeded climate horizon",
+                    "The crop didn't reach maturity before the weather forecast ends.",
                 ),
             )
 
@@ -254,7 +254,7 @@ class PhenologyStep(SimulationStep):
                     risk_note_exceed_climate=Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        "Crop cycle exceeded climate horizon",
+                        "The crop didn't reach maturity before the weather forecast ends.",
                     ),
                 )
 
@@ -381,13 +381,13 @@ class PhenologyStep(SimulationStep):
                     risk_note_gdd=Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"Insufficient GDD: {label}",
+                        f"Not enough heat to complete the {label} stage.",
                     ),
                     death_note_gdd=DeathNote(f"Phenology:UnfinishedGDD({label})", is_static=False),
                     risk_note_vd=Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"Insufficient vernalization: {label}",
+                        f"Not enough winter chill to complete the {label} stage.",
                     ),
                     death_note_vd=DeathNote(f"Phenology:UnfinishedVD({label})", is_static=False),
                 ),
@@ -415,7 +415,7 @@ class PhenologyStep(SimulationStep):
             risk_note_exceed_climate=Note(
                 NoteCategory.AGRONOMIC,
                 NoteImportance.RISK,
-                "Crop cycle exceeded climate horizon",
+                "The crop didn't reach maturity before the weather forecast ends.",
             ),
         )
 
@@ -457,7 +457,7 @@ class PhenologyStep(SimulationStep):
                     note=Note(
                         NoteCategory.DATA_MISSING,
                         NoteImportance.RISK,
-                        "Missing climate weather series",
+                        "No weather data available to simulate plant growth.",
                     ),
                     fatal_if=True,
                     death_note=DeathNote("Phenology:EmptyClimateArray", is_static=True),
@@ -533,7 +533,7 @@ class PhenologyStep(SimulationStep):
                     note=Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"Stage timeout: {sc.label} ({projected_cycle_days}d > max {sc.max_days}d)",
+                        f"The {sc.label} stage took {projected_cycle_days} days, exceeding the normal {sc.max_days}-day limit.",
                     ),
                     fatal_if=is_fatal,
                     death_note=pc.death_note_timeout[sc.label],
@@ -571,7 +571,7 @@ class PhenologyStep(SimulationStep):
                         note=Note(
                             NoteCategory.AGRONOMIC,
                             NoteImportance.RISK,
-                            "Initial harvest not reached within climate horizon",
+                            "The crop won't reach its first harvest within the planned timeframe.",
                         ),
                         fatal_if=True,
                         death_note=DeathNote("Phenology:PerennialNoHarvest", is_static=False),
@@ -585,7 +585,7 @@ class PhenologyStep(SimulationStep):
                     note=Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        "No phenological stages completed",
+                        "The crop couldn't complete any growth stages.",
                     ),
                     fatal_if=True,
                     death_note=DeathNote("Phenology:NoStagesCompleted", is_static=True),
@@ -635,9 +635,9 @@ class ScenarioPhenologyStep(PhenologyStep):
                 candidate.with_risk(
                     note=Note(
                         NoteCategory.AGRONOMIC,
-                        NoteImportance.RISK,
-                        f"Plant date ({candidate.plant_date}) is outside planning horizon "
-                        f"({context.horizon.start} to {context.horizon.end})",
+                        NoteImportance.WARN,
+                        f"Plant date ({candidate.plant_date}) is outside the planning horizon "
+                        f"({context.horizon.start} to {context.horizon.end}).",
                     ),
                     fatal_if=False,
                 ),
@@ -656,7 +656,7 @@ class ScenarioPhenologyStep(PhenologyStep):
                         note=Note(
                             NoteCategory.AGRONOMIC,
                             NoteImportance.RISK,
-                            f"Clearance date ({user_clearance}) must be after plant date ({candidate.plant_date})",
+                            f"Clearance date ({user_clearance}) must be after the plant date ({candidate.plant_date}).",
                         ),
                         fatal_if=False,
                     ),
@@ -666,8 +666,7 @@ class ScenarioPhenologyStep(PhenologyStep):
                     note=Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"Clearance date ({user_clearance}) exceeds planning horizon "
-                        f"({context.horizon.start} to {context.horizon.end})",
+                        f"Clearance date ({user_clearance}) is after the planning horizon ends ({context.horizon.end}).",
                     ),
                     fatal_if=False,
                 )
@@ -687,9 +686,8 @@ class ScenarioPhenologyStep(PhenologyStep):
                     note=Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.WARN,
-                        f"Clearance date ({user_clearance}) exceeds crop max lifespan of "
-                        f"{pc.max_lifespan_years} year(s) (ends {end_date}); "
-                        f"harvests stop at {end_date} while field remains occupied",
+                        f"The clearance date ({user_clearance}) exceeds the crop's {pc.max_lifespan_years}-year lifespan "
+                        f"(ends {end_date}). No harvests will occur after this date.",
                     ),
                     fatal_if=False,
                 )
@@ -752,7 +750,7 @@ class ScenarioPhenologyStep(PhenologyStep):
                     note=Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"Stage timeout: {sc.label} ({projected_cycle_days}d > max {sc.max_days}d)",
+                        f"The {sc.label} stage took {projected_cycle_days} days, exceeding the normal {sc.max_days}-day limit.",
                     ),
                     fatal_if=False,
                 )
@@ -788,7 +786,7 @@ class ScenarioPhenologyStep(PhenologyStep):
                 note=Note(
                     NoteCategory.AGRONOMIC,
                     NoteImportance.RISK,
-                    f"Crop cycle truncated by clearance date ({user_clearance}) before maturity",
+                    f"The crop was cleared on {user_clearance} before it could reach maturity.",
                 ),
                 fatal_if=False,
             )
@@ -802,7 +800,7 @@ class ScenarioPhenologyStep(PhenologyStep):
                     note=Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        "Initial harvest not reached within climate horizon",
+                        "The crop won't reach its first harvest within the planned timeframe.",
                     ),
                     fatal_if=False,
                 )
@@ -816,7 +814,7 @@ class ScenarioPhenologyStep(PhenologyStep):
                     note=Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        "No phenological stages completed",
+                        "The crop couldn't complete any growth stages.",
                     ),
                     fatal_if=False,
                 ),

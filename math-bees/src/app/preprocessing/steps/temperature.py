@@ -49,8 +49,7 @@ def _evaluate_thermal_stress(
     if temps.size == 0:
         return candidate
 
-    bound_name = "min" if is_lower_bound else "max"
-    symbol = "<" if is_lower_bound else ">"
+    bound_name = "minimum" if is_lower_bound else "maximum"
     missing_temp_key = "MissingMinTemp" if is_lower_bound else "MissingMaxTemp"
 
     if threshold is None:
@@ -59,7 +58,7 @@ def _evaluate_thermal_stress(
             note=Note(
                 NoteCategory.DATA_MISSING,
                 NoteImportance.RISK if not context.risk.allow_missing_data else NoteImportance.WARN,
-                f"Missing absolute {bound_name} temperature: {stage_label}",
+                f"Missing absolute {bound_name} temperature data for the {stage_label} stage.",
             ),
             fatal_if=is_fatal,
             death_note=DeathNote(f"TemperatureCheck:{missing_temp_key}"),
@@ -87,10 +86,14 @@ def _evaluate_thermal_stress(
         )
 
         penalty_pct = round(loss_fraction * PERCENTAGE_MULTIPLIER)
+
+        stress_desc = "extreme heat" if stress_name == "Heat" else "severe frost"
+        prep = "over" if stress_name == "Heat" else "below"
+
         if is_lethal:
-            msg = f"Lethal {stress_name.lower()} shock: {stress_days}d {symbol} {threshold}°C in {stage_label}"
+            msg = f"The crop failed due to {stress_days} days of {stress_desc} ({prep} {threshold}°C) during the {stage_label} stage."
         else:
-            msg = f"{stress_name} shock: {stress_days}d {symbol} {threshold}°C in {stage_label} (yield penalty {penalty_pct}%)"
+            msg = f"{stress_days} days of {stress_desc} ({prep} {threshold}°C) during the {stage_label} stage reduced the yield by {penalty_pct}%."
 
         cand = candidate.with_risk(
             note=Note(
@@ -114,11 +117,12 @@ def _evaluate_thermal_stress(
         else MIN_STRESS_DAYS_THRESHOLD
     )
     if stress_days >= risk_threshold:
+        desc = "hot" if stress_name == "Heat" else "cold"
         return candidate.with_risk(
             note=Note(
                 NoteCategory.AGRONOMIC,
                 NoteImportance.WARN,
-                f"Sub-lethal {stress_name.lower()} stress: {stage_label}",
+                f"Frequent {desc} days during the {stage_label} stage caused mild stress.",
             ),
             fatal_if=False,
             death_note=DeathNote(f"TemperatureCheck:Sublethal{stress_name}Stress"),
@@ -145,7 +149,7 @@ class AbsoluteTemperatureStep(SimulationStep):
                 note=Note(
                     NoteCategory.AGRONOMIC,
                     NoteImportance.RISK,
-                    "Incomplete phenology cycle",
+                    "The growth cycle was incomplete.",
                 ),
                 fatal_if=True,
                 death_note=DeathNote("PhenologyStep:IncompleteCycle"),
@@ -160,7 +164,7 @@ class AbsoluteTemperatureStep(SimulationStep):
                 note=Note(
                     NoteCategory.AGRONOMIC,
                     NoteImportance.RISK,
-                    f"Unfinished stages: {len(candidate.stage_offsets)} of {len(stages)} completed",
+                    f"The crop only completed {len(candidate.stage_offsets)} out of {len(stages)} growth stages.",
                 ),
                 fatal_if=True,
                 death_note=DeathNote("PhenologyStep:UnfinishedCycle"),

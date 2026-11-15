@@ -211,7 +211,7 @@ class SoilWaterBucketStep(SimulationStep):
                     risk_note = Note(
                         NoteCategory.DATA_MISSING,
                         NoteImportance.WARN,
-                        f"Missing Kc coefficient: {stage.label}",
+                        f"Missing water crop coefficient (Kc) for the {stage.label} stage.",
                     )
                     kc_val = FALLBACK_GENERIC_KC
             else:
@@ -259,7 +259,7 @@ class SoilWaterBucketStep(SimulationStep):
                 Note(
                     NoteCategory.DATA_MISSING,
                     NoteImportance.RISK,
-                    f"Insufficient weather data: requires {total_days} days",
+                    f"Not enough weather data: the simulation requires {total_days} days.",
                 ),
                 fatal_if=abort_on_fatal,
                 death_note=DeathNote("SoilWaterBucket:MissingWeatherData", is_static=False),
@@ -272,7 +272,7 @@ class SoilWaterBucketStep(SimulationStep):
                 Note(
                     NoteCategory.DATA_MISSING,
                     NoteImportance.RISK,
-                    "Missing soil hydraulics (Total Available Water) data",
+                    "Missing soil Total Available Water (TAW) capacity data.",
                 ),
                 fatal_if=abort_on_fatal and not context.risk.allow_missing_data,
                 death_note=DeathNote("SoilWaterBucket:MissingTAW", is_static=True),
@@ -286,7 +286,7 @@ class SoilWaterBucketStep(SimulationStep):
                 Note(
                     NoteCategory.DATA_MISSING,
                     NoteImportance.RISK,
-                    "Missing moisture depletion fraction for profile",
+                    "Missing moisture depletion fraction (RAW) for this crop profile.",
                 ),
                 fatal_if=abort_on_fatal and not context.risk.allow_missing_data,
                 death_note=DeathNote("SoilWaterBucket:MissingDepletionFraction", is_static=True),
@@ -377,7 +377,7 @@ class SoilWaterBucketStep(SimulationStep):
                             Note(
                                 NoteCategory.AGRONOMIC,
                                 NoteImportance.RISK,
-                                f"Severe drought shock: {s_info.label} ({max_consecutive}d > tolerance {tolerance}d)",
+                                f"The crop failed after {max_consecutive} consecutive days of severe drought during the {s_info.label} stage (it can only tolerate {tolerance} days).",
                             ),
                             fatal_if=abort_on_fatal and not context.risk.allow_agronomic_risks,
                             death_note=DeathNote(

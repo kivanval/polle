@@ -89,8 +89,8 @@ class HistoryRotationStep(SimulationStep):
             if plant_month_idx < restr.min_allowed_plant_month:
                 months_passed = plant_month_idx - restr.hist_month
                 msg = (
-                    f"CropRotation: Requires {restr.gap_months} months after "
-                    f"'{restr.historical_crop_id}', but only {months_passed} passed."
+                    f"This crop requires a {restr.gap_months}-month gap "
+                    f"after '{restr.historical_crop_id}', but only {months_passed} months have passed."
                 )
                 return [
                     candidate.with_risk(
@@ -123,8 +123,8 @@ class ScenarioHistoryRotationStep(HistoryRotationStep):
             if plant_month_idx < restr.min_allowed_plant_month:
                 months_passed = plant_month_idx - restr.hist_month
                 msg = (
-                    f"CropRotation: Requires {restr.gap_months} months after "
-                    f"'{restr.historical_crop_id}', but only {months_passed} passed."
+                    f"This crop requires a {restr.gap_months}-month gap "
+                    f"after '{restr.historical_crop_id}', but only {months_passed} months have passed."
                 )
                 curr_cand = curr_cand.with_risk(
                     note=Note(NoteCategory.AGRONOMIC, NoteImportance.RISK, msg),
