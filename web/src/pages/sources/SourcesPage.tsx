@@ -30,7 +30,7 @@ export const SOURCE_GROUPS: Group[] = [
   {
     id: 'crops', title: 'Crops and agronomy', summary: 'Where the crop catalog’s growing ranges and seasons come from.',
     sources: [
-      { name: 'FAO EcoCrop', url: 'https://ecocrop.apps.fao.org/polle/srv/en/home', use: 'Temperature, rain and soil ranges crops grow in.' },
+      { name: 'FAO EcoCrop', url: 'https://ecocrop.apps.fao.org/ecocrop/srv/en/home', use: 'Temperature, rain and soil ranges crops grow in.' },
       { name: 'FAO Crop Calendar', url: 'https://cropcalendar.apps.fao.org/#/home', use: 'Usual sowing and harvest seasons.' },
       { name: 'FAO GAEZ', url: 'https://gaez.fao.org/', use: 'Agro-ecological zones and attainable yields.' },
     ],

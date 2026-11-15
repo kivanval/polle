@@ -30,8 +30,8 @@ try
     await using (var readOnly = new NpgsqlCommand("SET TRANSACTION READ ONLY", connection, transaction)) { await readOnly.ExecuteNonQueryAsync(); }
     await using var nameCommand = new NpgsqlCommand("SELECT to_regclass('public.users') IS NOT NULL", connection, transaction);
     var renamed = (bool)(await nameCommand.ExecuteScalarAsync())!;
-    var usersTable = renamed ? "public.users" : "public.polle_users";
-    var sessionsTable = renamed ? "public.sessions" : "public.polle_sessions";
+    var usersTable = renamed ? "public.users" : "public.ecocrop_users";
+    var sessionsTable = renamed ? "public.sessions" : "public.ecocrop_sessions";
     await using var agricultureCommand = new NpgsqlCommand("SELECT to_regclass('public.farms') IS NOT NULL AND to_regclass('public.fields') IS NOT NULL AND to_regclass('public.field_plantings') IS NOT NULL", connection, transaction);
     var agricultureAvailable = (bool)(await agricultureCommand.ExecuteScalarAsync())!;
     var inspections = new (string Title, string Sql)[]
@@ -42,14 +42,14 @@ try
         ("Solver identifier quality", "SELECT count(*) AS total, min(id), max(id), count(DISTINCT scientific_name) AS distinct_names, count(*) FILTER (WHERE scientific_name IS NULL OR btrim(scientific_name) = '') AS unnamed FROM solver.crops"),
         ("Period extension availability", "SELECT name, installed_version FROM pg_available_extensions WHERE name = 'btree_gist'"),
         ("Extensions", "SELECT name, default_version, installed_version FROM pg_available_extensions WHERE name = 'postgis'"),
-        ("Columns", "SELECT table_schema, table_name, column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE (table_schema = 'public' AND table_name IN ('users','sessions','polle_users','polle_sessions','farms','fields','field_plantings','crops','__ecocrop_migrations')) OR (table_schema IN ('lakehouse','solver') AND table_name = 'crops') ORDER BY table_schema, table_name, ordinal_position"),
+        ("Columns", "SELECT table_schema, table_name, column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE (table_schema = 'public' AND table_name IN ('users','sessions','ecocrop_users','ecocrop_sessions','farms','fields','field_plantings','crops','__ecocrop_migrations')) OR (table_schema IN ('lakehouse','solver') AND table_name = 'crops') ORDER BY table_schema, table_name, ordinal_position"),
         ("Constraints", "SELECT conrelid::regclass::text AS relation, conname, pg_get_constraintdef(oid) AS definition FROM pg_constraint WHERE connamespace IN ('public'::regnamespace,'lakehouse'::regnamespace,'solver'::regnamespace) ORDER BY 1,2"),
         ("Indexes", "SELECT schemaname, tablename, indexname, indexdef FROM pg_indexes WHERE schemaname='public' OR (schemaname IN ('lakehouse','solver') AND tablename='crops') ORDER BY 1,2,3"),
         ("Roles", "SELECT rolname, rolsuper, rolcanlogin FROM pg_roles WHERE rolname NOT LIKE 'pg_%' ORDER BY 1"),
         ("Owners and grants", "SELECT n.nspname, c.relname, pg_get_userbyid(c.relowner) AS owner, c.relacl::text FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relkind IN ('r','v') ORDER BY 2"),
-        ("Dependencies", "SELECT pg_describe_object(classid,objid,objsubid) AS dependent, pg_describe_object(refclassid,refobjid,refobjsubid) AS referenced, deptype FROM pg_depend WHERE refobjid IN (to_regclass('public.polle_users'),to_regclass('public.polle_sessions'),to_regclass('public.users'),to_regclass('public.sessions')) ORDER BY 1"),
+        ("Dependencies", "SELECT pg_describe_object(classid,objid,objsubid) AS dependent, pg_describe_object(refclassid,refobjid,refobjsubid) AS referenced, deptype FROM pg_depend WHERE refobjid IN (to_regclass('public.ecocrop_users'),to_regclass('public.ecocrop_sessions'),to_regclass('public.users'),to_regclass('public.sessions')) ORDER BY 1"),
         ("Triggers", "SELECT event_object_table, trigger_name, action_statement FROM information_schema.triggers WHERE event_object_schema='public'"),
-        ("Functions referencing old names", "SELECT n.nspname, p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE p.prosrc LIKE '%polle_users%' OR p.prosrc LIKE '%polle_sessions%'"),
+        ("Functions referencing old names", "SELECT n.nspname, p.proname FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE p.prosrc LIKE '%ecocrop_users%' OR p.prosrc LIKE '%ecocrop_sessions%'"),
         ("Connected consumers (no query text)", "SELECT usename, application_name, state, count(*) FROM pg_stat_activity WHERE datname=current_database() GROUP BY 1,2,3"),
         ("Lakehouse crops sample", "SELECT crop_id, crop FROM lakehouse.crops ORDER BY crop_id"),
         ("Solver crops sample", "SELECT row_to_json(c)::text FROM (SELECT * FROM solver.crops LIMIT 8) c"),
