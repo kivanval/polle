@@ -5,6 +5,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      additional_contexts:
+        api: ../api
     ports:
       - "0.0.0.0:8000:8000"
     env_file:
@@ -26,6 +28,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile-worker
+      additional_contexts:
+        api: ../api
     command: ["taskiq", "worker", "app.worker:broker"]
     env_file:
       - .env
