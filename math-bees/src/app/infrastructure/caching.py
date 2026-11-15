@@ -17,8 +17,11 @@ class Cache(Generic[K, V]):
         self._cache = cache
         self._config = config
         self._ttl = config.ttl
+        self._enabled = config.enabled
 
     async def get(self, key: K) -> V | None:
+        if not self._enabled:
+            return None
         result = await self._cache.get(f"{type(key)}_{key!s}")
         if result is not None:
             logger.debug(f"{LoggerTags.FROM_CACHE} Found cached data for %s", key)

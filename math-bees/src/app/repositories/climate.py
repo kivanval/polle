@@ -59,6 +59,7 @@ class ClimateRepositoryCacheGetByFieldId(
     def __init__(self, cache: cashews.Cache, config: CachingConfig):
         super().__init__(cache, config)
         self._ttl = config.climate_repository.ttl
+        self._enabled = config.climate_repository.enabled
 
 
 class HttpClimateRepository:

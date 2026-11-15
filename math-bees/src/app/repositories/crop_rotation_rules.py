@@ -30,6 +30,7 @@ class CropRotationRuleRepositoryCacheGetIntervals(
     def __init__(self, cache: cashews.Cache, config: CachingConfig):
         super().__init__(cache, config)
         self._ttl = config.crop_rotation_rule_repository.ttl
+        self._enabled = config.crop_rotation_rule_repository.enabled
 
 
 class SqlCropRotationRuleRepository(CropRotationRuleRepository):

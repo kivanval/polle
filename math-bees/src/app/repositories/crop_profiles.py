@@ -354,6 +354,7 @@ class CropProfileRepositoryCacheGetAll(
     def __init__(self, cache: cashews.Cache, config: CachingConfig):
         super().__init__(cache, config)
         self._ttl = config.crop_profile_repository.ttl
+        self._enabled = config.crop_profile_repository.enabled
 
 
 @dataclass(frozen=True)
@@ -365,6 +366,7 @@ class CropProfileRepositoryCacheGetById(Cache[CropProfileRepositoryCacheGetByIdK
     def __init__(self, cache: cashews.Cache, config: CachingConfig):
         super().__init__(cache, config)
         self._ttl = config.crop_profile_repository.ttl
+        self._enabled = config.crop_profile_repository.enabled
 
 
 class SqlCropProfileRepository(CropProfileRepository):

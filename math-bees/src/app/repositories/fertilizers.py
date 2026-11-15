@@ -28,6 +28,7 @@ class FertilizersRepositoryCacheGetAll(
     def __init__(self, cache: cashews.Cache, config: CachingConfig):
         super().__init__(cache, config)
         self._ttl = config.fertilizers_repository.ttl
+        self._enabled = config.fertilizers_repository.enabled
 
 
 @dataclass(frozen=True)
@@ -39,6 +40,7 @@ class FertilizersRepositoryCacheGetById(Cache[FertilizersRepositoryCacheGetByIdK
     def __init__(self, cache: cashews.Cache, config: CachingConfig):
         super().__init__(cache, config)
         self._ttl = config.fertilizers_repository.ttl
+        self._enabled = config.fertilizers_repository.enabled
 
 
 class SqlFertilizersRepository(FertilizersRepository):

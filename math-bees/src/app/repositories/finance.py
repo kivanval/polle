@@ -119,6 +119,7 @@ class FinanceRepositoryCacheGetMaterialPrices(
     def __init__(self, cache: cashews.Cache, config: CachingConfig):
         super().__init__(cache, config)
         self._ttl = config.finance_repository.ttl
+        self._enabled = config.finance_repository.enabled
 
 
 @dataclass(frozen=True)
@@ -134,6 +135,7 @@ class FinanceRepositoryCacheGetCropProfileOpexs(
     def __init__(self, cache: cashews.Cache, config: CachingConfig):
         super().__init__(cache, config)
         self._ttl = config.finance_repository.ttl
+        self._enabled = config.finance_repository.enabled
 
 
 class HttpFinanceRepository(FinanceRepository):

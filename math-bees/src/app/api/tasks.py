@@ -67,6 +67,7 @@ class OptimizeFieldsCache(Cache[OptimizeFieldsCacheKey, OptimizeFieldResponse]):
     def __init__(self, cache: cashews.Cache, config: CachingConfig):
         super().__init__(cache, config)
         self._ttl = config.optimize_fields.ttl
+        self._enabled = config.optimize_fields.enabled
 
 
 @inject
@@ -99,6 +100,7 @@ class EvaluateScenarioCache(Cache[EvaluateScenarioCacheKey, EvaluateScenarioResp
     def __init__(self, cache: cashews.Cache, config: CachingConfig):
         super().__init__(cache, config)
         self._ttl = config.evaluate_scenario.ttl
+        self._enabled = config.evaluate_scenario.enabled
 
 
 async def _evaluate_scenario(
