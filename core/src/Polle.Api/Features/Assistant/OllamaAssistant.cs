@@ -22,7 +22,8 @@ public sealed record AssistantTurnResult(string Message, AssistantConversationCo
     string? ScenarioJson = null, bool ClearContext = false, Guid? StrategyRunId = null, Guid? FieldId = null);
 
 public sealed class OllamaAssistant(HttpClient http, IConfiguration config, FarmAssistantTools farmTools,
-    SolverRequestBuilder solver, AssistantStrategyTool strategies, TimeProvider clock, ILogger<OllamaAssistant> logger)
+    SolverRequestBuilder solver, AssistantStrategyTool strategies, AssistantHybridTool hybrids, TimeProvider clock,
+    ILogger<OllamaAssistant> logger)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private static readonly JsonSerializerOptions IndentedJson = new(JsonSerializerDefaults.Web) { WriteIndented = true };
@@ -40,7 +41,7 @@ public sealed class OllamaAssistant(HttpClient http, IConfiguration config, Farm
     private static readonly string[] BaseActions =
     [
         "greeting", "capabilities", "list_my_farms", "get_farm_summary", "get_field_planting_history",
-        "prepare_solver_scenario", AssistantRouting.AnalyzeStrategies, "answer", "off_topic", "clarify"
+        "prepare_solver_scenario", AssistantRouting.AnalyzeStrategies, AssistantRouting.RecommendHybrids, "answer", "off_topic", "clarify"
     ];
     // Follow-up actions exist only while the conversation carries a prepared scenario reference.
     private static readonly Dictionary<string, ScenarioFocus> ScenarioFollowUps = new()
@@ -71,6 +72,8 @@ public sealed class OllamaAssistant(HttpClient http, IConfiguration config, Farm
           usually naming a farm, a year or a start month, even if optimization is mentioned.
         - analyze_field_strategies: asks which strategy or crop plan to choose for a field, to pick, compare or calculate
           strategies, an optimized plan, its profit, yield, water or risks, or to analyze a field over some years.
+        - recommend_hybrids: asks which hybrids, varieties or cultivars (seed) to sow for a crop or a field,
+          including drought- or heat-tolerant ones.
         - answer: a question within the scope that does not ask for the user's saved data, for example
           crop rotation, what affects wheat yield, a climate scenario, a weather forecast versus a climate
           normal, or why Polle's solver uses Python.
@@ -158,11 +161,14 @@ public sealed class OllamaAssistant(HttpClient http, IConfiguration config, Farm
                     : "Hello! How can I help with your farm data or an agricultural question?");
             case "capabilities":
                 return new(uk
-                    ? "Можу показати ваші господарства, бюджети, поля й історію посівів, порахувати й порівняти стратегії для поля (прибуток, витрати, полив, ризики) разом з оцінкою вашого поточного плану та підготувати чернетку плану для господарства з переліком даних, яких ще бракує. Період можна писати як завгодно: «з жовтня 2026 на 10 років»; без нього беру наступний місяць і 5 років."
-                    : "I can read your farms, budgets, fields and planting history, calculate and compare strategies for a field (profit, costs, irrigation, risks) next to your current plan, and draft a plan for a farm, listing any data still missing. Say the period any way you like, e.g. \"from October 2026 for 10 years\"; without one I use next month and 5 years.");
+                    ? "Можу показати ваші господарства, бюджети, поля й історію посівів, порахувати й порівняти стратегії для поля (прибуток, витрати, полив, ризики) разом з оцінкою вашого поточного плану, підібрати гібриди й сорти під культуру чи посушливість поля та підготувати чернетку плану для господарства з переліком даних, яких ще бракує. Період можна писати як завгодно: «з жовтня 2026 на 10 років»; без нього беру наступний місяць і 5 років."
+                    : "I can read your farms, budgets, fields and planting history, calculate and compare strategies for a field (profit, costs, irrigation, risks) next to your current plan, suggest hybrids and varieties for a crop or for a field's drought risk, and draft a plan for a farm, listing any data still missing. Say the period any way you like, e.g. \"from October 2026 for 10 years\"; without one I use next month and 5 years.");
             case AssistantRouting.AnalyzeStrategies:
                 return await ExecuteLoggedAsync(AssistantRouting.AnalyzeStrategies,
                     () => strategies.AnalyzeAsync(user, message, history, page, previous, uk, today, ct));
+            case AssistantRouting.RecommendHybrids:
+                return await ExecuteLoggedAsync(AssistantRouting.RecommendHybrids,
+                    () => hybrids.RecommendAsync(user, message, page, previous, uk, today, ct));
             case "list_my_farms":
                 return await ExecuteLoggedAsync("list_my_farms", async () =>
                 {

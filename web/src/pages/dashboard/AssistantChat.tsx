@@ -7,7 +7,7 @@ import { useAssistantPageSelection } from '@/features/assistant/useAssistantPage
 import { maxMessageChars, receive, requestBody, type ChatMessage, type ChatResponse, type ConversationContext, type PageContext } from '@/features/assistant/chat'
 import './assistant.css'
 
-const examples = ['Which plan is best for my field?', 'Analyze my field for 5 years.', 'What farms do I have?', 'What can you do?']
+const examples = ['Which plan is best for my field?', 'Which hybrids suit my field?', 'Analyze my field for 5 years.', 'What farms do I have?', 'What can you do?']
 const maxMessages = 100
 // The API stops within its 100-second budget, so a browser timeout means no response arrived.
 const requestTimeoutMs = 110_000
@@ -162,7 +162,7 @@ export function AssistantChat({ closeForNavigation = false, footerElement }: {
       <div className="assistant-transcript" ref={transcript} role="log" aria-label="Conversation history" aria-live="polite"
         onScroll={event => { const el = event.currentTarget; nearBottom.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80 }}>
         {messages.length === 0 && <div className="assistant-welcome"><span className="assistant-mark"><Bot size={24} /></span>
-          <h3>Welcome to Polle Assistant.</h3><p>Ask which plan suits a field, and I'll suggest plans and compare them with your current plan. Say the period any way you like, or leave it out (next month, 5 years). I also know your farms, budgets, fields and planting history.</p>
+          <h3>Welcome to Polle Assistant.</h3><p>Ask which plan suits a field, and I'll suggest plans and compare them with your current plan. Say the period any way you like, or leave it out (next month, 5 years). I also know your farms, budgets, fields and planting history, and can suggest hybrids for a crop or a dry field.</p>
           <div className="assistant-prompts">{examples.map(prompt => <button type="button" key={prompt} onClick={() => void ask(prompt, messages)} disabled={pending}>{prompt}<ArrowUp size={13} /></button>)}</div></div>}
         {messages.map(item => <div className={`assistant-message assistant-message-${item.role}`} key={item.id}>
           <span className="assistant-speaker">{item.role === 'user' ? 'You' : 'Polle'}</span>

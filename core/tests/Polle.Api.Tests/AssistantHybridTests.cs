@@ -1,0 +1,116 @@
+using Polle.Api.Features.Assistant;
+using Polle.Api.Features.Drought;
+using Polle.Domain.Agriculture;
+
+namespace Polle.Api.Tests;
+
+/// <summary>
+/// Questions about hybrids and varieties go straight to the hybrid tool, which names the crops asked about (or the
+/// field's), lists only hybrids from the database, and puts drought-tolerant ones first when the field looks dry.
+/// </summary>
+public sealed class AssistantHybridTests
+{
+    private static readonly DateOnly Today = new(2026, 11, 15);
+    private static readonly Crop Maize = new() { Id = 7706, Name = "Maize", NameUk = "Кукурудза", ScientificName = "Zea mays" };
+    private static readonly Crop Sunflower = new() { Id = 7722, Name = "Sunflower", NameUk = "Соняшник", ScientificName = "Helianthus annuus" };
+    private static readonly Crop Lentil = new() { Id = 7753, Name = "Lentil", NameUk = "Сочевиця", ScientificName = "Lens culinaris" };
+
+    private static CropHybrid Hybrid(long id, Crop crop, string name, string drought, string heat) => new()
+    {
+        Id = id, CropId = crop.Id, Crop = crop, Name = name, MaturityGroup = "FAO 300", DroughtTolerance = drought,
+        HeatTolerance = heat, KeyTraits = $"{name} traits.", RecommendedConditions = $"{name} conditions."
+    };
+
+    private static readonly CropHybrid[] Hybrids =
+    [
+        Hybrid(1, Maize, "DKC 4351", CropHybrid.Medium, CropHybrid.Medium),
+        Hybrid(2, Maize, "P9241", CropHybrid.High, CropHybrid.Medium),
+        Hybrid(3, Maize, "SY Torino", CropHybrid.High, CropHybrid.High),
+        Hybrid(4, Sunflower, "NK Neoma", CropHybrid.High, CropHybrid.High),
+    ];
+
+    private static TrendCell Month(int droughtClass, double tmean, double tmax, double balance, string status = "ok") =>
+        new("2027-01", status, 0.5, droughtClass, tmean, tmean - 5, tmax, 40, 40 - balance, balance);
+
+    [Theory]
+    [InlineData("Which maize hybrids suit a dry field?")]
+    [InlineData("Recommend hybrids for my field")]
+    [InlineData("What sunflower varieties should I sow?")]
+    [InlineData("Any drought-tolerant cultivars?")]
+    [InlineData("Які гібриди кукурудзи посіяти?")]
+    [InlineData("Порадь сорти пшениці для посухи")]
+    [InlineData("Який сорт сої взяти?")]
+    public void HybridQuestionsGoToTheHybridTool(string message) =>
+        Assert.Equal(AssistantRouting.RecommendHybrids, AssistantRouting.Preroute(message, null, Today));
+
+    [Theory]
+    [InlineData("Як працює сортування полів?")]
+    [InlineData("Which plan is best for my field?")]
+    public void OtherWordsDoNotLookLikeHybrids(string message) =>
+        Assert.NotEqual(AssistantRouting.RecommendHybrids, AssistantRouting.Preroute(message, null, Today));
+
+    [Theory]
+    [InlineData("Which corn hybrids?", "Maize")]
+    [InlineData("гібриди кукурудзи", "Maize")]
+    [InlineData("сорти соняшнику для степу", "Sunflower")]
+    [InlineData("sunflower and maize hybrids", "Maize,Sunflower")]
+    [InlineData("hybrids for my field", "")]
+    public void CropsAreFoundByTheirNamesInEitherLanguage(string message, string expected) =>
+        Assert.Equal(expected, string.Join(",", AssistantHybridTool.CropsNamed(message, [Maize, Sunflower, Lentil]).Select(crop => crop.Name)));
+
+    [Fact]
+    public void ADryFieldIsRatedFromItsDroughtMonthsAndWarmSeasonBalance()
+    {
+        var wet = FieldDryness.From([Month(-1, 18, 25, 10), Month(0, 20, 27, -40), Month(-1, 2, 5, -200)]);
+        Assert.Equal((CropHybrid.Low, 0, false), (wet.Level, wet.DroughtMonths, wet.Hot));
+        Assert.Equal(-30, wet.WarmBalanceMm); // the cold month's deficit does not count
+
+        var dry = FieldDryness.From([Month(1, 22, 31, -90), Month(2, 24, 33, -110), Month(-1, 18, 26, -20)]);
+        Assert.Equal((CropHybrid.Medium, 2, true), (dry.Level, dry.DroughtMonths, dry.Hot));
+
+        Assert.Equal(CropHybrid.High, FieldDryness.From([Month(1, 22, 30, -80), Month(1, 23, 31, -80), Month(3, 25, 34, -90)]).Level);
+        Assert.Equal(CropHybrid.High, FieldDryness.From([Month(-1, 22, 28, -320)]).Level);
+        Assert.Equal(CropHybrid.High, FieldDryness.From([Month(-1, 5, 12, 0, "arid")]).Level);
+    }
+
+    [Fact]
+    public void ADryHotFieldGetsDroughtAndThenHeatTolerantHybridsFirst()
+    {
+        var dryness = new FieldDryness(3, -260, false, true, CropHybrid.High);
+
+        var text = AssistantHybridTool.Text([Maize], Hybrids, "North", dryness, droughtAsked: false, uk: false);
+
+        Assert.StartsWith("### Hybrids for North", text);
+        Assert.Contains("**Field climate, next 12 months:** high drought risk; 3 months of moderate drought or worse; warm-season water balance −260 mm.", text);
+        Assert.Contains("*Drought-tolerant hybrids come first, then heat-tolerant ones.*", text);
+        Assert.True(text.IndexOf("SY Torino", StringComparison.Ordinal) < text.IndexOf("P9241", StringComparison.Ordinal));
+        Assert.True(text.IndexOf("P9241", StringComparison.Ordinal) < text.IndexOf("DKC 4351", StringComparison.Ordinal));
+        Assert.Contains("- **P9241** · FAO 300 · drought tolerance: high · heat tolerance: medium", text);
+        Assert.Contains("  - Suits: P9241 conditions.", text);
+        Assert.DoesNotContain("NK Neoma", text);
+        Assert.EndsWith("Check local adaptation with your agronomist or seed dealer before you buy.*", text);
+    }
+
+    [Fact]
+    public void WithoutAFieldOrADroughtQuestionTheCatalogOrderStays()
+    {
+        var text = AssistantHybridTool.Text([Maize, Lentil], Hybrids, null, null, droughtAsked: false, uk: false);
+
+        Assert.StartsWith("### Hybrids", text);
+        Assert.DoesNotContain("Field climate", text);
+        Assert.DoesNotContain("come first", text);
+        Assert.True(text.IndexOf("DKC 4351", StringComparison.Ordinal) < text.IndexOf("P9241", StringComparison.Ordinal));
+        Assert.Contains("**Lentil**\n- No hybrids recorded for this crop yet.", text);
+    }
+
+    [Fact]
+    public void AUkrainianQuestionIsAnsweredInUkrainian()
+    {
+        var text = AssistantHybridTool.Text([Sunflower], Hybrids, null, null, droughtAsked: true, uk: true);
+
+        Assert.StartsWith("### Гібриди: Соняшник", text);
+        Assert.Contains("*Спершу посухостійкі гібриди.*", text);
+        Assert.Contains("посухостійкість: висока · жаростійкість: висока", text);
+        Assert.Contains("перевірте локальну адаптацію з агрономом", text);
+    }
+}

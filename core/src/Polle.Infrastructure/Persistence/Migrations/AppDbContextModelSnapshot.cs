@@ -52,6 +52,77 @@ namespace Polle.Infrastructure.Persistence.Migrations
                     b.ToSqlQuery("SELECT id, coalesce(name->>'en', scientific_name, id::text) AS name, name->>'uk' AS name_uk, scientific_name\r\nFROM public.crops");
                 });
 
+            modelBuilder.Entity("Polle.Domain.Agriculture.CropHybrid", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<long>("CropId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("crop_id");
+
+                    b.Property<long?>("CropProfileId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("crop_profile_id");
+
+                    b.Property<string>("DroughtTolerance")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("drought_tolerance");
+
+                    b.Property<string>("HeatTolerance")
+                        .IsRequired()
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)")
+                        .HasColumnName("heat_tolerance");
+
+                    b.Property<string>("KeyTraits")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("key_traits");
+
+                    b.Property<string>("MaturityGroup")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("maturity_group");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("RecommendedConditions")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("recommended_conditions");
+
+                    b.HasKey("Id")
+                        .HasName("pk_crop_hybrids");
+
+                    b.HasIndex("CropProfileId")
+                        .HasDatabaseName("ix_crop_hybrids_crop_profile_id");
+
+                    b.HasIndex("CropId", "Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_crop_hybrids_crop_id_name");
+
+                    b.ToTable("crop_hybrids", "public", t =>
+                        {
+                            t.HasCheckConstraint("ck_crop_hybrids_drought_tolerance", "drought_tolerance IN ('high', 'medium', 'low')");
+
+                            t.HasCheckConstraint("ck_crop_hybrids_heat_tolerance", "heat_tolerance IN ('high', 'medium', 'low')");
+                        });
+                });
+
             modelBuilder.Entity("Polle.Domain.Agriculture.CropProfile", b =>
                 {
                     b.Property<long>("Id")
@@ -1158,6 +1229,18 @@ namespace Polle.Infrastructure.Persistence.Migrations
                         .HasName("pk_data_protection_keys");
 
                     b.ToTable("data_protection_keys", "public");
+                });
+
+            modelBuilder.Entity("Polle.Domain.Agriculture.CropHybrid", b =>
+                {
+                    b.HasOne("Polle.Domain.Agriculture.Crop", "Crop")
+                        .WithMany()
+                        .HasForeignKey("CropId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_crop_hybrids_crops_crop_id");
+
+                    b.Navigation("Crop");
                 });
 
             modelBuilder.Entity("Polle.Domain.Agriculture.CropProfile", b =>

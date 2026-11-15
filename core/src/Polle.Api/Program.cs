@@ -70,6 +70,7 @@ builder.Services.AddScoped<SessionService>();
 builder.Services.AddScoped<SessionCookieEvents>();
 builder.Services.AddScoped<FarmAssistantTools>();
 builder.Services.AddScoped<AssistantStrategyTool>();
+builder.Services.AddScoped<AssistantHybridTool>();
 builder.Services.AddScoped<SolverRequestBuilder>();
 builder.Services.AddScoped<IMonthlyWeatherProvider, UnavailableMonthlyWeatherProvider>();
 builder.Services.AddSingleton<HistoricalWeatherCache>();

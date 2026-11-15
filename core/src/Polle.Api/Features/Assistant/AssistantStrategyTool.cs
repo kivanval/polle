@@ -12,19 +12,23 @@ using Microsoft.EntityFrameworkCore;
 namespace Polle.Api.Features.Assistant;
 
 /// <summary>
-/// Requests the assistant answers without asking the model to classify them: a request about strategies for a field
-/// (pick, compare, calculate, analyze), and a reply that only gives a period, which continues the tool used last.
+/// Requests the assistant answers without asking the model to classify them: a question about hybrids or varieties, a
+/// request about strategies for a field (pick, compare, calculate, analyze), and a reply that only gives a period, which
+/// continues the tool used last.
 /// </summary>
 public static partial class AssistantRouting
 {
     public const string AnalyzeStrategies = "analyze_field_strategies";
     public const string PrepareScenario = "prepare_solver_scenario";
+    public const string RecommendHybrids = "recommend_hybrids";
 
     /// <summary>The action to run for this message, or null to let the model classify it.</summary>
     public static string? Preroute(string message, AssistantConversationContext? previous, DateOnly today)
     {
         var text = message.ToLowerInvariant();
         if (previous?.LastTool is AnalyzeStrategies or PrepareScenario && AssistantPeriod.IsPeriodOnly(message, today)) return previous.LastTool;
+        // Hybrids and varieties come before strategies: "recommend hybrids for my field" is about seed, not a plan.
+        if (HybridRegex().IsMatch(text)) return RecommendHybrids;
         // A draft scenario or its JSON stays with the scenario tool.
         if (ScenarioRegex().IsMatch(text)) return null;
         if (StrategyRegex().IsMatch(text)) return AnalyzeStrategies;
@@ -33,6 +37,9 @@ public static partial class AssistantRouting
         if (previous?.LastTool == AnalyzeStrategies && !AssistantPeriod.Read(message, today).IsEmpty && FollowUpRegex().IsMatch(text)) return AnalyzeStrategies;
         return null;
     }
+
+    [GeneratedRegex(@"гібрид|\bсорт(?:и|ів|у|а|ом|ам|ами|ах)?\b|hybrid|cultivar|variet(?:y|ies)")]
+    private static partial Regex HybridRegex();
 
     [GeneratedRegex(@"сценар|scenario|json|чернетк|draft")]
     private static partial Regex ScenarioRegex();

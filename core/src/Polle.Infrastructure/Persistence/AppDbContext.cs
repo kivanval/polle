@@ -17,6 +17,7 @@ public sealed class AppDbContext(DbContextOptions<AppDbContext> options) : DbCon
     public DbSet<FieldPlanting> FieldPlantings => Set<FieldPlanting>();
     public DbSet<Crop> Crops => Set<Crop>();
     public DbSet<CropProfile> CropProfiles => Set<CropProfile>();
+    public DbSet<CropHybrid> CropHybrids => Set<CropHybrid>();
     public DbSet<StrategyRun> StrategyRuns => Set<StrategyRun>();
     public DbSet<StrategyJob> StrategyJobs => Set<StrategyJob>();
     public DbSet<FieldStrategy> FieldStrategies => Set<FieldStrategy>();
