@@ -129,7 +129,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"The soil is too acidic for this crop (pH {ph}, needs at least {crop.ph_min}).",
+                        f"The soil pH of {ph} is too acidic for this crop, which needs at least {crop.ph_min}.",
                     ),
                     not context.risk.allow_agronomic_risks,
                     DeathNote("SoilCheck:PhTooLow", is_static=True),
@@ -143,7 +143,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"The soil is too alkaline for this crop (pH {ph}, needs at most {crop.ph_max}).",
+                        f"The soil pH of {ph} is too alkaline for this crop, which needs at most {crop.ph_max}.",
                     ),
                     not context.risk.allow_agronomic_risks,
                     DeathNote("SoilCheck:PhTooHigh", is_static=True),
@@ -157,7 +157,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.WARN,
-                        f"The soil pH ({ph}) is barely within the acceptable limits.",
+                        f"The soil pH of {ph} is near the edge of the acceptable {crop.ph_min} to {crop.ph_max} range.",
                     ),
                     False,
                     DeathNote("SoilCheck:MarginalPh", is_static=True),
@@ -192,7 +192,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"The crop cannot survive the current soil salinity ({salinity_ds_m} dS/m).",
+                        f"The soil salinity of {salinity_ds_m} dS/m is too high for the crop to survive.",
                     ),
                     not context.risk.allow_agronomic_risks,
                     DeathNote("SoilCheck:LethalSalinity", is_static=True),
@@ -207,7 +207,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"High soil salinity ({salinity_ds_m} dS/m) reduced the yield by {penalty_pct}%.",
+                        f"High soil salinity of {salinity_ds_m} dS/m reduced the yield by {penalty_pct}%.",
                     ),
                     is_critical and not context.risk.allow_agronomic_risks,
                     DeathNote("SoilCheck:CriticalSalinity", is_static=True),
@@ -219,7 +219,7 @@ def _evaluate_soil_for_crop(
                         Note(
                             NoteCategory.AGRONOMIC,
                             NoteImportance.RISK,
-                            f"The soil is too salty for this crop ({salinity_ds_m} dS/m, absolute maximum is {crop.max_salinity_ds_m} dS/m).",
+                            f"The soil salinity of {salinity_ds_m} dS/m exceeds the crop's maximum limit of {crop.max_salinity_ds_m} dS/m.",
                         ),
                         not context.risk.allow_agronomic_risks,
                         DeathNote("SoilCheck:SalinityTooHigh", is_static=True),
@@ -235,7 +235,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"The soil is too salty for this crop ({salinity_ds_m} dS/m, tolerance is {crop.max_salinity_ds_m} dS/m).",
+                        f"The soil salinity of {salinity_ds_m} dS/m exceeds the crop's tolerance of {crop.max_salinity_ds_m} dS/m.",
                     ),
                     not context.risk.allow_agronomic_risks,
                     DeathNote("SoilCheck:SalinityTooHigh", is_static=True),
@@ -249,7 +249,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.WARN,
-                        f"The soil salinity ({salinity_ds_m} dS/m) is close to the crop's maximum tolerance.",
+                        f"The soil salinity of {salinity_ds_m} dS/m is close to the crop's maximum tolerance.",
                     ),
                     False,
                     DeathNote("SoilCheck:MarginalSalinity", is_static=True),
