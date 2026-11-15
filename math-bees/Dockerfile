@@ -21,7 +21,7 @@ RUN mkdir -p src/app && touch src/app/__init__.py
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir ".[dev]"
 
-COPY api/ /build/api/
+COPY --from=api / /build/api/
 COPY /scripts/generate_api.sh /build/
 COPY src/ /build/src/
 
