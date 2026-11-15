@@ -35,9 +35,9 @@ describe('crop form fertilizer', () => {
       .toEqual([['', 'None'], ['2215', 'Ammonium nitrate'], ['2216', 'NPK 16-16-16']])
   })
 
-  it('asks for the rate once a product is chosen, and not before', () => {
+  it('shows the rate from the start, so the form does not shift, and enables it once a product is chosen', () => {
     const none = render(client => client.setQueryData(['fertilizers'], catalog))
-    expect(none).not.toContain('fertilizer-rate-new')
+    expect(none).toMatch(/<input id="fertilizer-rate-new"[^>]*disabled=""/)
 
     const chosen = render(client => client.setQueryData(['fertilizers'], catalog), planting({ fertilizerMaterialId: 2216, fertilizerRateKgHa: 250 }))
     expect(fertilizerSelect(chosen)).toMatch(/<option value="2216" selected="">NPK 16-16-16</)
@@ -68,21 +68,32 @@ describe('crop form irrigation hint', () => {
 
 describe('crop form target levels', () => {
   const html = (existing: Planting) => render(client => client.setQueryData(['fertilizers'], catalog), existing)
+  const input = (markup: string, name: string) => markup.match(new RegExp(`<input id="${name}"[^>]*>`))?.[0] ?? ''
 
-  it('asks how far each irrigation refills the root zone once the crop is irrigated, and not before', () => {
-    expect(html(planting())).not.toContain('irrigation-target-p1')
-    expect(html(planting({ irrigationMm: 140, irrigationTargetPercent: 60 }))).toMatch(/<input id="irrigation-target-p1"[^>]*value="60"/)
+  it('lays out every input from the start, in order, so choosing water or a fertilizer moves nothing', () => {
+    const empty = html(planting())
+    const order = ['irrigation-p1', 'irrigation-target-p1', 'fertilizer-p1', 'fertilizer-rate-p1', 'fertilizer-target-p1'].map(name => empty.indexOf(`id="${name}"`))
+    expect(order.every(position => position >= 0)).toBe(true)
+    expect([...order].sort((a, b) => a - b)).toEqual(order)
   })
 
-  it('asks what share of the nutrient shortfall the fertilizer covers once a product is chosen, and not before', () => {
-    expect(html(planting())).not.toContain('fertilizer-target-p1')
-    expect(html(planting({ fertilizerMaterialId: 2216, fertilizerRateKgHa: 250, fertilizerTargetPercent: 75 })))
-      .toMatch(/<input id="fertilizer-target-p1"[^>]*value="75"/)
+  it('enables the refill level only once the crop is irrigated, and shows its saved value', () => {
+    expect(input(html(planting()), 'irrigation-target-p1')).toContain('disabled=""')
+    const watered = input(html(planting({ irrigationMm: 140, irrigationTargetPercent: 60 })), 'irrigation-target-p1')
+    expect(watered).not.toContain('disabled=""')
+    expect(watered).toContain('value="60"')
+  })
+
+  it('enables the nutrient level only once a product is chosen, and shows its saved value', () => {
+    expect(input(html(planting()), 'fertilizer-target-p1')).toContain('disabled=""')
+    const fed = input(html(planting({ fertilizerMaterialId: 2216, fertilizerRateKgHa: 250, fertilizerTargetPercent: 75 })), 'fertilizer-target-p1')
+    expect(fed).not.toContain('disabled=""')
+    expect(fed).toContain('value="75"')
   })
 
   it('leaves the levels empty for a crop without them, so the planner uses its default', () => {
     const empty = html(planting({ irrigationMm: 140, fertilizerMaterialId: 2216, fertilizerRateKgHa: 250 }))
-    expect(empty).toMatch(/<input id="irrigation-target-p1"[^>]*value=""/)
-    expect(empty).toMatch(/<input id="fertilizer-target-p1"[^>]*value=""/)
+    expect(input(empty, 'irrigation-target-p1')).toContain('value=""')
+    expect(input(empty, 'fertilizer-target-p1')).toContain('value=""')
   })
 })

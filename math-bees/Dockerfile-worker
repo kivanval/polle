@@ -51,5 +51,4 @@ RUN chown -R appuser:appgroup /app
 
 USER appuser
 
-# At most 4 tasks per process, as in docker-compose.yml: no process hoards the queue or fills its thread pool.
-CMD ["taskiq", "worker", "app.worker:broker", "--max-async-tasks", "4"]
+CMD ["taskiq", "worker", "app.worker:broker"]
