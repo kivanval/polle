@@ -208,35 +208,35 @@ class CachingConfig:
             enabled=cfg.get_bool("enabled"),
             optimize_fields=CachingOptimizeFieldsConfig(
                 ttl=cfg.get_config("optimize-fields").get_string("ttl"),
-                enabled=cfg.get_bool("optimize-fields").get_bool("enabled"),
+                enabled=cfg.get_config("optimize-fields").get_bool("enabled"),
             ),
             evaluate_scenario=CachingEvaluateScenarioConfig(
                 ttl=cfg.get_config("evaluate-scenario").get_string("ttl"),
-                enabled=cfg.get_bool("evaluate-scenario").get_bool("enabled"),
+                enabled=cfg.get_config("evaluate-scenario").get_bool("enabled"),
             ),
             crop_profile_repository=CachingCropProfileRepositoryConfig(
                 ttl=cfg.get_config("crop-profile-repository").get_string("ttl"),
-                enabled=cfg.get_bool("crop-profile-repository").get_bool("enabled"),
+                enabled=cfg.get_config("crop-profile-repository").get_bool("enabled"),
             ),
             crop_rotation_rule_repository=CachingCropRotationRuleRepositoryConfig(
                 ttl=cfg.get_config("crop-rotation-rule-repository").get_string("ttl"),
-                enabled=cfg.get_bool("crop-rotation-rule-repository").get_bool("enabled"),
+                enabled=cfg.get_config("crop-rotation-rule-repository").get_bool("enabled"),
             ),
             fertilizers_repository=CachingFertilizersRepositoryConfig(
                 ttl=cfg.get_config("fertilizers-repository").get_string("ttl"),
-                enabled=cfg.get_bool("fertilizers-repository").get_bool("enabled"),
+                enabled=cfg.get_config("fertilizers-repository").get_bool("enabled"),
             ),
             fields_repository=CachingFieldsRepositoryConfig(
                 ttl=cfg.get_config("fields-repository").get_string("ttl"),
-                enabled=cfg.get_bool("fields-repository").get_bool("enabled"),
+                enabled=cfg.get_config("fields-repository").get_bool("enabled"),
             ),
             climate_repository=CachingClimateRepositoryConfig(
                 ttl=cfg.get_config("climate-repository").get_string("ttl"),
-                enabled=cfg.get_bool("climate-repository").get_bool("enabled"),
+                enabled=cfg.get_config("climate-repository").get_bool("enabled"),
             ),
             finance_repository=CachingFinanceRepositoryConfig(
                 ttl=cfg.get_config("finance-repository").get_string("ttl"),
-                enabled=cfg.get_bool("finance-repository").get_bool("enabled"),
+                enabled=cfg.get_config("finance-repository").get_bool("enabled"),
             ),
         )
 
