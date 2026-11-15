@@ -35,9 +35,7 @@ class FertilizersRepositoryCacheGetByIdKey:
     id: MaterialId
 
 
-class FertilizersRepositoryCacheGetById(
-    Cache[FertilizersRepositoryCacheGetByIdKey, Fertilizer]
-):
+class FertilizersRepositoryCacheGetById(Cache[FertilizersRepositoryCacheGetByIdKey, Fertilizer]):
     def __init__(self, cache: cashews.Cache, config: CachingConfig):
         super().__init__(cache, config)
         self._ttl = config.fertilizers_repository.ttl

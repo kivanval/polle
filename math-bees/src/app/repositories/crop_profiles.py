@@ -361,9 +361,7 @@ class CropProfileRepositoryCacheGetByIdKey:
     crop_profile_id: CropProfileId
 
 
-class CropProfileRepositoryCacheGetById(
-    Cache[CropProfileRepositoryCacheGetByIdKey, CropProfile]
-):
+class CropProfileRepositoryCacheGetById(Cache[CropProfileRepositoryCacheGetByIdKey, CropProfile]):
     def __init__(self, cache: cashews.Cache, config: CachingConfig):
         super().__init__(cache, config)
         self._ttl = config.crop_profile_repository.ttl

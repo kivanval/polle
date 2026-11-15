@@ -314,7 +314,7 @@ class FieldsRepositoryCacheGetByIdKey:
 
 class FieldsRepositoryCacheGetById(Cache[FieldsRepositoryCacheGetByIdKey, Field]):
     def __init__(self, cache: cashews.Cache, config: CachingConfig):
-        super.__init__(cache, config)
+        super().__init__(cache, config)
         self._ttl = config.fields_repository.ttl
 
 

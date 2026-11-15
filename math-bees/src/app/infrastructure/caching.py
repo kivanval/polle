@@ -1,6 +1,6 @@
 import logging
 from collections.abc import Awaitable, Callable
-from typing import Generic, TypeVar, cast
+from typing import Generic, TypeVar
 
 import cashews
 
