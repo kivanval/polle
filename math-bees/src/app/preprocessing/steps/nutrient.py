@@ -527,15 +527,16 @@ class NutrientBalanceStep(SimulationStep):
             actual_n_fixation = actual_n_fixation * fert_yield_mult
 
         cand = candidate
-        if fert_yield_mult < FULL_YIELD_MULTIPLIER:
+        yield_pct = round(fert_yield_mult * PERCENTAGE_MULTIPLIER)
+
+        if yield_pct < 100:
             is_critical = fert_yield_mult <= CRITICAL_NUTRIENT_YIELD_THRESHOLD
-            yield_pct = round(fert_yield_mult * PERCENTAGE_MULTIPLIER)
 
             if is_unfertilized:
                 msg = f"Without fertilizer, nutrient deficiency limited the yield to {yield_pct}%"
                 importance = NoteImportance.WARN
                 fatal = False
-            elif level_pct is not None:
+            elif level_pct is not None and level_pct < 100:
                 msg = f"Applying only {level_pct}% of the required fertilizer limited the yield to {yield_pct}%"
                 importance = NoteImportance.RISK
                 fatal = abort_on_fatal and is_critical and not context.risk.allow_agronomic_risks
