@@ -24,6 +24,7 @@ PH_MARGIN: Final[float] = 0.25
 MARGINAL_PH_YIELD_MULTIPLIER: Final[float] = 0.90
 MARGINAL_SALINITY_YIELD_MULTIPLIER: Final[float] = 0.85
 CRITICAL_SOIL_YIELD_THRESHOLD: Final[float] = 0.75
+MIN_OPTIMIZATION_SOIL_MULTIPLIER: Final[float] = 0.50
 YIELD_MULTIPLIER_ROUND_DECIMALS: Final[int] = 3
 
 
@@ -41,11 +42,11 @@ class _SoilEvaluationResult:
 
 
 def _evaluate_soil_for_crop(
-    crop: Crop,
-    soil: SoilProperties,
-    context: SolverContext,
-    *,
-    stop_on_fatal: bool = True,
+        crop: Crop,
+        soil: SoilProperties,
+        context: SolverContext,
+        *,
+        stop_on_fatal: bool = True,
 ) -> _SoilEvaluationResult:
     actions: list[_SoilRiskAction] = []
     combined_soil_multiplier = 1.0
@@ -63,10 +64,11 @@ def _evaluate_soil_for_crop(
             )
         )
 
+    # Physical soil incompatibilities (texture & drainage) always prune during optimization
+    # so unviable crops do not flood CP-SAT in risk-tolerant presets.
     texture = soil.texture
     if crop.allowed_soil_textures is not None:
         if texture not in crop.allowed_soil_textures:
-            is_fatal = not context.risk.allow_agronomic_risks
             actions.append(
                 _SoilRiskAction(
                     Note(
@@ -74,11 +76,11 @@ def _evaluate_soil_for_crop(
                         NoteImportance.RISK,
                         f"The {texture.value} soil texture is incompatible with this crop",
                     ),
-                    is_fatal,
+                    True,
                     DeathNote("SoilCheck:TextureNotAllowed", is_static=True),
                 ),
             )
-            if stop_on_fatal and is_fatal:
+            if stop_on_fatal:
                 return _SoilEvaluationResult(tuple(actions), 1.0)
     else:
         actions.append(
@@ -96,7 +98,6 @@ def _evaluate_soil_for_crop(
     drainage = soil.drainage
     if crop.allowed_drainage_classes is not None:
         if drainage not in crop.allowed_drainage_classes:
-            is_fatal = not context.risk.allow_agronomic_risks
             actions.append(
                 _SoilRiskAction(
                     Note(
@@ -104,11 +105,11 @@ def _evaluate_soil_for_crop(
                         NoteImportance.RISK,
                         f"The crop cannot grow in soil with {drainage.value} drainage",
                     ),
-                    is_fatal,
+                    True,
                     DeathNote("SoilCheck:DrainageNotAllowed", is_static=True),
                 ),
             )
-            if stop_on_fatal and is_fatal:
+            if stop_on_fatal:
                 return _SoilEvaluationResult(tuple(actions), 1.0)
     else:
         actions.append(
@@ -204,7 +205,6 @@ def _evaluate_soil_for_crop(
         yield_mult = max(0.0, 1.0 - loss_fraction)
 
         if yield_mult <= 0.0:
-            is_fatal = not context.risk.allow_agronomic_risks
             actions.append(
                 _SoilRiskAction(
                     Note(
@@ -212,7 +212,7 @@ def _evaluate_soil_for_crop(
                         NoteImportance.RISK,
                         f"The soil salinity of {salinity_ds_m} dS/m is too high for the crop to survive",
                     ),
-                    is_fatal,
+                    True,
                     DeathNote("SoilCheck:LethalSalinity", is_static=True),
                 ),
             )
@@ -229,7 +229,7 @@ def _evaluate_soil_for_crop(
                     ),
                     is_critical and not context.risk.allow_agronomic_risks,
                     DeathNote("SoilCheck:CriticalSalinity", is_static=True),
-                ),
+                    ),
             )
             if crop.max_salinity_ds_m and salinity_ds_m > crop.max_salinity_ds_m:
                 is_fatal = not context.risk.allow_agronomic_risks
@@ -297,9 +297,9 @@ class SoilConstraintStep(SimulationStep):
         self._cache: dict[tuple[FieldId, CropId, bool], _SoilEvaluationResult] = {}
 
     def apply(
-        self,
-        candidate: SimulationCandidate,
-        context: SolverContext,
+            self,
+            candidate: SimulationCandidate,
+            context: SolverContext,
     ) -> list[SimulationCandidate]:
         if candidate.is_dead:
             return [candidate]
@@ -329,6 +329,13 @@ class SoilConstraintStep(SimulationStep):
                 if current_candidate.is_dead:
                     return [current_candidate]
 
+        if eval_res.soil_multiplier < MIN_OPTIMIZATION_SOIL_MULTIPLIER:
+            return [
+                current_candidate.killed(
+                    DeathNote("SoilCheck:SevereSoilPenalty", is_static=True),
+                ),
+            ]
+
         if eval_res.soil_multiplier < 1.0:
             new_mults: tuple[YieldMultiplier, ...]
             if not current_candidate.yield_multipliers:
@@ -343,7 +350,7 @@ class SoilConstraintStep(SimulationStep):
                         round(
                             float(m.real) * eval_res.soil_multiplier,
                             YIELD_MULTIPLIER_ROUND_DECIMALS,
-                        ),
+                            ),
                     )
                     for m in current_candidate.yield_multipliers
                 )
@@ -354,9 +361,9 @@ class SoilConstraintStep(SimulationStep):
 
 class ScenarioSoilConstraintStep(SoilConstraintStep):
     def apply(
-        self,
-        candidate: SimulationCandidate,
-        context: SolverContext,
+            self,
+            candidate: SimulationCandidate,
+            context: SolverContext,
     ) -> list[SimulationCandidate]:
         cache_key = (
             candidate.field.id,
@@ -390,7 +397,7 @@ class ScenarioSoilConstraintStep(SoilConstraintStep):
                         round(
                             float(m.real) * eval_res.soil_multiplier,
                             YIELD_MULTIPLIER_ROUND_DECIMALS,
-                        ),
+                            ),
                     )
                     for m in current_candidate.yield_multipliers
                 )
