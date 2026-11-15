@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using Polle.Api.Features.Strategies;
 using Polle.Domain.Agriculture;
+using Microsoft.Extensions.Logging;
 
 namespace Polle.Api.Tests;
 
@@ -63,6 +64,66 @@ public sealed class StrategyPollResilienceTests
         await StrategyRunEndpoints.SubmitAsync(job, run, null, solver, new SolverMaterials(null), CancellationToken.None);
 
         Assert.Equal(StrategyJobs.Failed, job.State);
+    }
+
+    /// <summary>Keeps what was logged, so a test can check the trace a submission leaves.</summary>
+    private sealed class ListLogger : ILogger
+    {
+        public List<(LogLevel Level, string Message)> Entries { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Entries.Add((logLevel, formatter(state, exception)));
+    }
+
+    private static StrategyRun Run() => new() { FieldId = Guid.NewGuid(), StartMonth = "2026-12", EndMonth = "2030-12" };
+
+    [Fact]
+    public async Task ASubmissionTheSolverRefusesIsLoggedWithItsReasonAndKeptForAnotherTry()
+    {
+        var solver = Solver(_ => Answer(HttpStatusCode.Forbidden, """{"detail":"blocked at the edge"}"""));
+        var job = Job();
+        job.TaskId = null;
+        var log = new ListLogger();
+
+        await StrategyRunEndpoints.SubmitAsync(job, Run(), null, solver, new SolverMaterials(null), CancellationToken.None, log);
+
+        Assert.Equal(StrategyJobs.Processing, job.State);
+        var (level, message) = Assert.Single(log.Entries);
+        Assert.Equal(LogLevel.Warning, level);
+        Assert.Contains("control", message);
+        Assert.Contains("blocked at the edge", message);
+    }
+
+    [Fact]
+    public async Task ASubmissionTheSolverAcceptsIsLoggedWithItsTask()
+    {
+        var solver = Solver(_ => Answer(HttpStatusCode.Accepted, """{"task_id":"task-42"}"""));
+        var job = Job();
+        job.TaskId = null;
+        var log = new ListLogger();
+
+        await StrategyRunEndpoints.SubmitAsync(job, Run(), null, solver, new SolverMaterials(null), CancellationToken.None, log);
+
+        Assert.Equal("task-42", job.TaskId);
+        var (level, message) = Assert.Single(log.Entries);
+        Assert.Equal(LogLevel.Information, level);
+        Assert.Contains("task-42", message);
+    }
+
+    [Fact]
+    public async Task AnEvaluationWithNoCropsInTheHorizonIsLoggedAsFailed()
+    {
+        var job = Job(StrategyCatalog.BaselineKey);
+        job.Kind = StrategyJobs.Evaluation;
+        job.TaskId = null;
+        var log = new ListLogger();
+
+        await StrategyRunEndpoints.SubmitAsync(job, Run(), null, Solver(_ => throw new InvalidOperationException("not called")),
+            new SolverMaterials(null), CancellationToken.None, log);
+
+        Assert.Equal(StrategyJobs.Failed, job.State);
+        Assert.Equal(LogLevel.Warning, Assert.Single(log.Entries).Level);
     }
 
     [Theory]

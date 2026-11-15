@@ -121,6 +121,11 @@ export type StrategyJob = {
   /** Absent from an API older than the matrix. */
   settings?: StrategySettings | null
   /**
+   * Still processing, but the planner hasn't taken the task yet (blocked, throttled or unreachable); the API keeps
+   * sending it until it gives up. Absent from an older API.
+   */
+  waiting?: boolean
+  /**
    * The current plan only: the solver left it unscored, so the result is the API's own audit of the plan from the crop
    * catalog, the field's climate and its soil settings (status ESTIMATED). Absent from an older API.
    */

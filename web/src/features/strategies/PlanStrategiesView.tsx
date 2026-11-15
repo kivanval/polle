@@ -14,7 +14,7 @@ import { BASELINE_KEY, useApplyStrategy, useDeleteStrategy, useRetryJob, useSave
 import { useAuth } from '@/features/auth/useAuth'
 import { DEFAULT_CHOICES, choiceCount, readChoices, requestChoices, writeChoices, type ChoiceState } from './choices'
 import { StrategyChoicesDialog } from './StrategyChoicesDialog'
-import { arrangeCards, badges, combineRuns, deltas, evaluationOutdated, groupJobs, hasFigures, planFingerprint, plannedLane, sortCards, strategyLane, type SortKey } from './compare'
+import { arrangeCards, badges, combineRuns, deltas, evaluationOutdated, groupJobs, hasFigures, planFingerprint, plannedLane, sortCards, strategyLane, type SortKey, waitingNote } from './compare'
 import { defaultHorizon, monthText, NO_SOIL_MESSAGE, signedMoney } from './format'
 import { StrategyCard } from './StrategyCard'
 import { StrategyDetails } from './StrategyDetails'
@@ -295,6 +295,7 @@ export function PlanStrategiesView({ field, plantings, crops, onClose, openSaved
               {evaluating ? <span key="evaluating"><strong>Evaluating your plan…</strong></span>
                 : <span key="evaluated"><strong>Your plan is evaluated.</strong></span>}
               {planRun.error && !planGone && evaluating && <span key="stale" className="strategy-note">Couldn’t check on your plan just now. Trying again.</span>}
+              {evaluating && waitingNote([planJob], 'plan') && <span key="waiting" className="strategy-note">{waitingNote([planJob], 'plan')}</span>}
             </div>}
             {hasStrategies && <div className="strategy-progress" role="status" aria-live="polite" aria-label="Suggested plans">
               {ready < strategyJobs.length && <TractorLoader compact />}
@@ -303,6 +304,7 @@ export function PlanStrategiesView({ field, plantings, crops, onClose, openSaved
                 : <span key="done"><strong>{`${shownStrategies.length} ${shownStrategies.length === 1 ? 'plan' : 'plans'} to compare.`}</strong>{merged > 0 &&
                     <span>{` ${merged} more ${merged === 1 ? 'plan' : 'plans'} came out the same and ${merged === 1 ? 'is' : 'are'} grouped as variations.`}</span>}</span>}
               {run.error && !runGone && ready < strategyJobs.length && <span key="stale" className="strategy-note">Couldn’t check on the suggested plans just now. Trying again.</span>}
+              {waitingNote(strategyJobs, 'plans') && <span key="waiting" className="strategy-note">{waitingNote(strategyJobs, 'plans')}</span>}
             </div>}
           </div>
           {hasStrategies && <div className="strategy-sort" role="group" aria-label="Sort plans by">

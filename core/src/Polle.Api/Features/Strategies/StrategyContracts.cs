@@ -26,7 +26,8 @@ public sealed record StrategyPresetResponse(string Key, string Name, string Summ
 public sealed record StrategyJobResponse(string Key, string Name, string Summary,
     [property: Description("processing, ready or failed")] string State, StrategyResult? Result, string? Error,
     [property: Description("What the solver was allowed to do for this strategy; null for the current plan, which is scored with each crop's own water and fertilizer.")] StrategySettings? Settings = null,
-    [property: Description("The current plan only: true when the solver left it unscored and the result is this API's audit from the crop catalog, the field's climate and its soil settings.")] bool Estimated = false);
+    [property: Description("The current plan only: true when the solver left it unscored and the result is this API's audit from the crop catalog, the field's climate and its soil settings.")] bool Estimated = false,
+    [property: Description("Processing, but the solver hasn't accepted the task yet (blocked, throttled or unreachable); the API keeps sending it until it gives up.")] bool Waiting = false);
 
 /// <summary>What the solver may do for one strategy, as sent to it.</summary>
 /// <param name="Irrigation">The solver may water the crops (IrrigationLevel is not OFF).</param>
@@ -144,7 +145,8 @@ public sealed record StrategyRunResponse(Guid Id, Guid FieldId, string StartMont
         var state = unreadable ? StrategyJobs.Failed : job.State;
         // The solver's own failure text stays in the database for debugging; the farmer sees plain words.
         return new(job.Key, name, summary, state, result,
-            state == StrategyJobs.Failed ? "This plan couldn't be prepared." : null, StrategySettings.For(job.Key));
+            state == StrategyJobs.Failed ? "This plan couldn't be prepared." : null, StrategySettings.For(job.Key),
+            Waiting: state == StrategyJobs.Processing && job.TaskId is null);
     }
 
     /// <summary>The farmer's own name and description where given, else the catalog's wording for the key.</summary>
