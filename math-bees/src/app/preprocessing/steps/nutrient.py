@@ -435,7 +435,7 @@ class NutrientBalanceStep(SimulationStep):
                 Note(
                     NoteCategory.AGRONOMIC,
                     NoteImportance.WARN,
-                    "The selected fertilizer does not provide enough Nitrogen.",
+                    "The selected fertilizer does not provide enough Nitrogen",
                 )
             )
         if p_deficit > 0 and p_frac == 0:
@@ -443,7 +443,7 @@ class NutrientBalanceStep(SimulationStep):
                 Note(
                     NoteCategory.AGRONOMIC,
                     NoteImportance.WARN,
-                    "The selected fertilizer does not provide enough Phosphorus.",
+                    "The selected fertilizer does not provide enough Phosphorus",
                 )
             )
         if k_deficit > 0 and k_frac == 0:
@@ -451,7 +451,7 @@ class NutrientBalanceStep(SimulationStep):
                 Note(
                     NoteCategory.AGRONOMIC,
                     NoteImportance.WARN,
-                    "The selected fertilizer does not provide enough Potassium.",
+                    "The selected fertilizer does not provide enough Potassium",
                 )
             )
 
@@ -460,7 +460,7 @@ class NutrientBalanceStep(SimulationStep):
                 Note(
                     NoteCategory.SOIL_HEALTH,
                     NoteImportance.INFO,
-                    f"Applying {fert_product.id} will make the soil more acidic over time.",
+                    f"Applying {fert_product.id} will make the soil more acidic over time",
                 )
             )
         elif fert_product.soil_impact == SoilImpact.ALKALINIZES:
@@ -468,7 +468,7 @@ class NutrientBalanceStep(SimulationStep):
                 Note(
                     NoteCategory.SOIL_HEALTH,
                     NoteImportance.INFO,
-                    f"Applying {fert_product.id} will make the soil more alkaline over time.",
+                    f"Applying {fert_product.id} will make the soil more alkaline over time",
                 )
             )
 
@@ -538,15 +538,15 @@ class NutrientBalanceStep(SimulationStep):
             yield_pct = round(fert_yield_mult * PERCENTAGE_MULTIPLIER)
 
             if is_unfertilized:
-                msg = f"Without fertilizer, nutrient deficiency limited the yield to {yield_pct}%."
+                msg = f"Without fertilizer, nutrient deficiency limited the yield to {yield_pct}%"
                 importance = NoteImportance.WARN
                 fatal = False
             elif level_pct is not None:
-                msg = f"Applying only {level_pct}% of the required fertilizer limited the yield to {yield_pct}%."
+                msg = f"Applying only {level_pct}% of the required fertilizer limited the yield to {yield_pct}%"
                 importance = NoteImportance.RISK
                 fatal = abort_on_fatal and is_critical and not context.risk.allow_agronomic_risks
             else:
-                msg = f"Insufficient fertilizer application limited the yield to {yield_pct}%."
+                msg = f"Insufficient fertilizer application limited the yield to {yield_pct}%"
                 importance = NoteImportance.RISK
                 fatal = abort_on_fatal and is_critical and not context.risk.allow_agronomic_risks
 
@@ -720,7 +720,7 @@ class ScenarioNutrientStep(NutrientBalanceStep):
                     note=Note(
                         NoteCategory.DATA_MISSING,
                         NoteImportance.RISK,
-                        f"The planned fertilizer material '{scheduled_fert.material_id}' was not found in the catalog.",
+                        f"The planned fertilizer material '{scheduled_fert.material_id}' was not found in the catalog",
                     ),
                     fatal_if=False,
                 )

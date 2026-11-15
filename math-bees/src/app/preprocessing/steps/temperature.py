@@ -58,7 +58,7 @@ def _evaluate_thermal_stress(
             note=Note(
                 NoteCategory.DATA_MISSING,
                 NoteImportance.RISK if not context.risk.allow_missing_data else NoteImportance.WARN,
-                f"Missing absolute {bound_name} temperature data for the {stage_label} stage.",
+                f"Missing absolute {bound_name} temperature data for the {stage_label} stage",
             ),
             fatal_if=is_fatal,
             death_note=DeathNote(f"TemperatureCheck:{missing_temp_key}"),
@@ -91,9 +91,9 @@ def _evaluate_thermal_stress(
         prep = "over" if stress_name == "Heat" else "below"
 
         if is_lethal:
-            msg = f"The crop failed due to {stress_days} days of {stress_desc} ({prep} {threshold}°C) during the {stage_label} stage."
+            msg = f"The crop failed due to {stress_days} days of {stress_desc} ({prep} {threshold}°C) during the {stage_label} stage"
         else:
-            msg = f"{stress_days} days of {stress_desc} ({prep} {threshold}°C) during the {stage_label} stage reduced the yield by {penalty_pct}%."
+            msg = f"{stress_days} days of {stress_desc} ({prep} {threshold}°C) during the {stage_label} stage reduced the yield by {penalty_pct}%"
 
         cand = candidate.with_risk(
             note=Note(
@@ -122,7 +122,7 @@ def _evaluate_thermal_stress(
             note=Note(
                 NoteCategory.AGRONOMIC,
                 NoteImportance.WARN,
-                f"Frequent {desc} days during the {stage_label} stage caused mild stress.",
+                f"Frequent {desc} days during the {stage_label} stage caused mild stress",
             ),
             fatal_if=False,
             death_note=DeathNote(f"TemperatureCheck:Sublethal{stress_name}Stress"),
@@ -149,7 +149,7 @@ class AbsoluteTemperatureStep(SimulationStep):
                 note=Note(
                     NoteCategory.AGRONOMIC,
                     NoteImportance.RISK,
-                    "The growth cycle was incomplete.",
+                    "The growth cycle was incomplete",
                 ),
                 fatal_if=True,
                 death_note=DeathNote("PhenologyStep:IncompleteCycle"),
@@ -164,7 +164,7 @@ class AbsoluteTemperatureStep(SimulationStep):
                 note=Note(
                     NoteCategory.AGRONOMIC,
                     NoteImportance.RISK,
-                    f"The crop only completed {len(candidate.stage_offsets)} out of {len(stages)} growth stages.",
+                    f"The crop only completed {len(candidate.stage_offsets)} out of {len(stages)} growth stages",
                 ),
                 fatal_if=True,
                 death_note=DeathNote("PhenologyStep:UnfinishedCycle"),

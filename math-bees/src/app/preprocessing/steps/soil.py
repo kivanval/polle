@@ -56,7 +56,7 @@ def _evaluate_soil_for_crop(
                 Note(
                     NoteCategory.DATA_MISSING,
                     NoteImportance.WARN,
-                    "Initial soil moisture data is missing.",
+                    "Initial soil moisture data is missing",
                 ),
                 is_fatal=False,
                 death_note=DeathNote("SoilCheck:MissingInitialDepletion", is_static=True),
@@ -71,7 +71,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"The {texture.value} soil texture is incompatible with this crop.",
+                        f"The {texture.value} soil texture is incompatible with this crop",
                     ),
                     not context.risk.allow_agronomic_risks,
                     DeathNote("SoilCheck:TextureNotAllowed", is_static=True),
@@ -85,7 +85,7 @@ def _evaluate_soil_for_crop(
                 Note(
                     NoteCategory.DATA_MISSING,
                     NoteImportance.WARN,
-                    f"Missing texture compatibility data for {texture.value} soil.",
+                    f"Missing texture compatibility data for {texture.value} soil",
                 ),
                 False,
                 DeathNote("SoilCheck:MissingTextureCompatibility", is_static=True),
@@ -100,7 +100,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"The crop cannot grow in soil with {drainage.value} drainage.",
+                        f"The crop cannot grow in soil with {drainage.value} drainage",
                     ),
                     not context.risk.allow_agronomic_risks,
                     DeathNote("SoilCheck:DrainageNotAllowed", is_static=True),
@@ -114,7 +114,7 @@ def _evaluate_soil_for_crop(
                 Note(
                     NoteCategory.DATA_MISSING,
                     NoteImportance.WARN,
-                    f"Missing drainage compatibility data for {drainage.value} soil.",
+                    f"Missing drainage compatibility data for {drainage.value} soil",
                 ),
                 False,
                 DeathNote("SoilCheck:MissingDrainageCompatibility", is_static=True),
@@ -129,7 +129,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"The soil pH of {ph} is too acidic for this crop, which needs at least {crop.ph_min}.",
+                        f"The soil pH of {ph} is too acidic for this crop, which needs at least {crop.ph_min}",
                     ),
                     not context.risk.allow_agronomic_risks,
                     DeathNote("SoilCheck:PhTooLow", is_static=True),
@@ -143,7 +143,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"The soil pH of {ph} is too alkaline for this crop, which needs at most {crop.ph_max}.",
+                        f"The soil pH of {ph} is too alkaline for this crop, which needs at most {crop.ph_max}",
                     ),
                     not context.risk.allow_agronomic_risks,
                     DeathNote("SoilCheck:PhTooHigh", is_static=True),
@@ -157,7 +157,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.WARN,
-                        f"The soil pH of {ph} is close to the minimum limit of {crop.ph_min}.",
+                        f"The soil pH of {ph} is close to the minimum limit of {crop.ph_min}",
                     ),
                     False,
                     DeathNote("SoilCheck:MarginalPh", is_static=True),
@@ -170,7 +170,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.WARN,
-                        f"The soil pH of {ph} is close to the maximum limit of {crop.ph_max}.",
+                        f"The soil pH of {ph} is close to the maximum limit of {crop.ph_max}",
                     ),
                     False,
                     DeathNote("SoilCheck:MarginalPh", is_static=True),
@@ -183,7 +183,7 @@ def _evaluate_soil_for_crop(
                 Note(
                     NoteCategory.DATA_MISSING,
                     NoteImportance.WARN,
-                    "Missing soil pH tolerance data.",
+                    "Missing soil pH tolerance data",
                 ),
                 False,
                 DeathNote("SoilCheck:MissingPhTolerance", is_static=True),
@@ -205,7 +205,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"The soil salinity of {salinity_ds_m} dS/m is too high for the crop to survive.",
+                        f"The soil salinity of {salinity_ds_m} dS/m is too high for the crop to survive",
                     ),
                     not context.risk.allow_agronomic_risks,
                     DeathNote("SoilCheck:LethalSalinity", is_static=True),
@@ -220,7 +220,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"High soil salinity of {salinity_ds_m} dS/m reduced the yield by {penalty_pct}%.",
+                        f"High soil salinity of {salinity_ds_m} dS/m reduced the yield by {penalty_pct}%",
                     ),
                     is_critical and not context.risk.allow_agronomic_risks,
                     DeathNote("SoilCheck:CriticalSalinity", is_static=True),
@@ -232,7 +232,7 @@ def _evaluate_soil_for_crop(
                         Note(
                             NoteCategory.AGRONOMIC,
                             NoteImportance.RISK,
-                            f"The soil salinity of {salinity_ds_m} dS/m exceeds the crop's maximum limit of {crop.max_salinity_ds_m} dS/m.",
+                            f"The soil salinity of {salinity_ds_m} dS/m exceeds the crop's maximum limit of {crop.max_salinity_ds_m} dS/m",
                         ),
                         not context.risk.allow_agronomic_risks,
                         DeathNote("SoilCheck:SalinityTooHigh", is_static=True),
@@ -248,7 +248,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.RISK,
-                        f"The soil salinity of {salinity_ds_m} dS/m exceeds the crop's tolerance of {crop.max_salinity_ds_m} dS/m.",
+                        f"The soil salinity of {salinity_ds_m} dS/m exceeds the crop's tolerance of {crop.max_salinity_ds_m} dS/m",
                     ),
                     not context.risk.allow_agronomic_risks,
                     DeathNote("SoilCheck:SalinityTooHigh", is_static=True),
@@ -262,7 +262,7 @@ def _evaluate_soil_for_crop(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.WARN,
-                        f"The soil salinity of {salinity_ds_m} dS/m is close to the crop's maximum tolerance.",
+                        f"The soil salinity of {salinity_ds_m} dS/m is close to the crop's maximum tolerance",
                     ),
                     False,
                     DeathNote("SoilCheck:MarginalSalinity", is_static=True),
@@ -275,7 +275,7 @@ def _evaluate_soil_for_crop(
                 Note(
                     NoteCategory.DATA_MISSING,
                     NoteImportance.WARN,
-                    "Missing soil salinity tolerance data.",
+                    "Missing soil salinity tolerance data",
                 ),
                 False,
                 DeathNote("SoilCheck:MissingSalinityTolerance", is_static=True),

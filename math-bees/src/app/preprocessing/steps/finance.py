@@ -56,7 +56,7 @@ def _resolve_price_rate(
             note=Note(
                 NoteCategory.DATA_MISSING,
                 NoteImportance.WARN,
-                f"Missing {price_type.lower()} pricing data for this crop.",
+                f"Missing {price_type.lower()} pricing data for this crop",
             ),
             fatal_if=not context.risk.allow_missing_data,
             death_note=DeathNote(f"FinanceStep:Missing{price_type}Price"),
@@ -67,7 +67,7 @@ def _resolve_price_rate(
             note=Note(
                 NoteCategory.DATA_MISSING,
                 NoteImportance.WARN,
-                f"The price catalog for '{material_id}' is empty.",
+                f"The price catalog for '{material_id}' is empty",
             ),
             fatal_if=not context.risk.allow_missing_data,
             death_note=DeathNote(f"FinanceStep:Missing{price_type}Price"),
@@ -79,7 +79,7 @@ def _resolve_price_rate(
                 NoteCategory.DATA_MISSING,
                 NoteImportance.INFO,
                 f"Missing {price_type.lower()} price for {target_year.real}. "
-                f"Falling back to the latest available price from {fallback_year.real if fallback_year else 'previous years'}.",
+                f"Falling back to the latest available price from {fallback_year.real if fallback_year else 'previous years'}",
             ),
             fatal_if=False,
             death_note=DeathNote(f"FinanceStep:Missing{price_type}PriceForYear"),
@@ -116,7 +116,7 @@ def _resolve_profile_opex_rate(
             note=Note(
                 NoteCategory.DATA_MISSING,
                 NoteImportance.WARN,
-                "Missing base operational costs (OpEx) for this crop.",
+                "Missing base operational costs (OpEx) for this crop",
             ),
             fatal_if=not context.risk.allow_missing_data,
             death_note=DeathNote("FinanceStep:MissingProfileOpEx"),
@@ -128,7 +128,7 @@ def _resolve_profile_opex_rate(
                 NoteCategory.DATA_MISSING,
                 NoteImportance.INFO,
                 f"Missing operational costs (OpEx) for {target_year.real}. "
-                f"Falling back to the rates from {fallback_year.real if fallback_year else 'previous years'}.",
+                f"Falling back to the rates from {fallback_year.real if fallback_year else 'previous years'}",
             ),
             fatal_if=False,
             death_note=DeathNote("FinanceStep:MissingOpExForYear"),

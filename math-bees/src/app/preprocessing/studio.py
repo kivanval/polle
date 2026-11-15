@@ -148,7 +148,7 @@ class CroppingStudio:
         horizon: Horizon,
         strategy: SolverStrategy,
     ) -> CroppingCanvas:
-        logger.info("Preparing Cropping Canvas for CP-SAT solver...")
+        logger.info("Preparing Cropping Canvas for CP-SAT solver..")
         context, climate = await self._prepare_environment(field, horizon, strategy)
 
         initial_candidates = CandidateGenerator.generate_all_windows(
@@ -187,7 +187,7 @@ class CroppingStudio:
         strategy: SolverStrategy,
         schedule: list[CropScheduleItem],
     ) -> list[PlantingVariant]:
-        logger.info("Evaluating scenario with %d planned crop(s)...", len(schedule))
+        logger.info("Evaluating scenario with %d planned crop(s)..", len(schedule))
         extra_material_ids: list[MaterialId] = []
         for item in schedule:
             if item.fertilizer_application is not None:
