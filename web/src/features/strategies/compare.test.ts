@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { arrangeCards, badges, baselineIssue, combineRuns, comparableBaseline, deltas, distinctJobs, evaluationOutdated, groupJobs, partlyEstimated, planFingerprint, plannedLane, reasonText, sortCards, strategyLane, whyText } from './compare'
+import { arrangeCards, badges, baselineIssue, combineRuns, comparableBaseline, deltas, distinctJobs, evaluationOutdated, groupJobs, partlyEstimated, planFingerprint, plannedLane, reasonText, sortCards, strategyLane, waitingNote, whyText } from './compare'
 import { BASELINE_KEY, type StrategyCycle, type StrategyJob, type StrategyResult, type StrategyRun, type StrategySettings } from './api'
 import type { Crop, Planting } from '@/features/farms/plantings'
 
@@ -330,5 +330,24 @@ describe('strategyLane', () => {
   it('labels a cycle with the solver’s sowing and clearance days when it gave them', () => {
     const [bar] = strategyLane(result({ cycles: [{ ...cycle('Wheat', '2026-10', '2027-07', 7726), plantingDate: '2026-10-11', clearanceDate: '2027-07-21' }] }))
     expect(bar.detail).toBe('Spring Grain Harvest, 11 Oct 2026 – 21 Jul 2027')
+  })
+})
+
+describe('waitingNote', () => {
+  const waiting = (key: string, flag = true) => ({ ...job(key, null), waiting: flag })
+
+  it('says the planner has not taken the farmer’s plan yet', () => {
+    expect(waitingNote([waiting('current-plan')], 'plan')).toBe('The planner hasn’t taken your plan yet. Sending it again.')
+  })
+
+  it('counts the suggested plans the planner has not taken yet', () => {
+    expect(waitingNote([waiting('control'), waiting('medium'), waiting('cash', false)], 'plans'))
+      .toBe('The planner hasn’t taken 2 of them yet. Sending them again.')
+    expect(waitingNote([waiting('control')], 'plans')).toBe('The planner hasn’t taken 1 of them yet. Sending it again.')
+  })
+
+  it('says nothing when every job was taken, or from an API without the flag', () => {
+    expect(waitingNote([waiting('control', false)], 'plans')).toBeNull()
+    expect(waitingNote([job('control', null)], 'plans')).toBeNull()
   })
 })

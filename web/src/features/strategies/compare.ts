@@ -231,3 +231,14 @@ export function strategyLane(result: StrategyResult): TimelineBar[] {
       detail: `${cycle.systemName ? `${cycle.systemName}, ` : ''}${whenText(cycle.plantingDate, cycle.plantingMonth)} – ${whenText(cycle.clearanceDate, cycle.clearanceMonth)}` }
   })
 }
+
+/**
+ * Says the planner hasn't taken a task yet (the API keeps sending it), for the plan's or the suggestions' status line;
+ * null when every task was taken. Without this the line reads "Evaluating…" while nothing has reached the planner.
+ */
+export function waitingNote(jobs: readonly Pick<StrategyJob, 'waiting'>[], subject: 'plan' | 'plans'): string | null {
+  const count = jobs.filter(job => job.waiting).length
+  if (count === 0) return null
+  if (subject === 'plan') return 'The planner hasn’t taken your plan yet. Sending it again.'
+  return `The planner hasn’t taken ${count} of them yet. Sending ${count === 1 ? 'it' : 'them'} again.`
+}

@@ -13,6 +13,19 @@ public sealed class StrategyJobTests
         new() { Key = key, Kind = StrategyJobs.Optimization, TaskId = "t", State = state, UpdatedAtUtc = Now.AddMinutes(-1) };
 
     [Fact]
+    public void AJobTheSolverHasNotAcceptedYetShowsAsWaiting()
+    {
+        var waiting = Job("bold-irrigated");
+        waiting.TaskId = null;
+
+        Assert.True(StrategyRunResponse.Job(waiting, CropProfileNames.Empty).Waiting);
+        Assert.False(StrategyRunResponse.Job(Job("bold-irrigated"), CropProfileNames.Empty).Waiting);
+        var failed = Job("bold-irrigated", StrategyJobs.Failed);
+        failed.TaskId = null;
+        Assert.False(StrategyRunResponse.Job(failed, CropProfileNames.Empty).Waiting);
+    }
+
+    [Fact]
     public void ReadyStoresResult()
     {
         var job = Job("bold-irrigated");

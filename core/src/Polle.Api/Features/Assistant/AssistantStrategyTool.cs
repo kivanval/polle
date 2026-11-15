@@ -92,7 +92,7 @@ public sealed partial class AssistantStrategyTool(AppDbContext db, FelderClient 
                 : $"There's no soil data for {picked.Name}'s location, so plans can't be modelled.");
             if (StrategyJobs.HorizonErrors(period.StartMonth, period.EndMonth, today).Count > 0)
                 return new(uk ? "Не вдалося скласти період розрахунку. Напишіть, наприклад: «з жовтня 2027 на 10 років»." : "I couldn't build a planning period. Try e.g. \"from October 2027 for 10 years\".");
-            run = await StrategyRunEndpoints.CreateAsync(picked.Id, period.StartMonth, period.EndMonth, StrategyChoices.Picks(null).Picks, db, solver, materials, ct);
+            run = await StrategyRunEndpoints.CreateAsync(picked.Id, period.StartMonth, period.EndMonth, StrategyChoices.Picks(null).Picks, db, solver, materials, ct, log: log);
             started = true;
             log.LogInformation("Assistant started strategy run {RunId} for field {FieldId}", run.Id, picked.Id);
         }

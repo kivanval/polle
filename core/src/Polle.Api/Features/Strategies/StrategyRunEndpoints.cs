@@ -63,7 +63,7 @@ public sealed class StrategyRunEndpoints : IEndpoint
         }
 
         var run = await CreateAsync(fieldId, request.StartMonth!, request.EndMonth!, strategies, db, solver, materials, ct,
-            (hasBaseline, now) => StrategyJobs.ForRequest(request.PlanOnly, hasBaseline, strategies, now));
+            (hasBaseline, now) => StrategyJobs.ForRequest(request.PlanOnly, hasBaseline, strategies, now), log);
         if (!request.PlanOnly) return TypedResults.Created($"/api/strategy-runs/{run.Id}", StrategyRunResponse.From(run, CropProfileNames.Empty));
         // The plan's evaluation is one quick job: wait for it here so the card shows without waiting for the next poll.
         if (await AwaitQuickResultAsync(run, solver, StrategyJobs.QuickWait, ct, log)) await db.SaveChangesAsync(ct);
@@ -102,14 +102,15 @@ public sealed class StrategyRunEndpoints : IEndpoint
     /// every chosen strategy; the planning view passes <paramref name="jobs"/> to run either the plan or the strategies.
     /// </summary>
     internal static async Task<StrategyRun> CreateAsync(Guid fieldId, string startMonth, string endMonth, IReadOnlyList<StrategyPick> strategies,
-        AppDbContext db, FelderClient solver, SolverMaterials materials, CancellationToken ct, Func<bool, DateTime, List<StrategyJob>>? jobs = null)
+        AppDbContext db, FelderClient solver, SolverMaterials materials, CancellationToken ct, Func<bool, DateTime, List<StrategyJob>>? jobs = null,
+        ILogger? log = null)
     {
         var plantings = await db.FieldPlantings.AsNoTracking().Where(planting => planting.FieldId == fieldId).ToListAsync(ct);
         var baseline = StrategyRequests.Baseline(fieldId, startMonth, endMonth, plantings, materials.Irrigation);
         var run = new StrategyRun { FieldId = fieldId, StartMonth = startMonth, EndMonth = endMonth };
         run.Jobs = jobs?.Invoke(baseline is not null, DateTime.UtcNow) ?? StrategyJobs.Plan(baseline is not null, strategies, DateTime.UtcNow);
 
-        await Task.WhenAll(run.Jobs.Select(job => SubmitAsync(job, run, baseline, solver, materials, ct)));
+        await Task.WhenAll(run.Jobs.Select(job => SubmitAsync(job, run, baseline, solver, materials, ct, log)));
         db.StrategyRuns.Add(run);
         await db.SaveChangesAsync(ct);
         return run;
@@ -145,7 +146,7 @@ public sealed class StrategyRunEndpoints : IEndpoint
         if (solver.Configured && resubmit.Length > 0)
         {
             var baseline = resubmit.Any(job => job.Kind == StrategyJobs.Evaluation) ? await BaselineAsync(db, run, materials, ct) : null;
-            await Task.WhenAll(resubmit.Select(job => SubmitAsync(job, run, baseline, solver, materials, ct)));
+            await Task.WhenAll(resubmit.Select(job => SubmitAsync(job, run, baseline, solver, materials, ct, log)));
             changed = true;
         }
         if (solver.Configured && due.Length > 0)
@@ -222,7 +223,7 @@ public sealed class StrategyRunEndpoints : IEndpoint
         job.Error = null;
         job.ResultJson = null;
         job.UpdatedAtUtc = job.SubmittedAtUtc = DateTime.UtcNow;
-        await SubmitAsync(job, run, baseline, solver, materials, ct);
+        await SubmitAsync(job, run, baseline, solver, materials, ct, log);
         await db.SaveChangesAsync(ct);
         return TypedResults.Ok(await ResponseAsync(db, run, climate, ct, log));
     }
@@ -246,15 +247,22 @@ public sealed class StrategyRunEndpoints : IEndpoint
     /// Sends one job to the solver. A transient refusal (Cloudflare block, throttling, gateway error, timeout, no connection)
     /// leaves the job processing for a later poll to resubmit; only a definite answer such as 422 fails it.
     /// SubmittedAtUtc marks the first attempt until the solver accepts, then restarts so the task gets the full GiveUpAfter window.
+    /// Every outcome is logged with the run, job and reason: the farmer's card shows plain words, so the log is where a
+    /// submission that never reached the solver can be traced.
     /// </summary>
     internal static async Task SubmitAsync(StrategyJob job, StrategyRun run, EvaluateScenarioRequest? baseline, FelderClient solver,
-        SolverMaterials materials, CancellationToken ct)
+        SolverMaterials materials, CancellationToken ct, ILogger? log = null)
     {
         try
         {
             if (job.Kind == StrategyJobs.Evaluation)
             {
-                if (baseline is null) { StrategyJobs.Fail(job, "No crops are sown inside this horizon.", DateTime.UtcNow); return; }
+                if (baseline is null)
+                {
+                    StrategyJobs.Fail(job, "No crops are sown inside this horizon.", DateTime.UtcNow);
+                    log?.LogWarning("Run {RunId}: {Kind} job {JobKey} not sent to the solver: no crops are sown inside the horizon", run.Id, job.Kind, job.Key);
+                    return;
+                }
                 job.TaskId = await solver.SubmitEvaluationAsync(baseline, ct);
             }
             else
@@ -264,24 +272,30 @@ public sealed class StrategyRunEndpoints : IEndpoint
             }
             job.Error = null;
             job.UpdatedAtUtc = job.SubmittedAtUtc = DateTime.UtcNow;
+            log?.LogInformation("Run {RunId}: solver accepted {Kind} job {JobKey} as task {TaskId}", run.Id, job.Kind, job.Key, job.TaskId);
         }
         catch (HttpRequestException ex) when (FelderClient.Transient(ex.StatusCode))
         {
             StrategyJobs.Defer(job, ex.Message, DateTime.UtcNow);
+            log?.LogWarning("Run {RunId}: solver didn't accept {Kind} job {JobKey} ({Status}), sending it again later: {Reason}",
+                run.Id, job.Kind, job.Key, (int?)ex.StatusCode, ex.Message);
         }
         catch (TaskCanceledException) when (!ct.IsCancellationRequested)
         {
             StrategyJobs.Defer(job, "The solver didn't answer in time.", DateTime.UtcNow);
+            log?.LogWarning("Run {RunId}: solver didn't answer in time for {Kind} job {JobKey}, sending it again later", run.Id, job.Kind, job.Key);
         }
         catch (HttpRequestException ex)
         {
             StrategyJobs.Fail(job, ex.Message, DateTime.UtcNow);
+            log?.LogWarning("Run {RunId}: solver refused {Kind} job {JobKey} ({Status}): {Reason}", run.Id, job.Kind, job.Key, (int?)ex.StatusCode, ex.Message);
         }
         // Anything else (a request this strategy can't be built into, an odd answer) fails this card only; the run's
         // other strategies were submitted in parallel and must still come back.
         catch (Exception ex) when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
         {
             StrategyJobs.Fail(job, $"{ex.GetType().Name}: {ex.Message}", DateTime.UtcNow);
+            log?.LogWarning(ex, "Run {RunId}: {Kind} job {JobKey} couldn't be sent to the solver", run.Id, job.Kind, job.Key);
         }
     }
 
