@@ -132,23 +132,24 @@ export function PlantingModal({ field, crops, periods, planting, slot, onClose }
             ...(dates.sown !== undefined && { plantingDate: dates.sown }), ...(dates.harvested !== undefined && { harvestingDate: dates.harvested }) })); setError('') }} />
         <p className="crop-form-hint">Leave the harvest date empty while the crop is still growing.</p>
       </div>
-      <div className="catalog-field">
+      {/* Water and fertilizer inputs stand one under another at full width, in the order a farmer fills them, and
+          every input is laid out from the start (the ones that don't apply yet are disabled), so typing an amount or
+          choosing a product never shifts the fields below. */}
+      <div className="catalog-field is-wide">
         <label htmlFor={`irrigation-${id}`}>Irrigation over the season, mm<span className="optional"> optional</span></label>
         <input id={`irrigation-${id}`} className="is-numeric" type="number" inputMode="decimal" min={0} max={5000} step="any" placeholder="None, rain-fed"
           value={values.irrigationMm} disabled={busy} aria-describedby={`irrigation-hint-${id}`} onChange={event => change({ irrigationMm: event.target.value })} />
-        <p id={`irrigation-hint-${id}`} className="crop-form-hint">{water && water > 0 && area
+        <p id={`irrigation-hint-${id}`} className="crop-form-hint is-live">{water && water > 0 && area
           ? `About ${amount.format(water * 10 * area)} m³ of water over ${amount.format(area)} ha.` : '1 mm is 10 m³ of water per hectare.'}</p>
       </div>
-      {/* Every input is laid out from the start, in order, and the ones that don't apply yet are disabled, so typing
-          an amount or choosing a product never shifts the fields below. */}
-      <div className="catalog-field">
+      <div className="catalog-field is-wide">
         <label htmlFor={`irrigation-target-${id}`}>Refill the root zone to, %<span className="optional"> optional</span></label>
         <input id={`irrigation-target-${id}`} className="is-numeric" type="number" inputMode="decimal" min={0} max={100} step="any" placeholder="100, a full refill"
           value={values.irrigationTarget} disabled={busy || !(water !== null && water > 0)} aria-describedby={`irrigation-target-hint-${id}`}
           onChange={event => change({ irrigationTarget: event.target.value })} />
         <p id={`irrigation-target-hint-${id}`} className="crop-form-hint">How far each watering tops up the water the roots can easily take up.</p>
       </div>
-      <div className="catalog-field">
+      <div className="catalog-field is-wide">
         <label htmlFor={`fertilizer-${id}`}>Fertilizer<span className="optional"> optional</span></label>
         <select id={`fertilizer-${id}`} value={values.fertilizerId} disabled={busy || fertilizers.isPending}
           onChange={event => change({ fertilizerId: event.target.value, ...(event.target.value ? {} : { fertilizerRate: '', fertilizerTarget: '' }) })}>
@@ -161,11 +162,11 @@ export function PlantingModal({ field, crops, periods, planting, slot, onClose }
         {fertilizers.error && <p className="field-error" role="alert">{problemMessage(fertilizers.error)}{' '}
           <button type="button" className="text-link" disabled={fertilizers.isFetching} onClick={() => void fertilizers.refetch()}>Try again</button></p>}
       </div>
-      <div className="catalog-field">
+      <div className="catalog-field is-wide">
         <label htmlFor={`fertilizer-rate-${id}`}>Fertilizer per hectare over the season, kg</label>
         <input id={`fertilizer-rate-${id}`} className="is-numeric" type="number" inputMode="decimal" min={0} max={10000} step="any" placeholder="e.g. 250"
           value={values.fertilizerRate} disabled={busy || !values.fertilizerId} aria-describedby={`fertilizer-hint-${id}`} onChange={event => change({ fertilizerRate: event.target.value })} />
-        <p id={`fertilizer-hint-${id}`} className="crop-form-hint">{perHectare && perHectare > 0 && area
+        <p id={`fertilizer-hint-${id}`} className="crop-form-hint is-live">{perHectare && perHectare > 0 && area
           ? `About ${amount.format(perHectare * area)} kg of the product for the whole field (${amount.format(area)} ha).` : 'Kilograms of the product itself, as bought, not of N, P or K.'}</p>
       </div>
       <div className="catalog-field is-wide">

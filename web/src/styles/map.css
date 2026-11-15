@@ -152,6 +152,8 @@
 .crop-form-hint { grid-column: 1 / -1; margin: -4px 0 10px; font-size: 11px; color: var(--muted); }
 /* Under an input box the hint needs air from its border; the dates' hint sits under a picker that has its own. */
 .catalog-field > input + .crop-form-hint, .catalog-field > select + .crop-form-hint { margin-top: 6px; line-height: 1.45; }
+/* A hint that turns into a live total keeps room for two lines, so typing an amount never pushes the fields below. */
+.crop-form-hint.is-live { min-height: 2.9em; }
 .crop-form input[readonly] { background: var(--sage); color: var(--muted); }
 .crop-add:disabled, .crop-season-main:disabled { cursor: not-allowed; opacity: .6; }
 .crop-form .field-error { margin: -2px 0 10px; }

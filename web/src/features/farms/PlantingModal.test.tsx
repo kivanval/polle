@@ -62,7 +62,15 @@ describe('crop form fertilizer', () => {
 describe('crop form irrigation hint', () => {
   it('sits under its own input, as a hint with the shared hint style', () => {
     const html = render(client => client.setQueryData(['fertilizers'], catalog))
-    expect(html).toMatch(/<input id="irrigation-new"[^>]*\/><p id="irrigation-hint-new" class="crop-form-hint">1 mm is 10 m³ of water per hectare\.<\/p>/)
+    expect(html).toMatch(/<input id="irrigation-new"[^>]*\/><p id="irrigation-hint-new" class="crop-form-hint is-live">1 mm is 10 m³ of water per hectare\.<\/p>/)
+  })
+
+  it('stacks the water and fertilizer inputs one under another at full width, in order', () => {
+    const html = render(client => client.setQueryData(['fertilizers'], catalog))
+    const order = ['irrigation-new', 'irrigation-target-new', 'fertilizer-new', 'fertilizer-rate-new', 'fertilizer-target-new']
+    for (const field of order) expect(html).toMatch(new RegExp(`<div class="catalog-field is-wide"><label for="${field}"`))
+    const positions = order.map(field => html.indexOf(`<label for="${field}"`))
+    expect(positions).toEqual([...positions].sort((a, b) => a - b))
   })
 })
 

@@ -71,7 +71,7 @@ function DroughtAtlas({ overview }: { overview: DroughtOverview }) {
     <aside className="atlas-panel climate-rail" aria-label="Climate map controls">
       <div className="atlas-panel-head">
         <span className="mono section-label">CLIMATE INTELLIGENCE / LAYERS</span>
-        <h1>Drought, weather and crops, worldwide.</h1>
+        <h1>Drought and weather, worldwide.</h1>
         <p className="atlas-location">Monthly drought, temperature and rain from the {first}–{last} trend, carried ten years ahead, plus NASA satellite views of vegetation and soil. Click the map to read one place.</p>
       </div>
 
