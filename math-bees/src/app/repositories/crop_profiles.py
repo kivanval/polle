@@ -6,8 +6,10 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Any, Protocol
 
+import cashews
 from sqlalchemy import Engine, text
 
+from app.config import CachingConfig
 from app.infrastructure.caching import Cache
 from app.models.agronomy import Crop, CropProfile, CropProfileStage
 from app.models.types import (
@@ -348,7 +350,11 @@ class CropProfileRepositoryCacheGetAllKey: ...
 
 class CropProfileRepositoryCacheGetAll(
     Cache[CropProfileRepositoryCacheGetAllKey, list[CropProfile]]
-): ...
+):
+    def __init__(self, cache: cashews.Cache, config: CachingConfig):
+        super().__init__(cache, config)
+        self._ttl = config.crop_profile_repository.ttl
+        self._enabled = config.crop_profile_repository.enabled
 
 
 @dataclass(frozen=True)
@@ -356,9 +362,11 @@ class CropProfileRepositoryCacheGetByIdKey:
     crop_profile_id: CropProfileId
 
 
-class CropProfileRepositoryCacheGetById(
-    Cache[CropProfileRepositoryCacheGetByIdKey, CropProfile]
-): ...
+class CropProfileRepositoryCacheGetById(Cache[CropProfileRepositoryCacheGetByIdKey, CropProfile]):
+    def __init__(self, cache: cashews.Cache, config: CachingConfig):
+        super().__init__(cache, config)
+        self._ttl = config.crop_profile_repository.ttl
+        self._enabled = config.crop_profile_repository.enabled
 
 
 class SqlCropProfileRepository(CropProfileRepository):

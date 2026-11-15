@@ -5,6 +5,8 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Any, Protocol
 
+import cashews
+
 from app.autogen.clients.finance.api.default import (
     get_crop_profile_opex_v2,
     get_material_prices_v2,
@@ -17,6 +19,7 @@ from app.autogen.clients.finance.models.material_pricing_request_v2 import (
     MaterialPricingRequestV2,
 )
 from app.autogen.clients.finance.types import Unset
+from app.config import CachingConfig
 from app.infrastructure.caching import Cache
 from app.models.types import AnnualRates, AreaHa, CropProfileId, MaterialId, Rate, UsdCents, Year
 
@@ -112,7 +115,11 @@ class FinanceRepositoryCacheGetMaterialPricesKey:
 
 class FinanceRepositoryCacheGetMaterialPrices(
     Cache[FinanceRepositoryCacheGetMaterialPricesKey, dict[MaterialId, AnnualRates]]
-): ...
+):
+    def __init__(self, cache: cashews.Cache, config: CachingConfig):
+        super().__init__(cache, config)
+        self._ttl = config.finance_repository.ttl
+        self._enabled = config.finance_repository.enabled
 
 
 @dataclass(frozen=True)
@@ -124,7 +131,11 @@ class FinanceRepositoryCacheGetCropProfileOpexsKey:
 
 class FinanceRepositoryCacheGetCropProfileOpexs(
     Cache[FinanceRepositoryCacheGetCropProfileOpexsKey, dict[CropProfileId, AnnualRates]]
-): ...
+):
+    def __init__(self, cache: cashews.Cache, config: CachingConfig):
+        super().__init__(cache, config)
+        self._ttl = config.finance_repository.ttl
+        self._enabled = config.finance_repository.enabled
 
 
 class HttpFinanceRepository(FinanceRepository):

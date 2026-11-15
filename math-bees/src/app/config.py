@@ -138,10 +138,66 @@ class ExternalServicesConfig:
 
 
 @dataclass(frozen=True)
+class CachingOptimizeFieldsConfig:
+    ttl: str
+    enabled: bool
+
+
+@dataclass(frozen=True)
+class CachingEvaluateScenarioConfig:
+    ttl: str
+    enabled: bool
+
+
+@dataclass(frozen=True)
+class CachingCropProfileRepositoryConfig:
+    ttl: str
+    enabled: bool
+
+
+@dataclass(frozen=True)
+class CachingCropRotationRuleRepositoryConfig:
+    ttl: str
+    enabled: bool
+
+
+@dataclass(frozen=True)
+class CachingFertilizersRepositoryConfig:
+    ttl: str
+    enabled: bool
+
+
+@dataclass(frozen=True)
+class CachingFieldsRepositoryConfig:
+    ttl: str
+    enabled: bool
+
+
+@dataclass(frozen=True)
+class CachingClimateRepositoryConfig:
+    ttl: str
+    enabled: bool
+
+
+@dataclass(frozen=True)
+class CachingFinanceRepositoryConfig:
+    ttl: str
+    enabled: bool
+
+
+@dataclass(frozen=True)
 class CachingConfig:
     ttl: str
     redis_url: str
     enabled: bool
+    optimize_fields: CachingOptimizeFieldsConfig
+    evaluate_scenario: CachingEvaluateScenarioConfig
+    crop_profile_repository: CachingCropProfileRepositoryConfig
+    crop_rotation_rule_repository: CachingCropRotationRuleRepositoryConfig
+    fertilizers_repository: CachingFertilizersRepositoryConfig
+    fields_repository: CachingFieldsRepositoryConfig
+    climate_repository: CachingClimateRepositoryConfig
+    finance_repository: CachingFinanceRepositoryConfig
 
     @classmethod
     def from_hocon(cls, tree: ConfigTree) -> CachingConfig:
@@ -150,6 +206,38 @@ class CachingConfig:
             ttl=cfg.get_string("ttl"),
             redis_url=cfg.get_string("redis-url"),
             enabled=cfg.get_bool("enabled"),
+            optimize_fields=CachingOptimizeFieldsConfig(
+                ttl=cfg.get_config("optimize-fields").get_string("ttl"),
+                enabled=cfg.get_config("optimize-fields").get_bool("enabled"),
+            ),
+            evaluate_scenario=CachingEvaluateScenarioConfig(
+                ttl=cfg.get_config("evaluate-scenario").get_string("ttl"),
+                enabled=cfg.get_config("evaluate-scenario").get_bool("enabled"),
+            ),
+            crop_profile_repository=CachingCropProfileRepositoryConfig(
+                ttl=cfg.get_config("crop-profile-repository").get_string("ttl"),
+                enabled=cfg.get_config("crop-profile-repository").get_bool("enabled"),
+            ),
+            crop_rotation_rule_repository=CachingCropRotationRuleRepositoryConfig(
+                ttl=cfg.get_config("crop-rotation-rule-repository").get_string("ttl"),
+                enabled=cfg.get_config("crop-rotation-rule-repository").get_bool("enabled"),
+            ),
+            fertilizers_repository=CachingFertilizersRepositoryConfig(
+                ttl=cfg.get_config("fertilizers-repository").get_string("ttl"),
+                enabled=cfg.get_config("fertilizers-repository").get_bool("enabled"),
+            ),
+            fields_repository=CachingFieldsRepositoryConfig(
+                ttl=cfg.get_config("fields-repository").get_string("ttl"),
+                enabled=cfg.get_config("fields-repository").get_bool("enabled"),
+            ),
+            climate_repository=CachingClimateRepositoryConfig(
+                ttl=cfg.get_config("climate-repository").get_string("ttl"),
+                enabled=cfg.get_config("climate-repository").get_bool("enabled"),
+            ),
+            finance_repository=CachingFinanceRepositoryConfig(
+                ttl=cfg.get_config("finance-repository").get_string("ttl"),
+                enabled=cfg.get_config("finance-repository").get_bool("enabled"),
+            ),
         )
 
 

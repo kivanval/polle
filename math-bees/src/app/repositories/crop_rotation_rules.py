@@ -5,8 +5,10 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Protocol
 
+import cashews
 from sqlalchemy import Engine, text
 
+from app.config import CachingConfig
 from app.infrastructure.caching import Cache
 from app.models.planning import RotationIntervalsMap
 from app.models.types import CropId, RotationMonths
@@ -24,7 +26,11 @@ class CropRotationRuleRepositoryCacheGetIntervalsKey: ...
 
 class CropRotationRuleRepositoryCacheGetIntervals(
     Cache[CropRotationRuleRepositoryCacheGetIntervalsKey, RotationIntervalsMap]
-): ...
+):
+    def __init__(self, cache: cashews.Cache, config: CachingConfig):
+        super().__init__(cache, config)
+        self._ttl = config.crop_rotation_rule_repository.ttl
+        self._enabled = config.crop_rotation_rule_repository.enabled
 
 
 class SqlCropRotationRuleRepository(CropRotationRuleRepository):

@@ -7,8 +7,11 @@ from datetime import date
 from functools import partial
 from typing import Any, Protocol
 
+import cashews
+
 from app.autogen.clients.climate.api.default import get_field_daily_climate
 from app.autogen.clients.climate.client import AuthenticatedClient
+from app.config import CachingConfig
 from app.infrastructure.caching import Cache
 from app.models.climate import ClimateTimeline, DailyClimate
 from app.models.types import Celsius, FieldId, PrecipitationMm
@@ -52,7 +55,11 @@ class ClimateRepositoryCacheGetByFieldIdKey:
 
 class ClimateRepositoryCacheGetByFieldId(
     Cache[ClimateRepositoryCacheGetByFieldIdKey, ClimateTimeline]
-): ...
+):
+    def __init__(self, cache: cashews.Cache, config: CachingConfig):
+        super().__init__(cache, config)
+        self._ttl = config.climate_repository.ttl
+        self._enabled = config.climate_repository.enabled
 
 
 class HttpClimateRepository:

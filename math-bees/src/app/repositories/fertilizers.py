@@ -4,8 +4,10 @@ from dataclasses import dataclass
 from functools import partial
 from typing import Protocol
 
+import cashews
 from sqlalchemy import Engine, text
 
+from app.config import CachingConfig
 from app.infrastructure.caching import Cache
 from app.models.agronomy import Fertilizer, SoilImpact
 from app.models.types import MaterialId, Percent
@@ -22,7 +24,11 @@ class FertilizersRepositoryCacheGetAllKey: ...
 
 class FertilizersRepositoryCacheGetAll(
     Cache[FertilizersRepositoryCacheGetAllKey, list[Fertilizer]]
-): ...
+):
+    def __init__(self, cache: cashews.Cache, config: CachingConfig):
+        super().__init__(cache, config)
+        self._ttl = config.fertilizers_repository.ttl
+        self._enabled = config.fertilizers_repository.enabled
 
 
 @dataclass(frozen=True)
@@ -30,9 +36,11 @@ class FertilizersRepositoryCacheGetByIdKey:
     id: MaterialId
 
 
-class FertilizersRepositoryCacheGetById(
-    Cache[FertilizersRepositoryCacheGetByIdKey, Fertilizer]
-): ...
+class FertilizersRepositoryCacheGetById(Cache[FertilizersRepositoryCacheGetByIdKey, Fertilizer]):
+    def __init__(self, cache: cashews.Cache, config: CachingConfig):
+        super().__init__(cache, config)
+        self._ttl = config.fertilizers_repository.ttl
+        self._enabled = config.fertilizers_repository.enabled
 
 
 class SqlFertilizersRepository(FertilizersRepository):
