@@ -21,25 +21,22 @@ export type PlantingInput = {
   fertilizerMaterialId?: number | null
   fertilizerRateKgHa?: number | null
   /**
-   * The solver's target levels a crop copied from a suggested plan keeps (0-100): how far each irrigation refills the
-   * root-zone water, and the share of the nutrient shortfall the fertilizer covers. Null leaves the solver's default.
+   * The solver's target levels (0-100): how far each irrigation refills the root zone's readily available water, and
+   * the share of the crop's nutrient shortfall the fertilizer covers. A crop copied from a suggested plan brings the
+   * plan's levels; the farmer can set or change them in the crop form. Null leaves the solver's default.
    */
   irrigationTargetPercent?: number | null
   fertilizerTargetPercent?: number | null
 }
 
 /**
- * The target levels a saved crop keeps through an edit: the irrigation level while its water stays the same, the
- * fertilizer level while its product and rate stay the same. A changed or removed input drops its level, since the
- * level belonged to the amount the solver chose.
+ * The target levels saved with a crop: each one only with the input it doses (the database requires irrigation for the
+ * irrigation level and a product for the fertilizer level). An empty level is null, which leaves the planner's default.
  */
-export function keptTargets(planting: Planting | undefined, irrigationMm: number | null, fertilizerMaterialId: number | null,
-  fertilizerRateKgHa: number | null): Pick<PlantingInput, 'irrigationTargetPercent' | 'fertilizerTargetPercent'> {
-  const sameWater = irrigationMm !== null && irrigationMm === (planting?.irrigationMm ?? null)
-  const sameFertilizer = fertilizerMaterialId !== null && fertilizerMaterialId === (planting?.fertilizerMaterialId ?? null)
-    && fertilizerRateKgHa === (planting?.fertilizerRateKgHa ?? null)
-  return { irrigationTargetPercent: sameWater ? planting?.irrigationTargetPercent ?? null : null,
-    fertilizerTargetPercent: sameFertilizer ? planting?.fertilizerTargetPercent ?? null : null }
+export function targetLevels(irrigationMm: number | null, irrigationTarget: number | null, fertilizerMaterialId: number | null,
+  fertilizerTarget: number | null): Pick<PlantingInput, 'irrigationTargetPercent' | 'fertilizerTargetPercent'> {
+  return { irrigationTargetPercent: irrigationMm !== null ? irrigationTarget : null,
+    fertilizerTargetPercent: fertilizerMaterialId !== null ? fertilizerTarget : null }
 }
 
 export type Planting = Omit<PlantingInput, 'harvestingDate' | 'notes' | 'irrigationMm' | 'fertilizerMaterialId' | 'fertilizerRateKgHa'

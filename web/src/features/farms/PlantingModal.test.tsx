@@ -65,3 +65,24 @@ describe('crop form irrigation hint', () => {
     expect(html).toMatch(/<input id="irrigation-new"[^>]*\/><p id="irrigation-hint-new" class="crop-form-hint">1 mm is 10 m³ of water per hectare\.<\/p>/)
   })
 })
+
+describe('crop form target levels', () => {
+  const html = (existing: Planting) => render(client => client.setQueryData(['fertilizers'], catalog), existing)
+
+  it('asks how far each irrigation refills the root zone once the crop is irrigated, and not before', () => {
+    expect(html(planting())).not.toContain('irrigation-target-p1')
+    expect(html(planting({ irrigationMm: 140, irrigationTargetPercent: 60 }))).toMatch(/<input id="irrigation-target-p1"[^>]*value="60"/)
+  })
+
+  it('asks what share of the nutrient shortfall the fertilizer covers once a product is chosen, and not before', () => {
+    expect(html(planting())).not.toContain('fertilizer-target-p1')
+    expect(html(planting({ fertilizerMaterialId: 2216, fertilizerRateKgHa: 250, fertilizerTargetPercent: 75 })))
+      .toMatch(/<input id="fertilizer-target-p1"[^>]*value="75"/)
+  })
+
+  it('leaves the levels empty for a crop without them, so the planner uses its default', () => {
+    const empty = html(planting({ irrigationMm: 140, fertilizerMaterialId: 2216, fertilizerRateKgHa: 250 }))
+    expect(empty).toMatch(/<input id="irrigation-target-p1"[^>]*value=""/)
+    expect(empty).toMatch(/<input id="fertilizer-target-p1"[^>]*value=""/)
+  })
+})
