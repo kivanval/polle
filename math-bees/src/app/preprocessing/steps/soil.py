@@ -151,13 +151,26 @@ def _evaluate_soil_for_crop(
             )
             if stop_on_fatal:
                 return _SoilEvaluationResult(tuple(actions), 1.0)
-        elif (ph - crop.ph_min) <= PH_MARGIN or (crop.ph_max - ph) <= PH_MARGIN:
+        elif (ph - crop.ph_min) <= PH_MARGIN:
             actions.append(
                 _SoilRiskAction(
                     Note(
                         NoteCategory.AGRONOMIC,
                         NoteImportance.WARN,
-                        f"The soil pH of {ph} is near the edge of the acceptable {crop.ph_min} to {crop.ph_max} range.",
+                        f"The soil pH of {ph} is close to the minimum limit of {crop.ph_min}.",
+                    ),
+                    False,
+                    DeathNote("SoilCheck:MarginalPh", is_static=True),
+                ),
+            )
+            combined_soil_multiplier *= MARGINAL_PH_YIELD_MULTIPLIER
+        elif (crop.ph_max - ph) <= PH_MARGIN:
+            actions.append(
+                _SoilRiskAction(
+                    Note(
+                        NoteCategory.AGRONOMIC,
+                        NoteImportance.WARN,
+                        f"The soil pH of {ph} is close to the maximum limit of {crop.ph_max}.",
                     ),
                     False,
                     DeathNote("SoilCheck:MarginalPh", is_static=True),
