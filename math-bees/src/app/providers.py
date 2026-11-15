@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 from sqlalchemy import Engine
 from taskiq_redis import ListQueueBroker
 
-from app.api.tasks import OptimizeFieldsCache
+from app.api.tasks import EvaluateScenarioCache, OptimizeFieldsCache
 from app.autogen.clients.climate.client import AuthenticatedClient as ClimateClient
 from app.autogen.clients.field_topology.client import AuthenticatedClient as TopologyClient
 from app.autogen.clients.finance.client import AuthenticatedClient as FinanceClient
@@ -136,6 +136,7 @@ class InfrastructureProvider(Provider):
 class CacheProvider(Provider):
     scope = Scope.APP
     optimize_fields_cache = provide(OptimizeFieldsCache)
+    evaluate_scenario_cache = provide(EvaluateScenarioCache)
 
 
 class ClientProvider(Provider):

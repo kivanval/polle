@@ -85,8 +85,15 @@ async def optimize_fields_task(
     )
 
 
-@inject
-async def evaluate_scenario_task(
+@dataclass(frozen=True)
+class EvaluateScenarioCacheKey:
+    request: EvaluateScenarioRequest
+
+
+class EvaluateScenarioCache(Cache[EvaluateScenarioCacheKey, EvaluateScenarioResponse]): ...
+
+
+async def _evaluate_scenario(
     request: EvaluateScenarioRequest,
     fields_repo: FromDishka[FieldsRepository],
     climate_repo: FromDishka[ClimateRepository],
@@ -131,3 +138,25 @@ async def evaluate_scenario_task(
         expected_revenue=UsdCents(int(total_cents)),
     )
     return map_evaluate_result_to_response(res)
+
+
+@inject
+async def evaluate_scenario_task(
+    request: EvaluateScenarioRequest,
+    fields_repo: FromDishka[FieldsRepository],
+    climate_repo: FromDishka[ClimateRepository],
+    studio: FromDishka[CroppingStudio],
+    cache: FromDishka[EvaluateScenarioCache],
+) -> EvaluateScenarioResponse:
+    result = await cache.using(
+        EvaluateScenarioCacheKey(request),
+        partial(_evaluate_scenario, request, fields_repo, climate_repo, studio),
+    )
+    return (
+        result
+        if result is not None
+        else EvaluateScenarioResponse(
+            status=SolverResultStatus.unknown,
+            schedule=[],
+        )
+    )
