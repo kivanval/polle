@@ -42,11 +42,11 @@ class _SoilEvaluationResult:
 
 
 def _evaluate_soil_for_crop(
-        crop: Crop,
-        soil: SoilProperties,
-        context: SolverContext,
-        *,
-        stop_on_fatal: bool = True,
+    crop: Crop,
+    soil: SoilProperties,
+    context: SolverContext,
+    *,
+    stop_on_fatal: bool = True,
 ) -> _SoilEvaluationResult:
     actions: list[_SoilRiskAction] = []
     combined_soil_multiplier = 1.0
@@ -229,7 +229,7 @@ def _evaluate_soil_for_crop(
                     ),
                     is_critical and not context.risk.allow_agronomic_risks,
                     DeathNote("SoilCheck:CriticalSalinity", is_static=True),
-                    ),
+                ),
             )
             if crop.max_salinity_ds_m and salinity_ds_m > crop.max_salinity_ds_m:
                 is_fatal = not context.risk.allow_agronomic_risks
@@ -297,9 +297,9 @@ class SoilConstraintStep(SimulationStep):
         self._cache: dict[tuple[FieldId, CropId, bool], _SoilEvaluationResult] = {}
 
     def apply(
-            self,
-            candidate: SimulationCandidate,
-            context: SolverContext,
+        self,
+        candidate: SimulationCandidate,
+        context: SolverContext,
     ) -> list[SimulationCandidate]:
         if candidate.is_dead:
             return [candidate]
@@ -350,7 +350,7 @@ class SoilConstraintStep(SimulationStep):
                         round(
                             float(m.real) * eval_res.soil_multiplier,
                             YIELD_MULTIPLIER_ROUND_DECIMALS,
-                            ),
+                        ),
                     )
                     for m in current_candidate.yield_multipliers
                 )
@@ -361,9 +361,9 @@ class SoilConstraintStep(SimulationStep):
 
 class ScenarioSoilConstraintStep(SoilConstraintStep):
     def apply(
-            self,
-            candidate: SimulationCandidate,
-            context: SolverContext,
+        self,
+        candidate: SimulationCandidate,
+        context: SolverContext,
     ) -> list[SimulationCandidate]:
         cache_key = (
             candidate.field.id,
@@ -397,7 +397,7 @@ class ScenarioSoilConstraintStep(SoilConstraintStep):
                         round(
                             float(m.real) * eval_res.soil_multiplier,
                             YIELD_MULTIPLIER_ROUND_DECIMALS,
-                            ),
+                        ),
                     )
                     for m in current_candidate.yield_multipliers
                 )
