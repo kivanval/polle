@@ -99,4 +99,36 @@ public sealed class StrategyPollResilienceTests
         Assert.Equal("control", response.Key);
         Assert.Null(response.Result);
     }
+
+    /// <summary>"Evaluate my plan" waits for the solver's quick answer, so the result comes back with the request itself.</summary>
+    [Fact]
+    public async Task AQuickEvaluationIsReadyWhenTheRequestAnswers()
+    {
+        var checks = 0;
+        var solver = Solver(request => request.RequestUri!.AbsolutePath.EndsWith("/status")
+            ? ++checks < 2 ? Answer(HttpStatusCode.OK, """{"status":"processing"}""") : Answer(HttpStatusCode.SeeOther, "")
+            : Answer(HttpStatusCode.OK, """{"status":"FEASIBLE","schedule":[]}"""));
+        var job = Job(StrategyCatalog.BaselineKey);
+        job.Kind = StrategyJobs.Evaluation;
+        var run = new StrategyRun { FieldId = Guid.NewGuid(), StartMonth = "2026-12", EndMonth = "2030-12", Jobs = [job] };
+
+        var changed = await StrategyRunEndpoints.AwaitQuickResultAsync(run, solver, TimeSpan.FromSeconds(5), CancellationToken.None);
+
+        Assert.True(changed);
+        Assert.Equal(StrategyJobs.Ready, job.State);
+        Assert.Equal(2, checks);
+    }
+
+    [Fact]
+    public async Task ASlowEvaluationIsLeftProcessingForTheClientsPolls()
+    {
+        var solver = Solver(_ => Answer(HttpStatusCode.OK, """{"status":"processing"}"""));
+        var job = Job(StrategyCatalog.BaselineKey);
+        job.Kind = StrategyJobs.Evaluation;
+        var run = new StrategyRun { FieldId = Guid.NewGuid(), StartMonth = "2026-12", EndMonth = "2030-12", Jobs = [job] };
+
+        await StrategyRunEndpoints.AwaitQuickResultAsync(run, solver, TimeSpan.FromMilliseconds(500), CancellationToken.None);
+
+        Assert.Equal(StrategyJobs.Processing, job.State);
+    }
 }

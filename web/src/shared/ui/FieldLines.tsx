@@ -19,8 +19,8 @@ export function FieldLines({ className = '', scan = false, only, viewBox = `0 0 
   const swath = useId()
   const shown = only ? fieldBoundaries.filter(field => only.includes(field.id)) : fieldBoundaries
   return <svg className={'field-lines ' + className} viewBox={viewBox} preserveAspectRatio="xMidYMid slice" fill="none"
-    {...onSelect ? { role: 'group', 'aria-label': 'Illustrative aerial farmland with example field outlines, not live geospatial data' }
-      : { role: 'img', 'aria-label': 'Illustrative aerial farmland with decorative field outlines, not live geospatial data' }}>
+    {...onSelect ? { role: 'group', 'aria-label': 'Aerial photograph of farmland in Biei, Hokkaido, with example field outlines, not live geospatial data' }
+      : { role: 'img', 'aria-label': 'Aerial photograph of farmland in Biei, Hokkaido, with decorative field outlines, not live geospatial data' }}>
     <image href="/images/field-atlas.webp" width={imageWidth} height={imageHeight} />
     <g className="field-outlines" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">
       {shown.map(({ id, points }) => {

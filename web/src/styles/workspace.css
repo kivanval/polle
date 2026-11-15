@@ -52,7 +52,8 @@
 .land-empty { border: 1px solid var(--line); border-radius: 5px; overflow: hidden; display: grid; grid-template-columns: 1.03fr 1fr; min-height: 360px; }
 .contour-art { position: relative; min-height: 360px; background: var(--sage); overflow: hidden; }
 .contour-art > img { width: 100%; height: 100%; position: absolute; object-fit: cover; }
-.contour-label { position: absolute; bottom: 22px; left: 24px; font-size: 7px; color: #65765c; }
+.contour-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(16,32,25,.55), transparent 32%); }
+.contour-label { position: absolute; bottom: 22px; left: 24px; z-index: 1; font-size: 7px; color: #eef2e6; }
 .land-empty-copy { padding: 40px 36px; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; }
 .land-empty-copy .section-label { font-size: 8px; margin-bottom: 20px; }
 .land-empty-copy h2 { font-family: Georgia, serif; font-size: clamp(29px, 2.7vw, 42px); line-height: 1.12; letter-spacing: -.035em; }

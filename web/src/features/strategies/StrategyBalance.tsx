@@ -1,6 +1,8 @@
 import type { StrategyCycle } from './api'
 import { useFieldRainfall } from './api'
 import { hasMonthlyWater, NUTRIENT_LABEL, nutrientFlow, seasonRainMm, waterMonths, type Nutrient, type WaterHorizon } from './details'
+import { FoldButton } from './Fold'
+import { useFold } from './useFold'
 import { cubicMetres, monthText, whenText } from './format'
 
 const mm = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
@@ -42,9 +44,11 @@ function MonthlyWaterChart({ rainfall, cycles, areaHectares, horizon }: { rainfa
   const irrigation = months.reduce((sum, month) => sum + month.irrigationMm, 0)
   const use = months.reduce((sum, month) => sum + month.useMm, 0)
   const known = rainfall.data !== undefined
+  const fold = useFold()
 
   return <section className="balance-panel balance-panel-wide" aria-labelledby="water-balance-title">
-    <h3 id="water-balance-title">Water balance by month</h3>
+    <h3 id="water-balance-title"><FoldButton open={fold.open} onToggle={fold.toggle}>Water balance by month</FoldButton></h3>
+    {fold.open && <>
     <dl className="balance-totals">
       <div><dt><span className="balance-swatch is-rain" aria-hidden="true" />{`Rain, ${months.length} months`}</dt><dd className="mono">{known ? `${mm.format(allRain)} mm` : '—'}</dd></div>
       <div><dt><span className="balance-swatch is-rain" aria-hidden="true" />Rain while crops grow</dt><dd className="mono">{known ? `${mm.format(rain)} mm` : '—'}</dd></div>
@@ -86,6 +90,7 @@ function MonthlyWaterChart({ rainfall, cycles, areaHectares, horizon }: { rainfa
     <p className="strategy-note">{`Left bar: water in. Right bar: water the crop used (evapotranspiration), in mm. ${rainfall.data
       ? `Rain is the field's average for each month over ${rainfall.data.referenceStartYear}–${rainfall.data.referenceEndYear} (NASA POWER). Not all of it reaches the roots. `
       : ''}1 mm over 1 ha is 10 m³.`}</p>
+    </>}
   </section>
 }
 
@@ -106,9 +111,11 @@ function SeasonWaterChart({ rainfall, cycles, areaHectares }: { rainfall: Rainfa
   const rows = cycles.map(cycle => ({ cycle, rain: monthly ? seasonRainMm(cycle, monthly) : 0, irrigation: cycle.irrigationMm }))
   const max = Math.max(1, ...rows.map(row => row.rain + row.irrigation))
   const rain = rows.reduce((sum, row) => sum + row.rain, 0), irrigation = rows.reduce((sum, row) => sum + row.irrigation, 0)
+  const fold = useFold()
 
   return <section className="balance-panel" aria-labelledby="water-balance-title">
-    <h3 id="water-balance-title">Water per crop</h3>
+    <h3 id="water-balance-title"><FoldButton open={fold.open} onToggle={fold.toggle}>Water per crop</FoldButton></h3>
+    {fold.open && <>
     <dl className="balance-totals">
       <div><dt><span className="balance-swatch is-rain" aria-hidden="true" />Rain in season</dt><dd className="mono">{monthly ? `${mm.format(rain)} mm` : '—'}</dd></div>
       <div><dt><span className="balance-swatch is-irrigation" aria-hidden="true" />Irrigation</dt><dd className="mono">{`${mm.format(irrigation)} mm · ${cubicMetres(irrigation, areaHectares)}`}</dd></div>
@@ -132,6 +139,7 @@ function SeasonWaterChart({ rainfall, cycles, areaHectares }: { rainfall: Rainfa
     <p className="strategy-note">{`The planner didn't report water use by month for these crops, so each shows its season's rain and irrigation only. `}{rainfall.data
       ? `Rain is the field's average for those months over ${rainfall.data.referenceStartYear}–${rainfall.data.referenceEndYear} (NASA POWER), the same the planner uses. 1 mm over 1 ha is 10 m³.`
       : '1 mm over 1 ha is 10 m³.'}</p>
+    </>}
   </section>
 }
 
@@ -144,13 +152,16 @@ const NUTRIENTS: Nutrient[] = ['N', 'P', 'K']
  */
 export function NutrientChart({ cycles, wide = false }: { cycles: StrategyCycle[]; wide?: boolean }) {
   const panel = `balance-panel ${wide ? 'balance-panel-wide' : ''}`
+  const fold = useFold()
+  const title = <h3 id="nutrient-title"><FoldButton open={fold.open} onToggle={fold.toggle}>Nutrients per crop (N-P-K)</FoldButton></h3>
   if (cycles.length && cycles.every(cycle => !cycle.nutrients)) return <section className={panel} aria-labelledby="nutrient-title">
-    <h3 id="nutrient-title">Nutrients per crop (N-P-K)</h3>
-    <p className="strategy-note">This strategy was prepared before nutrient figures were recorded. Suggest strategies again to see them.</p>
+    {title}
+    {fold.open && <p className="strategy-note">This plan was prepared before nutrient figures were recorded. Suggest plans again to see them.</p>}
   </section>
 
   return <section className={panel} aria-labelledby="nutrient-title">
-    <h3 id="nutrient-title">Nutrients per crop (N-P-K)</h3>
+    {title}
+    {fold.open && <>
     <div className="balance-legend">
       <span><span className="balance-swatch is-key-removed" aria-hidden="true" />Light, left: taken off with the harvest</span>
       <span><span className="balance-swatch is-key-applied" aria-hidden="true" />Solid, right: fertilizer</span>
@@ -184,5 +195,6 @@ export function NutrientChart({ cycles, wide = false }: { cycles: StrategyCycle[
       </div>
     })}</div>
     <p className="strategy-note">Kilograms per hectare over each crop's season.</p>
+    </>}
   </section>
 }

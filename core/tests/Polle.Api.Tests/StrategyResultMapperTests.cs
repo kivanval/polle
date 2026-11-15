@@ -376,6 +376,50 @@ public sealed class StrategyResultMapperTests
         Assert.Equal([3101L], StrategyProfiles.FertilizerIds(FertilizedWithRate));
     }
 
+    // felder 2.5 (2026-11-15): the water allowance and the target levels of irrigation and fertilizer.
+    private const string WithTargetLevels = """
+        {"status":"OPTIMAL","schedule":[
+         {"crop_profile_id":"7754","plant_date":"2027-04-11","clearance_date":"2027-08-21","harvest_dates":["2027-08-11"],
+          "financials":{"gross_revenue_cents":100000,"base_opex_cents":0,"planting_cost_cents":0,"water_cost_cents":5000,"fertilizer_cost_cents":3000},
+          "yield_multiplier":0.876,
+          "fertilizer_application":{"material_id":"3101","rate_kg_ha":180,"target_percentage":75},
+          "irrigation_application":{"material_id":"2215","amount_mm":140.26,"target_percentage":60},
+          "monthly_dynamics":{"water_applied_mm":{"2027-06":70,"2027-07":62},"water_removed_mm":{},"nitrogen_applied_kg_ha":{"2027-04":30},
+            "nitrogen_fixed_kg_ha":{},"nitrogen_removed_kg_ha":{},"phosphorus_applied_kg_ha":{},"phosphorus_removed_kg_ha":{},
+            "potassium_applied_kg_ha":{},"potassium_removed_kg_ha":{}},
+          "notes":[]},
+         {"crop_profile_id":"7784","plant_date":"2028-04-01","clearance_date":"2028-08-01","harvest_dates":["2028-08-01"],
+          "financials":{"gross_revenue_cents":1000,"base_opex_cents":0,"planting_cost_cents":0,"water_cost_cents":0,"fertilizer_cost_cents":0},
+          "yield_multiplier":1,"irrigation_application":null,"notes":[]}]}
+        """;
+
+    [Fact]
+    public void ReadsTheWaterAllowanceAndTheTargetLevels()
+    {
+        var cycles = StrategyResultMapper.Map(WithTargetLevels, Names)!.Cycles;
+
+        Assert.Equal(new CycleIrrigation("2215", 140.3, 60), cycles[0].Irrigation);
+        Assert.Equal(75, cycles[0].Fertilizer!.TargetPercent);
+        Assert.Equal(87.6, cycles[0].YieldPercent);
+        Assert.Equal(132, cycles[0].IrrigationMm);
+        Assert.Null(cycles[1].Irrigation);
+    }
+
+    [Fact]
+    public void APlanCopiedFromTheStrategyKeepsItsWaterAllowanceAndTargets()
+    {
+        var plantings = StrategyPlan.Plantings(StrategyResultMapper.Map(WithTargetLevels, Names)!.Cycles);
+
+        Assert.Equal(140.3, plantings[0].IrrigationMm);
+        Assert.Equal(60, plantings[0].IrrigationTargetPercent);
+        Assert.Equal(3101, plantings[0].FertilizerMaterialId);
+        Assert.Equal(180, plantings[0].FertilizerRateKgHa);
+        Assert.Equal(75, plantings[0].FertilizerTargetPercent);
+        Assert.Null(plantings[1].IrrigationMm);
+        Assert.Null(plantings[1].IrrigationTargetPercent);
+        Assert.Null(plantings[1].FertilizerTargetPercent);
+    }
+
     [Fact]
     public void OlderResultsHaveNoProductRate() => Assert.Null(StrategyResultMapper.Map(Fertilized, Names)!.Cycles[0].Fertilizer!.RateKgHa);
 

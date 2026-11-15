@@ -24,8 +24,8 @@ public sealed record AuditProfile(long Id, long CropId, string CropName, string 
 /// <param name="Et0Mm">Reference evapotranspiration (Hargreaves) over the month.</param>
 public sealed record AuditMonthClimate(double RainMm, double Et0Mm, double MinTempC, double MaxTempC);
 
-/// <summary>The field's own settings the farmer recorded: soil reading, starting nutrients and moisture.</summary>
-public sealed record AuditField(double AreaHectares, string? DroughtLevel, double? InitialNKg, double? InitialPKg, double? InitialKKg, double? InitialDepletionMm);
+/// <summary>The field's own settings the farmer recorded: soil reading and starting moisture.</summary>
+public sealed record AuditField(double AreaHectares, string? DroughtLevel, double? InitialDepletionMm);
 
 /// <param name="IrrigationMm">Irrigation the farmer plans over the season, spread evenly over its months; 0 is rain-fed.</param>
 /// <param name="Fertilizer">The fertilizer the farmer plans for the season; null for none.</param>
@@ -35,31 +35,30 @@ public sealed record AuditPlanting(long CropProfileId, DateOnly PlantingDate, Da
 /// <summary>A planting's fertilizer: the product, kilograms of it per hectare and its label content (N, P₂O₅, K₂O, percent).</summary>
 public sealed record AuditFertilizer(long MaterialId, double RateKgHa, double NitrogenPercent, double PhosphatePercent, double PotashPercent, string? Name = null);
 
-/// <param name="Plantings">Every planting of the field: those sown in the horizon are audited, earlier ones count as predecessors for rotation.</param>
+/// <param name="Plantings">Every planting of the field; those sown in the horizon are audited.</param>
 /// <param name="Prices">US cents per tonne by material id, then year (public.material_prices).</param>
 /// <param name="OpexCentsPerHa">US cents per hectare per season by profile id, then year (public.crop_profile_opex).</param>
-/// <param name="RotationGaps">Minimum months between a predecessor crop and a crop (public.crop_rotation_rules), keyed (crop, predecessor).</param>
 /// <param name="Climate">Twelve months, January first; null when the climate baseline couldn't be read.</param>
 public sealed record PlanAuditInput(string StartMonth, string EndMonth, AuditField Field, IReadOnlyList<AuditPlanting> Plantings,
     IReadOnlyDictionary<long, AuditProfile> Profiles, IReadOnlyDictionary<long, IReadOnlyDictionary<int, long>> Prices,
-    IReadOnlyDictionary<long, IReadOnlyDictionary<int, long>> OpexCentsPerHa, IReadOnlyDictionary<(long Crop, long Predecessor), int> RotationGaps,
-    IReadOnlyList<AuditMonthClimate>? Climate);
+    IReadOnlyDictionary<long, IReadOnlyDictionary<int, long>> OpexCentsPerHa, IReadOnlyList<AuditMonthClimate>? Climate);
 
 /// <summary>
-/// An agronomic and financial audit of the farmer's own plan, worked out here from the same catalog the solver reads (crop
-/// profiles and stages, prices, operating costs, rotation rules), the field's ten-year climate normals and its recorded soil
-/// settings. It stands in for the solver's evaluation when that comes back without figures (missing crop data, a plan that
-/// breaks the limits as entered), so "Your current plan" always has its summary, risks, water balance and N-P-K, and it
-/// fills in the crops an evaluation left out (<see cref="Complete"/>).
-/// The plan is audited with the water and fertilizer the farmer recorded for each crop (none: rain-fed and unfertilized);
-/// what the crops still need on top of that is reported.
+/// A financial and water estimate of the farmer's own plan, worked out here from the same catalog the solver reads (crop
+/// profiles and stages, prices, operating costs), the field's ten-year climate normals and its recorded soil settings. It
+/// stands in for the solver's evaluation when that comes back without figures (missing crop data, a plan that breaks the
+/// limits as entered), so "Your current plan" still has its summary, water balance and N-P-K, and it fills in the crops an
+/// evaluation left out (<see cref="Complete"/>).
+/// It raises no risks or warnings of its own: only felder judges a plan, so the cards show felder's risks and nothing else.
+/// Its only notes are plain information (the fertilizer a crop takes off, water estimated by month).
+/// The plan is audited with the water and fertilizer the farmer recorded for each crop (none: rain-fed and unfertilized).
 /// </summary>
 public static class PlanAudit
 {
     /// <summary>Status of an audited (not solver-scored) result.</summary>
     public const string EstimatedStatus = "ESTIMATED";
 
-    /// <summary>Category of the warning on a crop the solver left out of its evaluation (<see cref="Complete"/>).</summary>
+    /// <summary>Category of the note on a crop whose water by month this audit estimated (<see cref="Complete"/>).</summary>
     public const string UnscoredCategory = "estimated";
 
     private const double P2O5ToP = 0.436, K2OToK = 0.830;
@@ -74,24 +73,14 @@ public static class PlanAudit
         if (audited.Length == 0) return null;
 
         var area = input.Field.AreaHectares > 0 ? input.Field.AreaHectares : 0;
-        // Soil nutrients carried from crop to crop; null when the farmer has no soil test (the balance is still reported).
-        double? soilN = input.Field.InitialNKg, soilP = input.Field.InitialPKg, soilK = input.Field.InitialKKg;
-        var cycles = new List<StrategyCycle>();
-        foreach (var planting in audited)
-        {
-            var profile = input.Profiles.GetValueOrDefault(planting.CropProfileId);
-            cycles.Add(Cycle(input, planting, profile, all, area, ref soilN, ref soilP, ref soilK));
-        }
+        var cycles = audited.Select(planting => Cycle(input, planting, input.Profiles.GetValueOrDefault(planting.CropProfileId), area)).ToArray();
 
-        var notes = cycles.SelectMany(cycle => cycle.NoteDetails).ToArray();
-        string[] Messages(Func<CycleNote, bool> keep) => notes.Where(keep).Select(note => note.Message).Distinct().ToArray();
         var revenue = cycles.Sum(cycle => cycle.RevenueUsd);
         var costs = cycles.Sum(cycle => cycle.CostsUsd);
         var operating = cycles.Any(cycle => cycle.OperatingCostsUsd is not null) ? cycles.Sum(cycle => cycle.OperatingCostsUsd ?? 0) : (decimal?)null;
         return new StrategyResult(EstimatedStatus, revenue - costs, revenue, costs, 0,
             Math.Round(cycles.Sum(cycle => cycle.Nutrients.NitrogenAppliedKgHa + cycle.Nutrients.NitrogenFixedKgHa - cycle.Nutrients.NitrogenRemovedKgHa), 1),
-            [.. cycles], Messages(note => note.Importance == StrategyResultMapper.Risk), Messages(note => note.Category == "data_missing"),
-            Messages(note => note.Importance == StrategyResultMapper.Warning),
+            cycles, [], [], [],
             input.Climate is null ? null : Math.Round(cycles.Sum(cycle => cycle.MonthlyWater.Sum(month => month.WaterUseMm)), 1),
             operating, CostBreakdown.Sum(cycles.Select(cycle => cycle.CostBreakdown)));
     }
@@ -100,9 +89,9 @@ public static class PlanAudit
     /// The solver's evaluation of the farmer's plan with the crops it left out filled in from this audit. felder before
     /// 2026-11-13 dropped a crop it couldn't simulate (missing figures, a profile it doesn't know, a sowing month the crop
     /// can't survive) and still reported the rest as FEASIBLE; since then it returns every crop with its own notes, so this
-    /// mostly fills in results stored before. Each crop filled in here is marked Estimated and carries a warning saying so. Crops are
-    /// matched on profile and planting month first, then on profile alone. The scored result comes back unchanged when no
-    /// crop is missing.
+    /// mostly fills in results stored before. Each crop filled in here is marked Estimated (the card says so) and adds no
+    /// risks or warnings: the result's risks stay the solver's. Crops are matched on profile and planting month first, then
+    /// on profile alone. The scored result comes back unchanged when no crop is missing.
     /// </summary>
     public static StrategyResult Complete(StrategyResult scored, StrategyResult audit)
     {
@@ -121,13 +110,11 @@ public static class PlanAudit
             if (!Take(cycle, other => other.CropProfileId == cycle.CropProfileId && other.PlantingMonth == cycle.PlantingMonth)) pending.Add(cycle);
         var missing = new List<StrategyCycle>();
         foreach (var cycle in pending)
-            if (!Take(cycle, other => other.CropProfileId == cycle.CropProfileId)) missing.Add(Unscored(cycle));
+            if (!Take(cycle, other => other.CropProfileId == cycle.CropProfileId)) missing.Add(cycle with { Estimated = true });
         scored = WithEstimatedWater(scored, twins);
         if (missing.Count == 0) return scored;
 
         var cycles = scored.Cycles.Concat(missing).OrderBy(cycle => cycle.PlantingDate ?? cycle.PlantingMonth, StringComparer.Ordinal).ToArray();
-        string[] Add(string[] existing, string importance) =>
-            existing.Concat(missing.SelectMany(cycle => cycle.NoteDetails).Where(note => note.Importance == importance).Select(note => note.Message)).Distinct().ToArray();
         var revenue = missing.Sum(cycle => cycle.RevenueUsd);
         var costs = missing.Sum(cycle => cycle.CostsUsd);
         var addedWater = missing.Sum(cycle => cycle.MonthlyWater.Sum(month => month.WaterUseMm));
@@ -139,10 +126,6 @@ public static class PlanAudit
             NitrogenBalanceKgHa = Math.Round(scored.NitrogenBalanceKgHa
                 + missing.Sum(cycle => cycle.Nutrients.NitrogenAppliedKgHa + cycle.Nutrients.NitrogenFixedKgHa - cycle.Nutrients.NitrogenRemovedKgHa), 1),
             Cycles = cycles,
-            Risks = Add(scored.Risks, StrategyResultMapper.Risk),
-            DataGaps = scored.DataGaps.Concat(missing.SelectMany(cycle => cycle.NoteDetails).Where(note => note.Category == "data_missing")
-                .Select(note => note.Message)).Distinct().ToArray(),
-            Warnings = Add(scored.Warnings, StrategyResultMapper.Warning),
             WaterUseMm = scored.WaterUseMm is null && addedWater == 0 ? null : Math.Round((scored.WaterUseMm ?? 0) + addedWater, 1),
             OperatingCostsUsd = cycles.Any(cycle => cycle.OperatingCostsUsd is not null) ? cycles.Sum(cycle => cycle.OperatingCostsUsd ?? 0) : null,
             CostBreakdown = CostBreakdown.Sum(cycles.Select(cycle => cycle.CostBreakdown)),
@@ -169,19 +152,9 @@ public static class PlanAudit
         return filled == 0 ? scored : scored with { Cycles = cycles, WaterUseMm = Math.Round((scored.WaterUseMm ?? 0) + filled, 1) };
     }
 
-    /// <summary>An audited crop standing in for one the solver couldn't score: marked Estimated, with a warning first.</summary>
-    private static StrategyCycle Unscored(StrategyCycle cycle)
-    {
-        var note = new CycleNote($"Estimated: the planner couldn't score the {cycle.CropName} sown {(FelderDates.Parse(cycle.PlantingDate) is { } sown ? $"on {sown.ToString("d MMM yyyy", CultureInfo.InvariantCulture)}" : $"in {Words(Month(cycle.PlantingMonth))}")}, so its figures "
-            + "come from the crop catalog, the field's climate and your soil settings (with the water and fertilizer you entered for it).", StrategyResultMapper.Warning, UnscoredCategory);
-        return cycle with { Warnings = [note.Message, .. cycle.Warnings], NoteDetails = [note, .. cycle.NoteDetails], Estimated = true };
-    }
-
-    private static StrategyCycle Cycle(PlanAuditInput input, AuditPlanting planting, AuditProfile? profile, AuditPlanting[] all, double area,
-        ref double? soilN, ref double? soilP, ref double? soilK)
+    private static StrategyCycle Cycle(PlanAuditInput input, AuditPlanting planting, AuditProfile? profile, double area)
     {
         var notes = new List<CycleNote>();
-        void Add(string importance, string category, string message) => notes.Add(new CycleNote(message, importance, category));
         var name = profile?.CropName ?? "Unknown crop";
         var plantingMonth = MonthOf(planting.PlantingDate);
         var stages = StageEnds(profile);
@@ -191,7 +164,6 @@ public static class PlanAudit
                 : planting.PlantingDate.AddDays((int)Math.Round(cycleDays)));
         var clearanceMonth = Math.Max(plantingMonth, MonthOf(clearanceDate));
         var harvests = HarvestMonths(profile, planting.PlantingDate, plantingMonth, clearanceMonth, cycleDays);
-        if (profile is null) Add(StrategyResultMapper.Warning, "data_missing", "This crop profile isn't in the catalog, so its figures can't be estimated.");
 
         // Water: the crop's need (Kc × ET0) each month against the rain that reaches the roots plus what the soil holds.
         var monthly = new List<MonthlyWater>();
@@ -216,49 +188,13 @@ public static class PlanAudit
                 monthly.Add(new MonthlyWater(Text(month), Math.Round(irrigationPerMonth, 2), etc));
             }
         }
-        else Add(StrategyResultMapper.Warning, "data_missing", "The field's climate normals couldn't be read, so the water balance is left out.");
 
         // Yield from the FAO-33 water response: Ya/Ym = 1 − Ky (1 − ETa/ETc).
         var ky = need > 0 ? weightedKy / need : 1;
         var waterShare = need > 0 ? Math.Clamp((need - deficit) / need, 0, 1) : 1;
         var yieldFactor = Math.Clamp(1 - (ky <= 0 ? 1 : ky) * (1 - waterShare), 0, 1);
-        var irrigated = irrigation > 0 ? $"With the {Mm(irrigation)} of irrigation in the plan, it is still {Mm(deficit)} short" : "The plan has no irrigation";
-        if (need > 0 && 1 - waterShare >= 0.25)
-            Add(StrategyResultMapper.Risk, "drought", $"Drought: {WaterBalance(name, plantingMonth, clearanceMonth, need, deficit, irrigation)} {irrigated}, so expect about {Percent(1 - yieldFactor)} less harvest.");
-        else if (need > 0 && 1 - waterShare >= 0.08)
-            Add(StrategyResultMapper.Warning, "drought", $"Moisture deficit: {WaterBalance(name, plantingMonth, clearanceMonth, need, deficit, irrigation)} {irrigated}, so the harvest may be about {Percent(1 - yieldFactor)} smaller.");
-        if (input.Field.DroughtLevel == FieldConditions.DroughtProne && need > 0)
-            Add(StrategyResultMapper.Warning, "drought", "You marked this field as drought-prone: its soil holds little water between rains.");
 
-        // Sowing month against the frost and heat the first stage survives.
-        if (input.Climate is { Count: 12 } normalsByMonth && profile?.Stages is { Count: > 0 } profileStages)
-        {
-            var sowing = normalsByMonth[plantingMonth % 12];
-            var firstStage = profileStages[0];
-            if (firstStage.AbsoluteMinTempC is { } coldest && sowing.MinTempC < coldest)
-                Add(StrategyResultMapper.Risk, "sowing", $"Sowing month: nights in {Words(plantingMonth)} average {sowing.MinTempC:0.#} °C, colder than the {coldest:0.#} °C {name} seedlings survive.");
-            if (firstStage.AbsoluteMaxTempC is { } hottest && sowing.MaxTempC > hottest)
-                Add(StrategyResultMapper.Risk, "sowing", $"Sowing month: days in {Words(plantingMonth)} average {sowing.MaxTempC:0.#} °C, hotter than the {hottest:0.#} °C {name} seedlings stand.");
-        }
-
-        // Rotation: the crop sown too soon after itself or a crop that shares its diseases, or on a field still taken.
-        if (profile is not null)
-            foreach (var earlier in all.TakeWhile(other => !ReferenceEquals(other, planting)))
-            {
-                var previous = input.Profiles.GetValueOrDefault(earlier.CropProfileId);
-                if (previous is null) continue;
-                var previousEnd = earlier.HarvestingDate ?? earlier.PlantingDate.AddDays((int)Math.Round(StageEnds(previous) is { Count: > 0 } ends ? ends[^1].End : DefaultCycleDays));
-                if (previousEnd >= planting.PlantingDate && earlier.HarvestingDate is not null)
-                    Add(StrategyResultMapper.Risk, "rotation", $"Overlap: the {name} is sown on {planting.PlantingDate:yyyy-MM-dd}, before the {previous.CropName} is cleared on {previousEnd:yyyy-MM-dd}.");
-                if (!input.RotationGaps.TryGetValue((profile.CropId, previous.CropId), out var minGap)) continue;
-                var gap = plantingMonth - MonthOf(previousEnd);
-                if (gap < minGap)
-                    Add(StrategyResultMapper.Risk, "rotation", previous.CropId == profile.CropId
-                        ? $"Crop rotation: {name} comes back after {Math.Max(gap, 0)} months. Leave at least {minGap} months before growing it again."
-                        : $"Crop rotation: {name} follows {previous.CropName} after {Math.Max(gap, 0)} months. They share pests and diseases, so leave at least {minGap} months.");
-            }
-
-        // Nutrients: what the harvests take off, against legume fixation; nothing is applied in the plan as scored.
+        // Nutrients: what the harvests take off, against legume fixation and the farmer's fertilizer.
         var tonsPerHa = (profile?.YieldTonsPerHa ?? 0) * yieldFactor;
         var harvestCount = Math.Max(1, harvests.Length);
         var removal = profile?.RemovalPerTon;
@@ -266,8 +202,6 @@ public static class PlanAudit
         var removedP = removal is { } r2 ? Math.Round(r2.P2O5 * P2O5ToP * tonsPerHa * harvestCount, 1) : 0;
         var removedK = removal is { } r3 ? Math.Round(r3.K2O * K2OToK * tonsPerHa * harvestCount, 1) : 0;
         var fixedN = Math.Round((profile?.NitrogenFixedKgPerHa ?? 0) * (profile?.IsPerennial == true ? harvestCount : 1), 1);
-        if (profile is not null && removal is null)
-            Add(StrategyResultMapper.Warning, "data_missing", $"The catalog has no nutrient removal figures for {name}.");
         var needN = Math.Max(0, removedN - fixedN);
         // The farmer's own fertilizer, in pure N, P and K kg/ha from the product's label content.
         var fertilizer = planting.Fertilizer;
@@ -279,24 +213,23 @@ public static class PlanAudit
             var nitrogen = fixedN > 0 ? $"{needN:0} kg N (after the {fixedN:0} kg N it fixes from the air)" : $"{needN:0} kg N";
             var shortN = Math.Max(0, needN - appliedN); var shortP = Math.Max(0, removedP - appliedP); var shortK = Math.Max(0, removedK - appliedK);
             var gaps = new[] { (shortN, "N"), (shortP, "P"), (shortK, "K") }.Where(gap => gap.Item1 >= 1).Select(gap => $"{gap.Item1:0} kg {gap.Item2}").ToArray();
-            Add(StrategyResultMapper.Info, "nutrients", $"Fertilizer: the plan's {fertilizer.RateKgHa:0} kg/ha of fertilizer adds about {appliedN:0} kg N, {appliedP:0} kg P and {appliedK:0} kg K per hectare. "
+            notes.Add(new CycleNote($"Fertilizer: the plan's {fertilizer.RateKgHa:0} kg/ha of fertilizer adds about {appliedN:0} kg N, {appliedP:0} kg P and {appliedK:0} kg K per hectare. "
                 + $"The expected {name} harvest ({tonsPerHa * harvestCount:0.#} t/ha) takes off about {nitrogen}, {removedP:0} kg P and {removedK:0} kg K, "
                 + (gaps.Length > 0 ? $"so each hectare is still short of about {string.Join(", ", gaps)}." : "so the fertilizer puts it all back.")
-                + " These are pure nutrients, as in the N-P-K balance.");
+                + " These are pure nutrients, as in the N-P-K balance.", StrategyResultMapper.Info, "nutrients"));
         }
         else if (needN + removedP + removedK > 0)
         {
             // Pure N, P and K, the units of the crop's N-P-K balance, so the two can be read side by side.
             var nitrogen = fixedN > 0 ? $"{needN:0} kg N (after the {fixedN:0} kg N it fixes from the air)" : $"{needN:0} kg N";
-            Add(StrategyResultMapper.Info, "nutrients", $"Fertilizer need: the plan adds no fertilizer. The expected {name} harvest "
+            notes.Add(new CycleNote($"Fertilizer need: the plan adds no fertilizer. The expected {name} harvest "
                 + $"({tonsPerHa * harvestCount:0.#} t/ha) takes nutrients off the field. To put them back, each hectare would need about {nitrogen}, "
-                + $"{removedP:0} kg P and {removedK:0} kg K. These are pure nutrients, as in the N-P-K balance, from the crop catalog's removal per tonne of harvest.");
+                + $"{removedP:0} kg P and {removedK:0} kg K. These are pure nutrients, as in the N-P-K balance, from the crop catalog's removal per tonne of harvest.",
+                StrategyResultMapper.Info, "nutrients"));
         }
-        Deplete(ref soilN, appliedN + fixedN - removedN, "nitrogen", "N", name, notes);
-        Deplete(ref soilP, appliedP - removedP, "phosphorus", "P", name, notes);
-        Deplete(ref soilK, appliedK - removedK, "potassium", "K", name, notes);
 
-        // Money over the whole field: product sold at the catalog price, seed and base operating costs.
+        // Money over the whole field: product sold at the catalog price, seed and base operating costs. A figure the catalog
+        // lacks a price for is left out.
         decimal revenue = 0, seed = 0;
         if (profile is not null && area > 0)
         {
@@ -304,24 +237,17 @@ public static class PlanAudit
             {
                 foreach (var harvest in harvests.DefaultIfEmpty(clearanceMonth))
                 {
-                    if (Price(input.Prices, product, harvest / 12) is { } cents) revenue += (decimal)(tonsPerHa * area) * cents / 100m;
-                    else { Add(StrategyResultMapper.Warning, "data_missing", $"No market price for the {name} harvest, so its revenue is left out."); break; }
+                    if (Price(input.Prices, product, harvest / 12) is not { } cents) break;
+                    revenue += (decimal)(tonsPerHa * area) * cents / 100m;
                 }
             }
-            else if (profile.YieldTonsPerHa is null) Add(StrategyResultMapper.Warning, "data_missing", $"The catalog has no expected yield for {name}, so its revenue is left out.");
-            else if (profile.ProductId is null) Add(StrategyResultMapper.Warning, "data_missing", $"The catalog has no product to sell for {name}, so its revenue is left out.");
-            if (profile.PlantingMaterialId is { } material && profile.PlantingRateKgPerHa is { } rate && rate > 0)
-            {
-                if (Price(input.Prices, material, plantingMonth / 12) is { } cents) seed = (decimal)(rate * area / 1000) * cents / 100m;
-                else Add(StrategyResultMapper.Warning, "data_missing", $"No price for {name} seed, so its cost is left out.");
-            }
+            if (profile.PlantingMaterialId is { } material && profile.PlantingRateKgPerHa is { } rate && rate > 0
+                && Price(input.Prices, material, plantingMonth / 12) is { } seedCents)
+                seed = (decimal)(rate * area / 1000) * seedCents / 100m;
         }
         decimal fertilizerCost = 0;
-        if (fertilizer is not null && area > 0)
-        {
-            if (Price(input.Prices, fertilizer.MaterialId, plantingMonth / 12) is { } cents) fertilizerCost = Math.Round((decimal)(fertilizer.RateKgHa * area / 1000) * cents / 100m, 2);
-            else Add(StrategyResultMapper.Warning, "data_missing", $"No price for the fertilizer on the {name}, so its cost is left out.");
-        }
+        if (fertilizer is not null && area > 0 && Price(input.Prices, fertilizer.MaterialId, plantingMonth / 12) is { } fertilizerCents)
+            fertilizerCost = Math.Round((decimal)(fertilizer.RateKgHa * area / 1000) * fertilizerCents / 100m, 2);
         decimal? operating = null;
         if (profile is not null && area > 0 && input.OpexCentsPerHa.GetValueOrDefault(profile.Id) is { Count: > 0 } rates)
         {
@@ -331,24 +257,12 @@ public static class PlanAudit
         revenue = Math.Round(revenue, 2);
         seed = Math.Round(seed, 2);
         var costs = seed + fertilizerCost + (operating ?? 0);
-        string[] Of(string importance) => notes.Where(note => note.Importance == importance).Select(note => note.Message).Distinct().ToArray();
         return new StrategyCycle(profile?.Id ?? planting.CropProfileId, profile?.CropId ?? 0, name, profile?.SystemName ?? "", Text(plantingMonth), Text(clearanceMonth),
-            harvests.Select(Text).ToArray(), revenue, costs, Math.Round(yieldFactor * 100, 1), Math.Round(irrigation, 1), Of(StrategyResultMapper.Info),
-            new CycleNutrients(appliedN, fixedN, removedN, appliedP, removedP, appliedK, removedK), Of(StrategyResultMapper.Risk), Of(StrategyResultMapper.Warning),
+            harvests.Select(Text).ToArray(), revenue, costs, Math.Round(yieldFactor * 100, 1), Math.Round(irrigation, 1), notes.Select(note => note.Message).Distinct().ToArray(),
+            new CycleNutrients(appliedN, fixedN, removedN, appliedP, removedP, appliedK, removedK), [], [],
             [.. monthly], [.. notes], fertilizer is null ? null : new CycleFertilizer(fertilizer.MaterialId.ToString(CultureInfo.InvariantCulture), fertilizer.Name, [], fertilizer.RateKgHa),
             operating, new CostBreakdown(operating ?? 0, seed, 0, fertilizerCost),
             PlantingDate: Day(planting.PlantingDate), ClearanceDate: planting.HarvestingDate is { } harvested ? Day(harvested) : null);
-    }
-
-    /// <summary>Carries the soil's stock of one nutrient on; a risk once a soil test's stock runs out.</summary>
-    private static void Deplete(ref double? stock, double change, string nutrient, string symbol, string crop, List<CycleNote> notes)
-    {
-        if (stock is not { } before) return;
-        var after = before + change;
-        if (before >= 0 && after < 0)
-            notes.Add(new CycleNote($"Soil depletion: by the end of the {crop}, the plan's harvests have taken {-after:0} kg/ha more {nutrient} ({symbol}) than your soil test recorded, and no fertilizer puts it back.",
-                StrategyResultMapper.Risk, "soil_health"));
-        stock = after;
     }
 
     /// <summary>Each stage's typical last day after planting (the middle of its window), never earlier than the stage before.</summary>
@@ -445,17 +359,4 @@ public static class PlanAudit
     private static string Day(DateOnly date) => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
     private static int MonthOf(DateOnly date) => date.Year * 12 + date.Month - 1;
     private static string Text(int month) => $"{month / 12:D4}-{month % 12 + 1:D2}";
-    private static string Words(int month) => new DateOnly(month / 12, month % 12 + 1, 1).ToString("MMM yyyy", CultureInfo.InvariantCulture);
-    private static string Mm(double value) => $"{Math.Round(value):0} mm";
-
-    /// <summary>
-    /// What a crop needs in water against what an average year gives it, and where both come from: the need is the crop's
-    /// evaporation (its stage coefficient × the field's reference evaporation), the supply is the field's ten-year average
-    /// rain that reaches the roots plus the water the soil stores.
-    /// </summary>
-    private static string WaterBalance(string name, int from, int to, double need, double deficit, double irrigation) =>
-        $"from {Words(from)} to {Words(to)} the {name} needs about {Mm(need)} of water. In an average year (the field's ten-year average weather), "
-        + $"rain plus the water stored in the soil covers about {Mm(Math.Max(0, need - deficit - irrigation))}"
-        + (irrigation > 0 ? "." : $", leaving it {Mm(deficit)} short.");
-    private static string Percent(double share) => $"{Math.Round(share * 100):0}%";
 }

@@ -87,7 +87,7 @@ export function FieldInspector({ field, fields, plantings: all, crops, busy, err
         {tool('Rename', <PencilLine size={16} />, () => { setDescribing(false); setRenaming(!renaming) }, { pressed: renaming })}
         {tool('Boundary', <Spline size={16} />, () => onEditBoundary(field), { title: 'Drag the corners on the map to reshape the field' })}
         {tool('Soil & climate', <Droplets size={16} />, () => { setRenaming(false); setDescribing(!describing) },
-          { pressed: describing, title: 'Drought risk, soil texture and drainage used by strategies' })}
+          { pressed: describing, title: 'Drought risk, soil texture and drainage used by the planner' })}
         {!parent && tool('Subfield', <SquareSplitHorizontal size={16} />, () => onAddSubfield(field), { title: 'Draw a smaller area inside this field to manage separately' })}
         <button type="button" className="inspector-tool is-danger" disabled={busy} aria-label={`Delete ${field.name}`} title="Delete field"
           onClick={() => setConfirmDelete(true)}><Trash2 size={16} /><span aria-hidden="true">Delete</span></button>
@@ -101,14 +101,14 @@ export function FieldInspector({ field, fields, plantings: all, crops, busy, err
           ? <ConditionsForm field={field} busy={busy} onCancel={() => setDescribing(false)}
               onSave={async conditions => { if (await onSaveConditions(field, conditions)) setDescribing(false) }} />
           : <p className={`inspector-conditions ${known ? '' : 'is-empty'}`}><Droplets size={13} aria-hidden="true" />
-              {known || 'Soil and drought risk not set. Strategies use an estimate.'}</p>}
+              {known || 'Soil and drought risk not set. Suggested plans use an estimate.'}</p>}
         {error && <p className="field-error" role="alert">{error}</p>}
         {!editing && <CropTimeline field={field} plantings={plantings} crops={crops} disabled={busy} />}
       </div>
 
       {!editing && <footer className="inspector-foot">
         <button type="button" className="button button-dark inspector-plan" disabled={busy || crops.length === 0} onClick={() => setPlanField(field.id)}>
-          <LayoutList size={16} />Plan &amp; strategies</button>
+          <LayoutList size={16} />Plan &amp; suggestions</button>
       </footer>}
     </div>
 
@@ -133,7 +133,7 @@ function DeleteFieldDialog({ field, subfields, crops, onDelete, onClose }: {
   const losses = [
     subfields.length > 0 && count(subfields.length, 'subfield', 'subfields'),
     crops > 0 && `${count(crops, 'crop', 'crops')} in the crop plan and history`,
-    strategies > 0 && count(strategies, 'saved strategy', 'saved strategies'),
+    strategies > 0 && count(strategies, 'saved plan', 'saved plans'),
   ].filter((item): item is string => Boolean(item))
   async function confirm() {
     setPending(true); setError('')
@@ -145,7 +145,7 @@ function DeleteFieldDialog({ field, subfields, crops, onDelete, onClose }: {
     busy={pending} error={error} onConfirm={() => void confirm()} onCancel={onClose}>
     <p>Its boundary is removed from the farm{losses.length ? ', and these are deleted with it:' : '.'}</p>
     {losses.length > 0 && <ul>{losses.map(item => <li key={item}>{item}</li>)}</ul>}
-    <p>Every plan and strategy for {subfields.length ? 'the field and its subfields' : 'this field'} is deleted too.
+    <p>Every crop plan and saved plan for {subfields.length ? 'the field and its subfields' : 'this field'} is deleted too.
       Expenses booked to it stay in the ledger without a field. This can’t be undone.</p>
   </ConfirmDialog>
 }
@@ -158,7 +158,7 @@ function ConditionsForm({ field, busy, onSave, onCancel }: { field: Field; busy:
   }
   return <form className="field-conditions-form" onSubmit={submit} aria-label={`Soil and climate of ${field.name}`}
     onKeyDown={event => { if (event.key === 'Escape' && !busy) onCancel() }}>
-    <p className="field-conditions-note">Strategies use these instead of the estimated soil. Leave “Not sure” if you don’t know.</p>
+    <p className="field-conditions-note">Suggested plans use these instead of the estimated soil. Leave “Not sure” if you don’t know.</p>
     <FieldConditionsFields value={conditions} disabled={busy} onChange={setConditions} />
     <div className="field-actions">
       <button type="submit" className="button button-dark" disabled={busy}>{busy && <TractorSpinner size={15} />}Save</button>

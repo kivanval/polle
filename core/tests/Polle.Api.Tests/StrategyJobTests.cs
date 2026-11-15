@@ -74,12 +74,12 @@ public sealed class StrategyJobTests
             StrategyJobs.Plan(hasBaseline: true, [new("medium"), new("custom-000-ter-off")], Now).Select(job => job.Key));
 
     [Fact]
-    public void PollsAJobAtMostEveryTwoSeconds()
+    public void PollsAJobAtMostEverySecond()
     {
         var job = Job("bold-irrigated");
-        job.UpdatedAtUtc = Now.AddSeconds(-1);
+        job.UpdatedAtUtc = Now.AddMilliseconds(-500);
         Assert.False(StrategyJobs.DueForPoll(job, Now));
-        job.UpdatedAtUtc = Now.AddSeconds(-3);
+        job.UpdatedAtUtc = Now.AddSeconds(-1);
         Assert.True(StrategyJobs.DueForPoll(job, Now));
         job.State = StrategyJobs.Ready;
         Assert.False(StrategyJobs.DueForPoll(job, Now));

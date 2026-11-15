@@ -28,14 +28,14 @@ describe('FieldInspector', () => {
     expect(html).toContain('aria-label="Delete North field"')
   })
 
-  it('names the field, its area and how to close it, with Plan & strategies at the foot', () => {
+  it('names the field, its area and how to close it, with Plan & suggestions at the foot', () => {
     const html = inspector()
     expect(html).toContain('id="field-inspector"')
     expect(html).toContain('>North field</h2>')
     expect(html).toContain('aria-label="Close field"')
     expect(text(html)).toMatch(/Area\s+12(\.0)? ha/)
     expect(html.indexOf('inspector-foot')).toBeGreaterThan(html.indexOf('inspector-toolbar'))
-    expect(text(html)).toContain('Plan & strategies')
+    expect(text(html)).toContain('Plan & suggestions')
   })
 
   it('offers no subfield of a subfield and links back to its field', () => {
@@ -58,6 +58,6 @@ describe('FieldList', () => {
       busy={false} onSelect={noop} onHover={noop} />)
     expect(html).toContain('North field')
     expect(html).toContain('aria-controls="field-inspector"')
-    for (const action of ['Rename', 'Edit Boundary', 'Soil &amp; climate', 'Add subfield', 'Plan &amp; strategies']) expect(html).not.toContain(action)
+    for (const action of ['Rename', 'Edit Boundary', 'Soil &amp; climate', 'Add subfield', 'Plan &amp; suggestions']) expect(html).not.toContain(action)
   })
 })

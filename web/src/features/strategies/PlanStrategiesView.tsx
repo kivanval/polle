@@ -14,11 +14,12 @@ import { BASELINE_KEY, useApplyStrategy, useDeleteStrategy, useRetryJob, useSave
 import { useAuth } from '@/features/auth/useAuth'
 import { DEFAULT_CHOICES, choiceCount, readChoices, requestChoices, writeChoices, type ChoiceState } from './choices'
 import { StrategyChoicesDialog } from './StrategyChoicesDialog'
-import { arrangeCards, badges, combineRuns, deltas, groupJobs, hasFigures, plannedLane, sortCards, strategyLane, type SortKey } from './compare'
+import { arrangeCards, badges, combineRuns, deltas, evaluationOutdated, groupJobs, hasFigures, planFingerprint, plannedLane, sortCards, strategyLane, type SortKey } from './compare'
 import { defaultHorizon, monthText, NO_SOIL_MESSAGE, signedMoney } from './format'
 import { StrategyCard } from './StrategyCard'
 import { StrategyDetails } from './StrategyDetails'
 import { MonthField } from './MonthField'
+import { MonthsMismatch } from './MonthsMismatch'
 import { PlanningActions } from './PlanningActions'
 import { forgetLastPlanRun, forgetLastRun, readLastPlanRun, readLastRun, rememberLastPlanRun, rememberLastRun } from './lastRun'
 import '@/styles/strategies.css'
@@ -154,8 +155,18 @@ export function PlanStrategiesView({ field, plantings, crops, onClose, openSaved
 
   // The plan's card (from "Evaluate my plan") and the strategies (from "Suggest strategies"), compared when both are there
   // for the same months; strategies are compared only with a plan the solver scored, an unscored one still gets its card.
-  const { planJob, planRun: planSource, strategyJobs, baseline, otherMonths } = combineRuns(planRun.data, run.data)
+  const { planJob, planRun: planSource, strategyJobs, baseline: scoredBaseline, otherMonths } = combineRuns(planRun.data, run.data)
   const hasStrategies = strategyJobs.length > 0
+  // The crops as they were when this evaluation first showed here: removing a crop leaves no newer timestamp behind.
+  const fingerprint = planFingerprint(plantings)
+  const planSourceId = planSource?.id ?? null
+  const [evaluatedPlan, setEvaluatedPlan] = useState({ runId: planSourceId, fingerprint })
+  if (evaluatedPlan.runId !== planSourceId) setEvaluatedPlan({ runId: planSourceId, fingerprint })
+  // A plan never evaluated, or changed since its evaluation (e.g. by "Use this plan"), isn't compared: its score is old,
+  // so no card or saved plan shows a difference with it until the plan is evaluated again.
+  const outdated = evaluationOutdated(planSource, plantings) || (evaluatedPlan.runId === planSourceId && evaluatedPlan.fingerprint !== fingerprint)
+  const notEvaluated = hasStrategies && (!planJob || outdated)
+  const baseline = outdated ? null : scoredBaseline
   const ready = strategyJobs.filter(job => job.state !== 'processing').length
   const evaluating = planJob?.state === 'processing'
   // Strategies that land on the same plan show as one card, listing the others as its variations.
@@ -189,6 +200,10 @@ export function PlanStrategiesView({ field, plantings, crops, onClose, openSaved
     try { await save.mutateAsync({ runId, jobKey: key, planRunId: comparedPlanRunId }) } catch (reason) { setError(problemMessage(reason)) }
   }
 
+  /** The current plan's score a saved plan is measured against: only an up-to-date evaluation over the same months. */
+  const savedBaseline = (item: SavedStrategy) =>
+    baseline && planSource?.startMonth === item.startMonth && planSource.endMonth === item.endMonth ? baseline : null
+
   const savedDetails = (item: SavedStrategy, confirming = false): Details | null => item.result
     ? { name: item.name, result: item.result, baseline: item.baseline, range: yearsRange(item.startMonth, item.endMonth), startMonth: item.startMonth, endMonth: item.endMonth, savedId: item.id, confirming } : null
 
@@ -216,23 +231,23 @@ export function PlanStrategiesView({ field, plantings, crops, onClose, openSaved
 
   return <section ref={panel} className="strategy-view" role="dialog" aria-modal="true" aria-labelledby="strategy-view-title" onKeyDown={trapTab}>
     <header className="strategy-view-head">
-      <div><span className="strategy-kicker">Plan &amp; strategies</span><h2 id="strategy-view-title">{field.name}</h2></div>
-      <button type="button" className="button button-quiet button-icon" aria-label="Close plan and strategies" onClick={onClose}><X size={16} /></button>
+      <div><span className="strategy-kicker">Plan &amp; suggestions</span><h2 id="strategy-view-title">{field.name}</h2></div>
+      <button type="button" className="button button-quiet button-icon" aria-label="Close plan and suggestions" onClick={onClose}><X size={16} /></button>
     </header>
 
     <div className="strategy-view-body">
-      <ErrorBoundary label="the plan and strategies" resetKey={`${planRunId}|${runId}`} className="strategy-block">
+      <ErrorBoundary label="the plan and suggestions" resetKey={`${planRunId}|${runId}`} className="strategy-block">
       <section className="strategy-block">
         <CropTimeline field={field} plantings={plantings} crops={crops} disabled={false} title="Your crop plan" layout="rows" />
         {notice && <p className="strategy-success" role="status">{notice}</p>}
       </section>
 
       <section className="strategy-block" aria-labelledby="saved-strategies">
-        <h3 id="saved-strategies"><span>Saved strategies</span>{saved.data?.length ? <span className="strategy-count"> ({saved.data.length})</span> : null}</h3>
-        {saved.isPending ? <p className="strategy-note">Loading saved strategies…</p>
-          : !saved.data?.length ? <p className="strategy-empty">No saved strategies yet. Suggest strategies to compare options for this field.</p>
+        <h3 id="saved-strategies"><span>Saved plans</span>{saved.data?.length ? <span className="strategy-count"> ({saved.data.length})</span> : null}</h3>
+        {saved.isPending ? <p className="strategy-note">Loading saved plans…</p>
+          : !saved.data?.length ? <p className="strategy-empty">No saved plans yet. Suggest plans to compare options for this field.</p>
           : <ul className="strategy-saved-list">{saved.data.map(item => {
-              const change = item.result && item.baseline ? deltas(item.result, item.baseline) : null
+              const change = item.result ? deltas(item.result, savedBaseline(item)) : null
               const open = savedDetails(item)
               return <li key={item.id}>
                 <div><strong>{item.name}</strong><span className="strategy-note">{`${monthText(item.startMonth)} – ${monthText(item.endMonth)}`}</span></div>
@@ -243,7 +258,7 @@ export function PlanStrategiesView({ field, plantings, crops, onClose, openSaved
                   {change?.profit != null && <span className={`mono ${change.profit >= 0 ? 'is-good' : 'is-bad'}`}>{signedMoney(change.profit)}</span>}
                   {open && <button type="button" className="button button-quiet" onClick={() => setDetails(savedDetails(item, true))}><CalendarCheck size={14} /><span>Use this plan</span></button>}
                   {open && <button type="button" className="button button-quiet" onClick={() => setDetails(open)}><Maximize2 size={14} /><span>Details</span></button>}
-                  <button type="button" className="button button-quiet button-icon" aria-label={`Delete ${item.name}`} title="Delete saved strategy"
+                  <button type="button" className="button button-quiet button-icon" aria-label={`Delete ${item.name}`} title="Delete saved plan"
                     disabled={remove.isPending} onClick={() => void remove.mutateAsync(item.id).catch(reason => setError(problemMessage(reason)))}><Trash2 size={14} /></button>
                 </div>
               </li>
@@ -257,7 +272,7 @@ export function PlanStrategiesView({ field, plantings, crops, onClose, openSaved
           <MonthField id="horizon-to" label="To" value={horizon.endMonth} onChange={value => setHorizon({ ...horizon, endMonth: value })} />
           <PlanningActions disabled={start.isPending || !field.soilAvailable || !userId} describedBy={field.soilAvailable ? undefined : 'strategy-no-soil'}
             suggesting={start.isPending && !scoringPlan} evaluating={scoringPlan} customizing={customizing}
-            choiceLabel={!presets.data || !userId ? null : choices.presets === null && !choices.custom.length ? `${presetKeys.length} presets` : `${choiceCount(choices, presetKeys)} chosen strategies`}
+            choiceLabel={!presets.data || !userId ? null : choices.presets === null && !choices.custom.length ? `${presetKeys.length} presets` : `${choiceCount(choices, presetKeys)} chosen plans`}
             onEvaluate={() => void scorePlan()} onCustomize={() => userId && setCustomizing(true)} />
         </form>
         {customizing && <StrategyChoicesDialog presets={presets.data ?? []} loading={presets.isPending} choices={choices}
@@ -268,7 +283,7 @@ export function PlanStrategiesView({ field, plantings, crops, onClose, openSaved
         {/* A failed check of a run already on screen keeps its cards and polling; only a run that never loaded gets the alert. */}
         {run.error && !runGone && !run.data && <p className="field-error" role="alert">{problemMessage(run.error)}</p>}
         {planRun.error && !planGone && !planRun.data && <p className="field-error" role="alert">{problemMessage(planRun.error)}</p>}
-        {((runId && run.isPending) || (planRunId && planRun.isPending)) && <p className="strategy-note" role="status">Loading your last strategies…</p>}
+        {((runId && run.isPending) || (planRunId && planRun.isPending)) && <p className="strategy-note" role="status">Loading your last plans…</p>}
 
         {(hasStrategies || planJob) && <>
           {/* The plan's evaluation and the strategies run apart, so each has its own status line and tractor. Whole sentences
@@ -281,25 +296,23 @@ export function PlanStrategiesView({ field, plantings, crops, onClose, openSaved
                 : <span key="evaluated"><strong>Your plan is evaluated.</strong></span>}
               {planRun.error && !planGone && evaluating && <span key="stale" className="strategy-note">Couldn’t check on your plan just now. Trying again.</span>}
             </div>}
-            {hasStrategies && <div className="strategy-progress" role="status" aria-live="polite" aria-label="Strategies">
+            {hasStrategies && <div className="strategy-progress" role="status" aria-live="polite" aria-label="Suggested plans">
               {ready < strategyJobs.length && <TractorLoader compact />}
               {ready < strategyJobs.length
-                ? <span key="preparing"><strong>{`Preparing strategies, ${ready} of ${strategyJobs.length} ready.`}</strong> <span>Cards appear as soon as each one is ready.</span></span>
-                : <span key="done"><strong>{`${shownStrategies.length} ${shownStrategies.length === 1 ? 'strategy' : 'strategies'} to compare.`}</strong>{merged > 0 &&
-                    <span>{` ${merged} more ${merged === 1 ? 'strategy' : 'strategies'} came out the same and ${merged === 1 ? 'is' : 'are'} grouped as variations.`}</span>}</span>}
-              {run.error && !runGone && ready < strategyJobs.length && <span key="stale" className="strategy-note">Couldn’t check on the strategies just now. Trying again.</span>}
+                ? <span key="preparing"><strong>{`Preparing plans, ${ready} of ${strategyJobs.length} ready.`}</strong> <span>Cards appear as soon as each one is ready.</span></span>
+                : <span key="done"><strong>{`${shownStrategies.length} ${shownStrategies.length === 1 ? 'plan' : 'plans'} to compare.`}</strong>{merged > 0 &&
+                    <span>{` ${merged} more ${merged === 1 ? 'plan' : 'plans'} came out the same and ${merged === 1 ? 'is' : 'are'} grouped as variations.`}</span>}</span>}
+              {run.error && !runGone && ready < strategyJobs.length && <span key="stale" className="strategy-note">Couldn’t check on the suggested plans just now. Trying again.</span>}
             </div>}
           </div>
-          {hasStrategies && <div className="strategy-sort" role="group" aria-label="Sort strategies by">
+          {hasStrategies && <div className="strategy-sort" role="group" aria-label="Sort plans by">
             <span className="strategy-note">Sort by:</span>
             {SORTS.map(sort => <button key={sort.key} type="button" className={`strategy-chip ${sortBy === sort.key ? 'is-on' : ''}`} aria-pressed={sortBy === sort.key}
               onClick={() => setSortBy(sort.key)}><span>{sort.label}</span></button>)}
           </div>}
-          {(failed.length > 0 || noPlan.length > 0 || (hasStrategies && (!planJob || otherMonths))) && <div className="strategy-left-out">
-            {hasStrategies && !planJob && <p>Evaluate my plan for these months to compare it with the strategies.</p>}
-            {otherMonths && <p>{`Your plan was evaluated for ${monthText(planSource!.startMonth)} – ${monthText(planSource!.endMonth)}, the strategies for `
-              + `${monthText(run.data!.startMonth)} – ${monthText(run.data!.endMonth)}. Evaluate your plan for the same months to compare.`}</p>}
-            {noPlan.length > 0 && <p><strong>{noPlan.length === 1 ? 'This strategy doesn’t fit this field:' : 'These strategies don’t fit this field:'}</strong> <span>{noPlan.map(job => job.name).join(', ')}.</span></p>}
+          {notEvaluated ? <MonthsMismatch notEvaluated /> : otherMonths && <MonthsMismatch plan={planSource!} strategies={run.data!} />}
+          {(failed.length > 0 || noPlan.length > 0) && <div className="strategy-left-out">
+            {noPlan.length > 0 && <p><strong>{noPlan.length === 1 ? 'This plan doesn’t fit this field:' : 'These plans don’t fit this field:'}</strong> <span>{noPlan.map(job => job.name).join(', ')}.</span></p>}
             {failed.length > 0 && <p><strong>Couldn’t be prepared:</strong> <span>{failed.map(job => job.name).join(', ')}.</span>
               <button type="button" className="button button-quiet" disabled={retryingAll || retry.isPending} onClick={() => void retryAll()}>
                 {retryingAll ? <TractorSpinner size={14} /> : <RotateCcw size={14} />}<span>{failed.length === 1 ? 'Retry' : 'Retry all'}</span></button></p>}
@@ -337,7 +350,7 @@ export function PlanStrategiesView({ field, plantings, crops, onClose, openSaved
       actions={(details.savedId || (details.jobKey && details.jobKey !== BASELINE_KEY)) && <>
         {details.jobKey && !details.savedId && (savedKeys.has(details.jobKey)
           ? <span className="strategy-saved"><span>Saved</span></span>
-          : <button type="button" className="button button-quiet" disabled={save.isPending} onClick={() => void saveJob(details.jobKey!)}><span>Save strategy</span></button>)}
+          : <button type="button" className="button button-quiet" disabled={save.isPending} onClick={() => void saveJob(details.jobKey!)}><span>Save plan</span></button>)}
         {!details.confirming && <button type="button" className="button button-dark" onClick={() => setDetails({ ...details, confirming: true })}><CalendarCheck size={14} /><span>Use this plan</span></button>}
       </>} /></ErrorBoundary>}
   </section>

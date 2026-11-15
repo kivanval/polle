@@ -149,7 +149,7 @@ export function problemMessage(error: unknown, key?: string) {
   return error.message
 }
 
-export const SOLVER_UNAVAILABLE = 'The strategy solver is temporarily unavailable, so strategies can’t be calculated right now. Your fields and plans are fine. Please try again shortly.'
+export const SOLVER_UNAVAILABLE = 'The planning solver is temporarily unavailable, so plans can’t be suggested right now. Your fields and saved plans are fine. Please try again shortly.'
 export const SERVER_UNAVAILABLE = 'Our server is temporarily unavailable. Please try again shortly.'
 
 /** The API's `code` in a ProblemDetails body (solver_unavailable, database_unavailable, server_error…). */

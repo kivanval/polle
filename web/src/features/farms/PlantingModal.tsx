@@ -6,7 +6,7 @@ import type { Field } from './api'
 import { problemMessage } from './api'
 import { CropPicker } from './CropPicker'
 import { formatDate, overlaps, periodText, type Slot } from './periods'
-import { cropName, profileOf, useDeletePlanting, useFertilizers, useSavePlanting, type Crop, type Planting } from './plantings'
+import { cropName, keptTargets, profileOf, useDeletePlanting, useFertilizers, useSavePlanting, type Crop, type Planting } from './plantings'
 import { SeasonDates } from './SeasonDates'
 import '@/styles/catalog.css'
 
@@ -37,8 +37,8 @@ function seasonOf(sown: string, harvested: string, planting?: Planting) {
  * must end before the next crop starts (`slot.maxHarvest`). A crop with several growing profiles asks which one. The
  * water and fertilizer planned for the season go with the crop, and "Evaluate my plan" scores it with them.
  */
-export function PlantingModal({ field, crops, periods, planting, slot, focusHarvest, onClose }: {
-  field: Field; crops: Crop[]; periods: Planting[]; planting?: Planting; slot?: Slot; focusHarvest?: boolean; onClose: () => void
+export function PlantingModal({ field, crops, periods, planting, slot, onClose }: {
+  field: Field; crops: Crop[]; periods: Planting[]; planting?: Planting; slot?: Slot; onClose: () => void
 }) {
   const savePlanting = useSavePlanting(field.farmId)
   const deletePlanting = useDeletePlanting(field.farmId)
@@ -67,12 +67,20 @@ export function PlantingModal({ field, crops, periods, planting, slot, focusHarv
     if (values.irrigationMm.trim() && (irrigation === null || irrigation < 0 || irrigation > 5000)) { setError('Irrigation over the season must be between 0 and 5000 mm.'); return }
     if (values.fertilizerId && (rate === null || rate <= 0 || rate > 10000)) { setError('Add how many kilograms of the fertilizer go on each hectare (up to 10000).'); return }
     const clash = periods.find(other => other.id !== planting?.id && overlaps(values.plantingDate, end, other.plantingDate, other.harvestingDate))
+    // A crop left without a harvest date runs on with no end, so one sown ahead of another crop needs its harvest date.
+    if (clash && !end && clash.plantingDate > values.plantingDate) {
+      setError(`${cropName(crops, clash.cropId)} is sown on ${formatDate(clash.plantingDate)}. Add a harvest date before it.`); return
+    }
     if (clash) { setError(`These dates overlap ${cropName(crops, clash.cropId)} (${periodText(clash)}). One crop grows on a field at a time.`); return }
+    const water = irrigation && irrigation > 0 ? irrigation : null
+    const product = values.fertilizerId ? Number(values.fertilizerId) : null
     try {
       await savePlanting.mutateAsync({ fieldId: field.id, plantingId: planting?.id, input: {
         cropProfileId: values.profileId, seasonYear: seasonOf(values.plantingDate, values.harvestingDate, planting), plantingDate: values.plantingDate,
-        harvestingDate: end, notes: planting?.notes ?? null, irrigationMm: irrigation && irrigation > 0 ? irrigation : null,
-        fertilizerMaterialId: values.fertilizerId ? Number(values.fertilizerId) : null, fertilizerRateKgHa: values.fertilizerId ? rate : null } })
+        harvestingDate: end, notes: planting?.notes ?? null, irrigationMm: water,
+        fertilizerMaterialId: product, fertilizerRateKgHa: product !== null ? rate : null,
+        // A crop copied from a suggested plan keeps the plan's target levels while its water and fertilizer stay as copied.
+        ...keptTargets(planting, water, product, product !== null ? rate : null) } })
       onClose()
     } catch (reason) { setError(problemMessage(reason)) }
   }
@@ -98,7 +106,7 @@ export function PlantingModal({ field, crops, periods, planting, slot, focusHarv
     <form id={`planting-form-${id}`} className="catalog-form" onSubmit={submit} noValidate>
       <div className="catalog-field is-wide">
         <label htmlFor={`crop-${id}`}>Crop</label>
-        <CropPicker id={`crop-${id}`} crops={crops} value={crop} disabled={busy || crops.length === 0} autoFocus={!focusHarvest && !planting}
+        <CropPicker id={`crop-${id}`} crops={crops} value={crop} disabled={busy || crops.length === 0} autoFocus={!planting}
           onChange={picked => { setValues(current => ({ ...current, cropId: picked.id, profileId: picked.profiles.length === 1 ? picked.profiles[0].id : null })); setError('') }} />
       </div>
       {crop && crop.profiles.length > 1 && <div className="catalog-field is-wide">
@@ -112,7 +120,7 @@ export function PlantingModal({ field, crops, periods, planting, slot, focusHarv
       <div className="catalog-field is-wide">
         <SeasonDates id={id} sown={values.plantingDate} harvested={values.harvestingDate} maxHarvest={slot?.maxHarvest ?? null}
           occupied={periods.filter(other => other.id !== planting?.id).map(other => ({ from: other.plantingDate, to: other.harvestingDate, label: cropName(crops, other.cropId) }))}
-          disabled={busy} focusHarvest={focusHarvest}
+          disabled={busy}
           onChange={dates => { setValues(current => ({ ...current,
             ...(dates.sown !== undefined && { plantingDate: dates.sown }), ...(dates.harvested !== undefined && { harvestingDate: dates.harvested }) })); setError('') }} />
         <p className="crop-form-hint">Leave the harvest date empty while the crop is still growing.</p>

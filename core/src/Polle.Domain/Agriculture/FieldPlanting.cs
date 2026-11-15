@@ -18,6 +18,11 @@ public sealed class FieldPlanting
     // public.fertilizers product (a public.materials id) and kilograms of it per hectare over the season; both null for none.
     public long? FertilizerMaterialId { get; set; }
     public double? FertilizerRateKgHa { get; set; }
+    // The solver's target levels (0-100) a plan copied from a strategy keeps, so evaluating it repeats the strategy:
+    // how far each irrigation refills the readily available water, and the share of the nutrient deficit the fertilizer
+    // covers. Null leaves the solver's default (a full refill; the rate as given).
+    public double? IrrigationTargetPercent { get; set; }
+    public double? FertilizerTargetPercent { get; set; }
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
 }

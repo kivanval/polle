@@ -8,8 +8,8 @@ namespace Polle.Api.Features.Strategies;
 
 /// <summary>
 /// Reads what <see cref="PlanAudit"/> needs for one field: its settings and plantings, the catalog rows of their crop
-/// profiles, prices, operating costs and rotation rules, and the field's climate normals. Each catalog lookup stands
-/// alone: one that fails is logged and left empty, so the audit still answers with what it has (and says what's missing).
+/// profiles, prices and operating costs, and the field's climate normals. Each catalog lookup stands alone: one that
+/// fails is logged and left empty, so the audit still answers with what it has.
 /// </summary>
 public static class PlanAuditData
 {
@@ -17,7 +17,7 @@ public static class PlanAuditData
         CancellationToken ct, ILogger? log = null)
     {
         var field = await db.Fields.AsNoTracking().Where(item => item.Id == fieldId)
-            .Select(item => new { item.AreaHectares, item.DroughtLevel, item.InitialNKg, item.InitialPKg, item.InitialKKg, item.InitialDepletionMm,
+            .Select(item => new { item.AreaHectares, item.DroughtLevel, item.InitialDepletionMm,
                 item.Boundary, Point = item.Boundary.InteriorPoint })
             .SingleOrDefaultAsync(ct);
         if (field is null) return null;
@@ -38,7 +38,6 @@ public static class PlanAuditData
         var profiles = await ProfilesAsync(db, profileIds, ct, log);
         var materialIds = profiles.Values.SelectMany(profile => new[] { profile.ProductId, profile.PlantingMaterialId }).OfType<long>()
             .Concat(fertilizerIds).Distinct().ToArray();
-        var cropIds = profiles.Values.Select(profile => profile.CropId).Distinct().ToArray();
         var prices = await OrEmptyAsync("prices", async () => (await db.Database
                 .SqlQuery<PriceRow>($"SELECT material_id::bigint AS material_id, year::int AS year, price_cents::bigint AS cents FROM public.material_prices WHERE material_id = ANY({materialIds})")
                 .ToListAsync(ct)).GroupBy(row => row.MaterialId)
@@ -49,10 +48,6 @@ public static class PlanAuditData
                 .ToListAsync(ct)).GroupBy(row => row.ProfileId)
             .ToDictionary(group => group.Key, group => (IReadOnlyDictionary<int, long>)group.ToDictionary(row => row.Year, row => row.Cents)),
             new Dictionary<long, IReadOnlyDictionary<int, long>>(), log, ct);
-        var rotation = await OrEmptyAsync("rotation rules", async () => (await db.Database
-                .SqlQuery<RotationRow>($"SELECT crop_id::bigint AS crop_id, predecessor_crop_id::bigint AS predecessor_crop_id, min_months_gap::int AS min_months_gap FROM public.crop_rotation_rules WHERE crop_id = ANY({cropIds}) AND predecessor_crop_id = ANY({cropIds})")
-                .ToListAsync(ct)).ToDictionary(row => (row.CropId, row.PredecessorCropId), row => row.MinMonthsGap),
-            new Dictionary<(long Crop, long Predecessor), int>(), log, ct);
 
         AuditMonthClimate[]? normals = null;
         if (climate is not null && SolverRequestBuilder.HasValidFieldPoint(field.Boundary, field.Point))
@@ -65,8 +60,7 @@ public static class PlanAuditData
         }
 
         return PlanAudit.Build(new PlanAuditInput(startMonth, endMonth,
-            new AuditField(field.AreaHectares, field.DroughtLevel, field.InitialNKg, field.InitialPKg, field.InitialKKg, field.InitialDepletionMm),
-            plantings, profiles, prices, opex, rotation, normals));
+            new AuditField(field.AreaHectares, field.DroughtLevel, field.InitialDepletionMm), plantings, profiles, prices, opex, normals));
     }
 
     private static async Task<Dictionary<long, AuditProfile>> ProfilesAsync(AppDbContext db, long[] ids, CancellationToken ct, ILogger? log)
@@ -114,7 +108,6 @@ public static class PlanAuditData
     // Columns named as the snake_case convention maps these properties, or EF can't read them.
     private sealed record PriceRow(long MaterialId, int Year, long Cents);
     private sealed record OpexRow(long ProfileId, int Year, long Cents);
-    private sealed record RotationRow(long CropId, long PredecessorCropId, int MinMonthsGap);
     private sealed record ProfileRow(long ProfileId, double? YieldTons, double? PlantingRate, long? ProductId, long? PlantingMaterialId,
         double? NRemoval, double? PRemoval, double? KRemoval, double? NFixation);
     private sealed record StageRow(long ProfileId, int SequenceOrder, string Category, int MinDays, int MaxDays, double Kc, double Ky, double? MinTemp, double? MaxTemp);

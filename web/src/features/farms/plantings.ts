@@ -20,11 +20,33 @@ export type PlantingInput = {
   /** A product from GET /api/fertilizers and kilograms of it per hectare over the season; both null for none. */
   fertilizerMaterialId?: number | null
   fertilizerRateKgHa?: number | null
+  /**
+   * The solver's target levels a crop copied from a suggested plan keeps (0-100): how far each irrigation refills the
+   * root-zone water, and the share of the nutrient shortfall the fertilizer covers. Null leaves the solver's default.
+   */
+  irrigationTargetPercent?: number | null
+  fertilizerTargetPercent?: number | null
 }
 
-export type Planting = Omit<PlantingInput, 'harvestingDate' | 'notes' | 'irrigationMm' | 'fertilizerMaterialId' | 'fertilizerRateKgHa'> & {
+/**
+ * The target levels a saved crop keeps through an edit: the irrigation level while its water stays the same, the
+ * fertilizer level while its product and rate stay the same. A changed or removed input drops its level, since the
+ * level belonged to the amount the solver chose.
+ */
+export function keptTargets(planting: Planting | undefined, irrigationMm: number | null, fertilizerMaterialId: number | null,
+  fertilizerRateKgHa: number | null): Pick<PlantingInput, 'irrigationTargetPercent' | 'fertilizerTargetPercent'> {
+  const sameWater = irrigationMm !== null && irrigationMm === (planting?.irrigationMm ?? null)
+  const sameFertilizer = fertilizerMaterialId !== null && fertilizerMaterialId === (planting?.fertilizerMaterialId ?? null)
+    && fertilizerRateKgHa === (planting?.fertilizerRateKgHa ?? null)
+  return { irrigationTargetPercent: sameWater ? planting?.irrigationTargetPercent ?? null : null,
+    fertilizerTargetPercent: sameFertilizer ? planting?.fertilizerTargetPercent ?? null : null }
+}
+
+export type Planting = Omit<PlantingInput, 'harvestingDate' | 'notes' | 'irrigationMm' | 'fertilizerMaterialId' | 'fertilizerRateKgHa'
+  | 'irrigationTargetPercent' | 'fertilizerTargetPercent'> & {
   /** Absent from an API older than these fields. */
   irrigationMm?: number | null; fertilizerMaterialId?: number | null; fertilizerRateKgHa?: number | null
+  irrigationTargetPercent?: number | null; fertilizerTargetPercent?: number | null
   id: string
   cropId: number // The profile's crop.
   fieldId: string

@@ -365,7 +365,7 @@ function NameFieldForm({ hectares: area, corners, suggestion, parent, onSave, on
     {error && <p id="new-field-error" className="field-error" role="alert">{error}</p>}
     <details className="field-conditions-panel">
       <summary>Soil &amp; climate <span>(optional)</span></summary>
-      <p className="field-conditions-note">Strategies use these instead of the estimated soil. Leave “Not sure” if you don’t know.</p>
+      <p className="field-conditions-note">Suggested plans use these instead of the estimated soil. Leave “Not sure” if you don’t know.</p>
       <FieldConditionsFields value={conditions} disabled={pending} onChange={setConditions} />
     </details>
     <div className="field-actions">

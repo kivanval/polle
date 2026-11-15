@@ -49,7 +49,7 @@ namespace Polle.Infrastructure.Persistence.Migrations
 
                     b.ToTable((string)null);
 
-                    b.ToSqlQuery("SELECT id, coalesce(name->>'en', scientific_name, id::text) AS name, name->>'uk' AS name_uk, scientific_name\nFROM public.crops");
+                    b.ToSqlQuery("SELECT id, coalesce(name->>'en', scientific_name, id::text) AS name, name->>'uk' AS name_uk, scientific_name\r\nFROM public.crops");
                 });
 
             modelBuilder.Entity("Polle.Domain.Agriculture.CropProfile", b =>
@@ -723,6 +723,10 @@ namespace Polle.Infrastructure.Persistence.Migrations
                         .HasColumnType("double precision")
                         .HasColumnName("fertilizer_rate_kg_ha");
 
+                    b.Property<double?>("FertilizerTargetPercent")
+                        .HasColumnType("double precision")
+                        .HasColumnName("fertilizer_target_percent");
+
                     b.Property<Guid>("FieldId")
                         .HasColumnType("uuid")
                         .HasColumnName("field_id");
@@ -734,6 +738,10 @@ namespace Polle.Infrastructure.Persistence.Migrations
                     b.Property<double?>("IrrigationMm")
                         .HasColumnType("double precision")
                         .HasColumnName("irrigation_mm");
+
+                    b.Property<double?>("IrrigationTargetPercent")
+                        .HasColumnType("double precision")
+                        .HasColumnName("irrigation_target_percent");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(4000)
@@ -770,6 +778,8 @@ namespace Polle.Infrastructure.Persistence.Migrations
                             t.HasCheckConstraint("ck_field_plantings_finite_dates", "planting_date BETWEEN DATE '0001-01-01' AND DATE '9999-12-31' AND (harvesting_date IS NULL OR harvesting_date BETWEEN DATE '0001-01-01' AND DATE '9999-12-31')");
 
                             t.HasCheckConstraint("ck_field_plantings_irrigation", "irrigation_mm IS NULL OR irrigation_mm BETWEEN 0 AND 5000");
+
+                            t.HasCheckConstraint("ck_field_plantings_targets", "(irrigation_target_percent IS NULL OR (irrigation_mm IS NOT NULL AND irrigation_target_percent BETWEEN 0 AND 100)) AND (fertilizer_target_percent IS NULL OR (fertilizer_material_id IS NOT NULL AND fertilizer_target_percent BETWEEN 0 AND 100))");
 
                             t.HasCheckConstraint("ck_field_plantings_year", "season_year BETWEEN 1 AND 9999");
                         });

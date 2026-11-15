@@ -63,10 +63,10 @@ export function StrategyChoicesDialog({ presets, loading, choices, onChange, onC
   return <div className="strategy-choices-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose() }}>
     <section ref={panel} className="strategy-choices" role="dialog" aria-modal="true" aria-labelledby="strategy-choices-title" onKeyDown={onKeyDown}>
       <header className="strategy-view-head">
-        <h3 id="strategy-choices-title">Strategies to compare</h3>
-        <button type="button" className="button button-quiet button-icon" aria-label="Close strategy settings" autoFocus onClick={onClose}><X size={16} /></button>
+        <h3 id="strategy-choices-title">Plans to suggest</h3>
+        <button type="button" className="button button-quiet button-icon" aria-label="Close plan settings" autoFocus onClick={onClose}><X size={16} /></button>
       </header>
-      <p className="strategy-note">{`Each strategy is planned separately, up to ${MAX_STRATEGIES} at a time. Your choices are kept for your next suggestions.`}</p>
+      <p className="strategy-note">{`Each plan is worked out separately, up to ${MAX_STRATEGIES} at a time. Your choices are kept for your next suggestions.`}</p>
 
       <h4 className="strategy-choices-heading">Presets</h4>
       {loading ? <p className="strategy-note">Loading presets…</p> : <ul className="strategy-choices-list">
@@ -79,7 +79,7 @@ export function StrategyChoicesDialog({ presets, loading, choices, onChange, onC
         </li>)}
       </ul>}
 
-      <h4 className="strategy-choices-heading">Your own strategies</h4>
+      <h4 className="strategy-choices-heading">Your own plans</h4>
       {choices.custom.length === 0 ? <p className="strategy-note">None yet. Set the options below and add one.</p>
         : <ul className="strategy-choices-list">{choices.custom.map((custom, index) => <li key={customTitle(custom) + customSettings(custom).join()} className="strategy-choice">
             <span className="strategy-choice-text"><strong>{customName(custom)}</strong> <span className="strategy-note">{customDescription(custom)}</span>
@@ -89,7 +89,7 @@ export function StrategyChoicesDialog({ presets, loading, choices, onChange, onC
           </li>)}</ul>}
 
       <fieldset className="strategy-custom-form">
-        <legend>New strategy</legend>
+        <legend>New plan</legend>
         <label className="strategy-custom-wide">Name<input type="text" value={draft.name ?? ''} maxLength={NAME_MAX_LENGTH}
           placeholder={defaultCustomName(draft)} onChange={event => setDraft({ ...draft, name: event.target.value })} /></label>
         <label className="strategy-custom-wide">Description <span>(optional)</span><textarea rows={2} value={draft.description ?? ''} maxLength={DESCRIPTION_MAX_LENGTH}
@@ -105,13 +105,13 @@ export function StrategyChoicesDialog({ presets, loading, choices, onChange, onC
         <div className="strategy-custom-foot">
           <p className="strategy-note" role="status">{addHint({ full, duplicate, twin: twin?.name })}</p>
           <button type="button" className="button button-dark strategy-add-button" disabled={full || duplicate} onClick={add}>
-            <Plus size={16} aria-hidden="true" /><span>Add strategy</span></button>
+            <Plus size={16} aria-hidden="true" /><span>Add plan</span></button>
         </div>
       </fieldset>
 
       <footer className="strategy-choices-foot">
         <span className={count === 0 ? 'field-error' : 'strategy-note'} role="status">
-          {count === 0 ? 'Choose at least one strategy.' : `${count} ${count === 1 ? 'strategy' : 'strategies'} will be planned.`}</span>
+          {count === 0 ? 'Choose at least one plan.' : `${count} ${count === 1 ? 'plan' : 'plans'} will be suggested.`}</span>
         <div className="strategy-view-actions">
           <button type="button" className="button button-quiet" onClick={() => onChange({ presets: null, custom: [] })}><span>Reset to presets</span></button>
           <button type="button" className="button button-dark" disabled={count === 0} onClick={onClose}><span>Done</span></button>

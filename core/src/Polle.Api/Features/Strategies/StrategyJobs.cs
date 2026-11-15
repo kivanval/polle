@@ -17,11 +17,19 @@ public static partial class StrategyJobs
     /// climate APIs for the whole horizon, so their span limits follow this one.
     /// </summary>
     public const int MaxHorizonMonths = 360;
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(1);
+    /// <summary>
+    /// How long "Evaluate my plan" waits for the solver before answering: felder scores a plan in a second or two, so the
+    /// result usually comes back with the request itself. A slower one is left to the client's polls.
+    /// </summary>
+    public static readonly TimeSpan QuickWait = TimeSpan.FromSeconds(6);
+    /// <summary>How often the solver is asked while waiting for a quick result.</summary>
+    public static readonly TimeSpan QuickPollEvery = TimeSpan.FromMilliseconds(400);
     /// <summary>A job still processing this long after its last submission is given up, so a lost solver task can't spin forever.</summary>
     public static readonly TimeSpan GiveUpAfter = TimeSpan.FromMinutes(15);
     /// <summary>A job the solver keeps refusing to accept (blocked, throttled, unreachable) is given up this long after its first attempt.</summary>
     public static readonly TimeSpan SubmitGiveUpAfter = TimeSpan.FromMinutes(3);
+    private static readonly TimeSpan MinResubmitWait = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan MaxResubmitWait = TimeSpan.FromSeconds(30);
 
     /// <summary>
@@ -83,7 +91,7 @@ public static partial class StrategyJobs
     public static bool DueForResubmit(StrategyJob job, DateTime now)
     {
         if (job.State != Processing || job.TaskId is not null) return false;
-        var wait = TimeSpan.FromTicks(Math.Clamp((now - job.SubmittedAtUtc).Ticks / 2, PollInterval.Ticks, MaxResubmitWait.Ticks));
+        var wait = TimeSpan.FromTicks(Math.Clamp((now - job.SubmittedAtUtc).Ticks / 2, MinResubmitWait.Ticks, MaxResubmitWait.Ticks));
         return now - job.UpdatedAtUtc >= wait;
     }
 

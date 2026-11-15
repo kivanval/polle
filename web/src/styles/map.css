@@ -421,7 +421,7 @@
 .farm-confirm .field-error { margin-bottom: 12px; }
 .farm-notice { padding: 10px 20px; border-bottom: 1px solid var(--line); border-left: 2px solid #5d7f1e; background: var(--paper); font-size: 13px; }
 .farms-empty { position: relative; overflow: hidden; margin-top: 34px; padding: 72px 24px; text-align: center; border: 1px solid var(--line); background: var(--sage); border-radius: 4px; }
-.farms-empty > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .4; }
+.farms-empty > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: .2; filter: saturate(.7); }
 .farms-empty > div { position: relative; display: flex; flex-direction: column; align-items: center; }
 .farms-empty h2 { font-family: Georgia, serif; font-weight: 400; font-size: 35px; }
 .farms-empty p { font-size: 14px; color: #51624e; margin: 14px 0 24px; }

@@ -15,6 +15,9 @@ public sealed class FieldPlantingConfiguration : IEntityTypeConfiguration<FieldP
             table.HasCheckConstraint("ck_field_plantings_irrigation", "irrigation_mm IS NULL OR irrigation_mm BETWEEN 0 AND 5000");
             table.HasCheckConstraint("ck_field_plantings_fertilizer",
                 "(fertilizer_material_id IS NULL AND fertilizer_rate_kg_ha IS NULL) OR (fertilizer_material_id IS NOT NULL AND fertilizer_rate_kg_ha > 0 AND fertilizer_rate_kg_ha <= 10000)");
+            table.HasCheckConstraint("ck_field_plantings_targets",
+                "(irrigation_target_percent IS NULL OR (irrigation_mm IS NOT NULL AND irrigation_target_percent BETWEEN 0 AND 100)) AND " +
+                "(fertilizer_target_percent IS NULL OR (fertilizer_material_id IS NOT NULL AND fertilizer_target_percent BETWEEN 0 AND 100))");
             table.HasCheckConstraint("ck_field_plantings_finite_dates", "planting_date BETWEEN DATE '0001-01-01' AND DATE '9999-12-31' AND (harvesting_date IS NULL OR harvesting_date BETWEEN DATE '0001-01-01' AND DATE '9999-12-31')");
         });
         builder.HasKey(planting => planting.Id);

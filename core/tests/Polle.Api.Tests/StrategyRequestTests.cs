@@ -377,6 +377,22 @@ public sealed class StrategyRequestTests
     }
 
     [Fact]
+    public void BaselineSendsTheTargetLevelsAPlanCopiedFromAStrategyKeeps()
+    {
+        var copied = Planting(7754, new DateOnly(2027, 4, 10));
+        copied.IrrigationMm = 120; copied.IrrigationTargetPercent = 60;
+        copied.FertilizerMaterialId = 2274; copied.FertilizerRateKgHa = 180; copied.FertilizerTargetPercent = 75;
+
+        var request = StrategyRequests.Baseline(FieldId, "2026-12", "2031-10", [copied], "2215")!;
+
+        Assert.Equal(new FelderIrrigationApplication("2215", 120, 60), request.Schedule[0].IrrigationApplication);
+        Assert.Equal(new FelderFertilizerApplication("2274", 180, 75), request.Schedule[0].FertilizerApplication);
+        var json = JsonSerializer.Serialize(request);
+        Assert.Contains("\"irrigation_application\":{\"material_id\":\"2215\",\"amount_mm\":120,\"target_percentage\":60}", json);
+        Assert.Contains("\"fertilizer_application\":{\"material_id\":\"2274\",\"rate_kg_ha\":180,\"target_percentage\":75}", json);
+    }
+
+    [Fact]
     public void BaselineSendsTheHarvestDateAsTheClearanceDate()
     {
         var request = StrategyRequests.Baseline(FieldId, "2026-12", "2031-10",

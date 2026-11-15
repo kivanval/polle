@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { StrategyCycle } from './api'
-import { agronomicRisks, cycleStages, fertilizerToBuy, ganttScale, hasMonthlyWater, nutrientFlow, seasonRainMm, settingsText, summarySteps,
-  waterMonths } from './details'
+import { agronomicRisks, cycleStages, expectedYield, ganttScale, hasMonthlyWater, nutrientFlow, seasonRainMm, settingsText, summarySteps,
+  waterMonths, waterPlan } from './details'
 
 const crop = (overrides: Partial<StrategyCycle>): StrategyCycle => ({
   cropProfileId: 1, cropId: 1, cropName: 'Wheat', systemName: 'Winter', plantingMonth: '2027-04', clearanceMonth: '2027-07',
@@ -22,15 +22,16 @@ describe('summarySteps', () => {
     expect(steps.map(step => step.netUsd)).toEqual([500, -150, 0])
     expect(steps[0].harvestMonths).toEqual(['2027-06', '2027-07'])
     // Only what the farmer buys: the product and its kilograms, no months or N-P-K figures.
-    expect(steps[0].fertilizer).toEqual({ product: 'NPK 16-16-16', rateKgHa: null })
+    expect(steps[0].fertilizer).toEqual({ product: 'NPK 16-16-16', rateKgHa: null, targetPercent: null })
     expect(steps[1].fertilizer).toBeNull()
     expect(steps[2].fertilizer).toBeNull()
+    expect(steps.map(step => step.water)).toEqual([null, null, null])
     expect(new Set(steps.map(step => step.key)).size).toBe(3)
   })
 
-  it('keeps the kilograms of product per hectare', () => {
-    expect(summarySteps([crop({ fertilizer: { materialId: '3101', name: 'Nitrophoska', rateKgHa: 300, applications: [] } })])[0].fertilizer)
-      .toEqual({ product: 'Nitrophoska', rateKgHa: 300 })
+  it('keeps the kilograms of product per hectare and the share of the deficit it covers', () => {
+    expect(summarySteps([crop({ fertilizer: { materialId: '3101', name: 'Nitrophoska', rateKgHa: 300, targetPercent: 75, applications: [] } })])[0].fertilizer)
+      .toEqual({ product: 'Nitrophoska', rateKgHa: 300, targetPercent: 75 })
   })
 
   it('never shows a raw material id as the product name', () => {
@@ -39,19 +40,28 @@ describe('summarySteps', () => {
   })
 })
 
-describe('fertilizerToBuy', () => {
-  it('adds up each product over the whole field, largest first', () => {
-    const cycles = [
-      crop({ fertilizer: { materialId: '1', name: 'Urea', rateKgHa: 100, applications: [] } }),
-      crop({ fertilizer: { materialId: '2', name: 'Nitrophoska', rateKgHa: 300, applications: [] } }),
-      crop({ fertilizer: { materialId: '1', name: 'Urea', rateKgHa: 150, applications: [] } }),
-      crop({ fertilizer: null }),
-    ]
-    expect(fertilizerToBuy(cycles, 10)).toEqual({ products: [{ product: 'Nitrophoska', kg: 3000 }, { product: 'Urea', kg: 2500 }], unknown: 0 })
+describe('waterPlan', () => {
+  it('takes the water the solver applied and its refill level', () => {
+    expect(waterPlan({ irrigationMm: 132, irrigation: { materialId: '2215', amountMm: 140, targetPercent: 60 } })).toEqual({ mm: 132, targetPercent: 60 })
   })
 
-  it('counts fertilized crops without an amount instead of reading them as zero', () => {
-    expect(fertilizerToBuy([crop({ fertilizer: { materialId: '1', name: 'Urea', applications: [] } })], 10)).toEqual({ products: [], unknown: 1 })
+  it('falls back to the allowance, and is null for a rain-fed crop', () => {
+    expect(waterPlan({ irrigationMm: 0, irrigation: { materialId: null, amountMm: 80, targetPercent: null } })).toEqual({ mm: 80, targetPercent: null })
+    expect(waterPlan({ irrigationMm: 0 })).toBeNull()
+  })
+
+  it('ignores a level outside 0-100', () => {
+    expect(waterPlan({ irrigationMm: 50, irrigation: { materialId: null, amountMm: 50, targetPercent: 140 } })?.targetPercent).toBeNull()
+  })
+})
+
+describe('expectedYield', () => {
+  it('reads the solver yield as a share of the potential', () => {
+    expect(expectedYield(87.6)).toBe('88% of potential')
+    expect(expectedYield(100)).toBe('100% of potential')
+    expect(expectedYield(104)).toBe('100% of potential')
+    expect(expectedYield(undefined)).toBeNull()
+    expect(expectedYield(Number.NaN)).toBeNull()
   })
 })
 

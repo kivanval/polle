@@ -5,8 +5,11 @@ namespace Polle.Api.Features.Strategies;
 
 /// <param name="IrrigationMm">The strategy's irrigation for the crop over its season; null when it gets none.</param>
 /// <param name="FertilizerMaterialId">The strategy's fertilizer product with <paramref name="FertilizerRateKgHa"/>; both null for none.</param>
+/// <param name="IrrigationTargetPercent">The refill level the strategy irrigated to, 0-100; null with no irrigation or when the solver didn't say.</param>
+/// <param name="FertilizerTargetPercent">The share of the nutrient deficit the strategy's fertilizer covers, 0-100; null likewise.</param>
 public sealed record NewPlanting(long CropProfileId, int SeasonYear, DateOnly Sown, DateOnly Harvested,
-    double? IrrigationMm = null, long? FertilizerMaterialId = null, double? FertilizerRateKgHa = null);
+    double? IrrigationMm = null, long? FertilizerMaterialId = null, double? FertilizerRateKgHa = null,
+    double? IrrigationTargetPercent = null, double? FertilizerTargetPercent = null);
 
 /// <summary>Rules for turning a strategy into the field's own crop plan.</summary>
 public static class StrategyPlan
@@ -16,7 +19,8 @@ public static class StrategyPlan
     /// has months only: those crops run from the first day of the sowing month to the last day of the clearance month.
     /// When the next crop is sown on or before the day the previous one is cleared, the previous one ends the day before,
     /// since crops on a field never overlap. The season is the year the crop is cleared. Each crop keeps the strategy's
-    /// irrigation and fertilizer, so the plan is scored with them afterwards.
+    /// irrigation and fertilizer with their target levels, so the plan is scored with them afterwards: the water is the
+    /// allowance felder planned the crop with (its irrigation_application), or what it applied for results without one.
     /// </summary>
     public static IReadOnlyList<NewPlanting> Plantings(IEnumerable<StrategyCycle> cycles)
     {
@@ -32,8 +36,12 @@ public static class StrategyPlan
             if (harvested < sown) harvested = sown;
             var product = long.TryParse(cycle.Fertilizer?.MaterialId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) ? id : (long?)null;
             var rate = product is null ? null : cycle.Fertilizer?.RateKgHa is > 0 and <= 10000 ? cycle.Fertilizer.RateKgHa : null;
+            var water = cycle.Irrigation is { AmountMm: > 0 } planned ? planned.AmountMm : cycle.IrrigationMm;
+            var irrigation = water is > 0 ? Math.Min(Math.Round(water, 1), 5000) : (double?)null;
             result.Add(new NewPlanting(cycle.CropProfileId, harvested.Year, sown, harvested,
-                cycle.IrrigationMm is > 0 ? Math.Min(Math.Round(cycle.IrrigationMm, 1), 5000) : null, rate is null ? null : product, rate));
+                irrigation, rate is null ? null : product, rate,
+                irrigation is null ? null : StrategyResultMapper.Percent(cycle.Irrigation?.TargetPercent),
+                rate is null ? null : StrategyResultMapper.Percent(cycle.Fertilizer?.TargetPercent)));
         }
         return result;
     }

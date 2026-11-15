@@ -87,12 +87,17 @@ public sealed class PlantingEndpoints : IEndpoint
         return TypedResults.Ok(PlantingResponse.From(planting, DateOnly.FromDateTime(DateTime.UtcNow)));
     }
 
-    /// <summary>The farmer's water and fertilizer for the season; no irrigation is stored as rain-fed (null).</summary>
-    private static void ApplyInputs(FieldPlanting planting, PlantingRequest request)
+    /// <summary>
+    /// The farmer's water and fertilizer for the season; no irrigation is stored as rain-fed (null). A target level is
+    /// kept only with the input it belongs to.
+    /// </summary>
+    internal static void ApplyInputs(FieldPlanting planting, PlantingRequest request)
     {
         planting.IrrigationMm = request.IrrigationMm is > 0 ? request.IrrigationMm : null;
+        planting.IrrigationTargetPercent = planting.IrrigationMm is null ? null : request.IrrigationTargetPercent;
         planting.FertilizerMaterialId = request.FertilizerMaterialId;
         planting.FertilizerRateKgHa = request.FertilizerMaterialId is null ? null : request.FertilizerRateKgHa;
+        planting.FertilizerTargetPercent = request.FertilizerMaterialId is null ? null : request.FertilizerTargetPercent;
     }
 
     /// <summary>Shape and date checks, then the crop must exist in the catalog. Period overlaps are left to the exclusion constraint.</summary>
