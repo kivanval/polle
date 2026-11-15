@@ -139,6 +139,46 @@ public sealed class AssistantHybridTests
         Assert.Null(AssistantHybridTool.ChoosePlanProfiles([], [], null, []));
     }
 
+    [Fact]
+    public void WhenThePlanIsAskedAboutTheSuggestionsAndTheSavedPlanComeBeforeThePlantings()
+    {
+        var suggested = AssistantHybridTool.ChoosePlanProfiles([401], [Result(101)], Result(201), [301], planAsked: true);
+        Assert.Equal(PlanCropSource.SuggestedPlans, suggested!.Source);
+        Assert.Equal([101L], suggested.ProfileIds);
+
+        var saved = AssistantHybridTool.ChoosePlanProfiles([401], [], Result(201), [301], planAsked: true);
+        Assert.Equal(PlanCropSource.SavedPlan, saved!.Source);
+
+        var planted = AssistantHybridTool.ChoosePlanProfiles([401], [], null, [301], planAsked: true);
+        Assert.Equal(PlanCropSource.CurrentPlan, planted!.Source);
+    }
+
+    [Theory]
+    [InlineData("Which hybrids suit this plan?", true)]
+    [InlineData("hybrids for the suggested plans", true)]
+    [InlineData("Hybrids for my strategy", true)]
+    [InlineData("Гібриди для цього плану", true)]
+    [InlineData("гібриди для запропонованих планів", true)]
+    [InlineData("гібриди під стратегію", true)]
+    [InlineData("Which hybrids suit my field?", false)]
+    [InlineData("гібриди для плантації", false)]
+    [InlineData("hybrids for my planting", false)]
+    public void APlanIsAskedAboutOnlyWhenTheMessageNamesOne(string message, bool asked) =>
+        Assert.Equal(asked, AssistantHybridTool.PlanAsked(message));
+
+    [Theory]
+    [InlineData(PlanCropSource.SuggestedPlans, false, "### Hybrids for suggested plan (North)")]
+    [InlineData(PlanCropSource.SavedPlan, false, "### Hybrids for saved plan (North)")]
+    [InlineData(PlanCropSource.CurrentPlan, false, "### Hybrids for North")]
+    [InlineData(PlanCropSource.SuggestedPlans, true, "### Гібриди для запропонованого плану (North)")]
+    [InlineData(PlanCropSource.SavedPlan, true, "### Гібриди для збереженого плану (North)")]
+    public void TheHeadingNamesThePlanTheCropsCameFrom(PlanCropSource source, bool uk, string heading)
+    {
+        var text = AssistantHybridTool.Text([Maize], Hybrids, "North", null, droughtAsked: false, uk, source);
+
+        Assert.Equal(heading, text.Split('\n')[0]);
+    }
+
     [Theory]
     [InlineData(PlanCropSource.CurrentPlan, false, "*Based on your current field plan.*")]
     [InlineData(PlanCropSource.SuggestedPlans, false, "*Based on the suggested plans.*")]
