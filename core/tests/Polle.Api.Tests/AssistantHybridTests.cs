@@ -103,6 +103,55 @@ public sealed class AssistantHybridTests
         Assert.Contains("**Lentil**\n- No hybrids recorded for this crop yet.", text);
     }
 
+    // A stored felder result reduced to what the hybrid tool reads: the crop profile of each cycle.
+    private static string Result(params long[] profileIds) =>
+        $$"""{"status":"OPTIMAL","schedule":[{{string.Join(",", profileIds.Select(id => $$"""{"crop_profile_id":"{{id}}","plant_date":"2027-04-11"}"""))}}]}""";
+
+    [Fact]
+    public void WithNothingPlantedTheHybridsFollowTheSuggestedPlansJustMade()
+    {
+        var choice = AssistantHybridTool.ChoosePlanProfiles([], [Result(101, 102), Result(102, 103), null, "not json"], Result(201), [301]);
+
+        Assert.Equal(PlanCropSource.SuggestedPlans, choice!.Source);
+        Assert.Equal([101L, 102, 103], choice.ProfileIds);
+    }
+
+    [Fact]
+    public void WithoutSuggestionsTheLastSavedPlanComesBeforeThePastSeason()
+    {
+        var choice = AssistantHybridTool.ChoosePlanProfiles([], [], Result(201, 202), [301]);
+
+        Assert.Equal(PlanCropSource.SavedPlan, choice!.Source);
+        Assert.Equal([201L, 202], choice.ProfileIds);
+    }
+
+    [Fact]
+    public void PlantingsStillGrowingWinAndThePastSeasonIsTheLastResort()
+    {
+        var current = AssistantHybridTool.ChoosePlanProfiles([401, 402, 401], [Result(101)], Result(201), [301]);
+        Assert.Equal(PlanCropSource.CurrentPlan, current!.Source);
+        Assert.Equal([401L, 402], current.ProfileIds);
+
+        var past = AssistantHybridTool.ChoosePlanProfiles([], [Result()], Result(), [301, 302]);
+        Assert.Equal(PlanCropSource.LastSeason, past!.Source);
+        Assert.Equal([301L, 302], past.ProfileIds);
+
+        Assert.Null(AssistantHybridTool.ChoosePlanProfiles([], [], null, []));
+    }
+
+    [Theory]
+    [InlineData(PlanCropSource.CurrentPlan, false, "*Based on your current field plan.*")]
+    [InlineData(PlanCropSource.SuggestedPlans, false, "*Based on the suggested plans.*")]
+    [InlineData(PlanCropSource.SavedPlan, false, "*Based on your saved plan.*")]
+    [InlineData(PlanCropSource.LastSeason, false, "*Based on the field's last season.*")]
+    [InlineData(PlanCropSource.SuggestedPlans, true, "*За запропонованими планами.*")]
+    public void TheAnswerSaysWhichPlanTheCropsCameFrom(PlanCropSource source, bool uk, string line)
+    {
+        var text = AssistantHybridTool.Text([Maize], Hybrids, "North", null, droughtAsked: false, uk, source);
+
+        Assert.Equal(line, text.Split('\n')[1]);
+    }
+
     [Fact]
     public void AUkrainianQuestionIsAnsweredInUkrainian()
     {

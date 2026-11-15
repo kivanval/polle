@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.RegularExpressions;
 using Polle.Api.Features.Drought;
+using Polle.Api.Features.Strategies;
 using Polle.Domain.Agriculture;
 using Polle.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +12,7 @@ namespace Polle.Api.Features.Assistant;
 
 /// <summary>
 /// The assistant's hybrid tool: suggests hybrids and varieties from public.crop_hybrids for the crops named in the
-/// message, or for the crops in a field's current plan. With a field it reads the next twelve months of the climate trend
+/// message, or for the crops of a field's plan (planted, just suggested or saved: see <see cref="ChoosePlanProfiles"/>). With a field it reads the next twelve months of the climate trend
 /// model at the field, and when the field looks dry or hot it lists drought- and heat-tolerant hybrids first. The answer is
 /// built here, not by the model, so it names only hybrids that are in the database. Ownership is checked against the session user.
 /// </summary>
@@ -43,9 +44,10 @@ public sealed partial class AssistantHybridTool(AppDbContext db, ClimateTrendSto
         if (!explicitField) field = null;
 
         Crop[] crops = named;
+        PlanCropSource? source = null;
         if (named.Length == 0)
         {
-            crops = await PlanCropsAsync(field!.Id, userId, today, ct);
+            (source, crops) = await PlanCropsAsync(field!.Id, userId, previous?.RunId, today, ct);
             if (crops.Length == 0) return new(uk
                 ? $"У плані поля «{field.Name}» ще немає культур. Додайте посів або назвіть культуру, наприклад «гібриди кукурудзи для посухи»."
                 : $"{field.Name}'s plan has no crops yet. Add a planting, or name a crop, e.g. \"drought-tolerant maize hybrids\".");
@@ -53,30 +55,70 @@ public sealed partial class AssistantHybridTool(AppDbContext db, ClimateTrendSto
 
         var dryness = field is null ? null : await DrynessAsync(field.Id, today, ct);
         var droughtAsked = DroughtRegex().IsMatch(message.ToLowerInvariant());
-        var text = Text(crops, hybrids, field?.Name, dryness, droughtAsked, uk);
-        log.LogInformation("Assistant suggested hybrids for {CropCount} crops{Field}", crops.Length, field is null ? "" : " of a field");
+        var text = Text(crops, hybrids, field?.Name, dryness, droughtAsked, uk, source);
+        log.LogInformation("Assistant suggested hybrids for {CropCount} crops{Field} from {Source}", crops.Length, field is null ? "" : " of a field",
+            source?.ToString() ?? "the message");
         return new(text);
     }
 
     /// <summary>
-    /// The crops of the field's plan: plantings still growing or sown from today on; with none, the crops of the latest
-    /// season, so a field planned only in the past still gets an answer.
+    /// The crops of the field's plan, in the order <see cref="ChoosePlanProfiles"/> sets. The run comes from the
+    /// conversation, so it counts only when it belongs to this field and to the session user.
     /// </summary>
-    private async Task<Crop[]> PlanCropsAsync(Guid fieldId, Guid userId, DateOnly today, CancellationToken ct)
+    private async Task<(PlanCropSource? Source, Crop[] Crops)> PlanCropsAsync(Guid fieldId, Guid userId, Guid? runId, DateOnly today, CancellationToken ct)
     {
         var plantings = await db.FieldPlantings.AsNoTracking()
             .Where(planting => planting.FieldId == fieldId && planting.Field.Farm.OwnerUserId == userId)
-            .Select(planting => new { planting.SeasonYear, planting.PlantingDate, planting.HarvestingDate, planting.CropProfile.Crop })
+            .Select(planting => new { planting.SeasonYear, planting.PlantingDate, planting.HarvestingDate, planting.CropProfileId })
             .ToListAsync(ct);
-        var current = plantings.Where(planting => planting.PlantingDate >= today || planting.HarvestingDate is null || planting.HarvestingDate >= today)
-            .OrderBy(planting => planting.PlantingDate).ToList();
-        if (current.Count == 0 && plantings.Count > 0)
+        long[] current = [.. plantings.Where(planting => planting.PlantingDate >= today || planting.HarvestingDate is null || planting.HarvestingDate >= today)
+            .OrderBy(planting => planting.PlantingDate).Select(planting => planting.CropProfileId)];
+        var latest = plantings.Count == 0 ? 0 : plantings.Max(planting => planting.SeasonYear);
+        long[] lastSeason = [.. plantings.Where(planting => planting.SeasonYear == latest)
+            .OrderBy(planting => planting.PlantingDate).Select(planting => planting.CropProfileId)];
+
+        // Suggestions and saved plans are read only when the field has nothing planted from today on.
+        string?[] suggested = [];
+        string? saved = null;
+        if (current.Length == 0)
         {
-            var latest = plantings.Max(planting => planting.SeasonYear);
-            current = [.. plantings.Where(planting => planting.SeasonYear == latest)];
+            if (runId is { } run)
+                suggested = [.. await db.StrategyRuns.AsNoTracking()
+                    .Where(candidate => candidate.Id == run && candidate.FieldId == fieldId && candidate.Field.Farm.OwnerUserId == userId)
+                    .SelectMany(candidate => candidate.Jobs)
+                    .Where(job => job.State == StrategyJobs.Ready && job.Key != StrategyCatalog.BaselineKey)
+                    .OrderBy(job => job.Key).Select(job => job.ResultJson).ToListAsync(ct)];
+            saved = await db.FieldStrategies.AsNoTracking()
+                .Where(strategy => strategy.FieldId == fieldId && strategy.Field.Farm.OwnerUserId == userId)
+                .OrderByDescending(strategy => strategy.SavedAtUtc).Select(strategy => strategy.ResultJson).FirstOrDefaultAsync(ct);
         }
-        return [.. current.Select(planting => planting.Crop).DistinctBy(crop => crop.Id)];
+
+        if (ChoosePlanProfiles(current, suggested, saved, lastSeason) is not { } choice) return (null, []);
+        var profiles = await db.CropProfiles.AsNoTracking().Where(profile => choice.ProfileIds.Contains(profile.Id))
+            .Select(profile => new { profile.Id, profile.Crop }).ToDictionaryAsync(profile => profile.Id, profile => profile.Crop, ct);
+        // A suggestion can outlive a crop removed from the catalog; its profile is skipped.
+        Crop[] crops = [.. choice.ProfileIds.Select(id => profiles.GetValueOrDefault(id)).OfType<Crop>().DistinctBy(crop => crop.Id)];
+        return (crops.Length == 0 ? null : choice.Source, crops);
     }
+
+    /// <summary>
+    /// Which plan the hybrids follow when the message names no crop, first match wins: plantings still growing or sown
+    /// from today on; the ready suggestions of the run the conversation just read or started (all their crops, the
+    /// farmer's own plan left out); the plan last saved for the field; the latest past season, so a field planned only
+    /// in the past still gets an answer. Returns crop profile ids in plan order, or null when there is nothing.
+    /// </summary>
+    public static PlanCropChoice? ChoosePlanProfiles(IReadOnlyList<long> current, IReadOnlyList<string?> suggested, string? saved, IReadOnlyList<long> lastSeason)
+    {
+        if (current.Count > 0) return new(PlanCropSource.CurrentPlan, [.. current.Distinct()]);
+        if (ResultProfiles(suggested) is { Length: > 0 } fromSuggestions) return new(PlanCropSource.SuggestedPlans, fromSuggestions);
+        if (ResultProfiles([saved]) is { Length: > 0 } fromSaved) return new(PlanCropSource.SavedPlan, fromSaved);
+        return lastSeason.Count > 0 ? new(PlanCropSource.LastSeason, [.. lastSeason.Distinct()]) : null;
+    }
+
+    // Read through the same mapper the plan cards use; an unreadable result simply adds no crops.
+    private static long[] ResultProfiles(IEnumerable<string?> results) =>
+        [.. results.SelectMany(json => StrategyResultMapper.Map(json, CropProfileNames.Empty)?.Cycles ?? [])
+            .Select(cycle => cycle.CropProfileId).Where(id => id > 0).Distinct()];
 
     private async Task<FieldDryness?> DrynessAsync(Guid fieldId, DateOnly today, CancellationToken ct)
     {
@@ -97,8 +139,13 @@ public sealed partial class AssistantHybridTool(AppDbContext db, ClimateTrendSto
         }
     }
 
-    /// <summary>The answer, in the small Markdown the chat renders: a heading, the field's climate, then each crop's hybrids.</summary>
-    public static string Text(IReadOnlyList<Crop> crops, IReadOnlyList<CropHybrid> hybrids, string? fieldName, FieldDryness? dryness, bool droughtAsked, bool uk)
+    /// <summary>
+    /// The answer, in the small Markdown the chat renders: a heading, which plan the crops come from, the field's climate,
+    /// then each crop's hybrids.
+    /// </summary>
+    /// <param name="source">The plan the crops were taken from; null when the message named them.</param>
+    public static string Text(IReadOnlyList<Crop> crops, IReadOnlyList<CropHybrid> hybrids, string? fieldName, FieldDryness? dryness, bool droughtAsked, bool uk,
+        PlanCropSource? source = null)
     {
         var text = new StringBuilder();
         void Line(string line = "") => text.Append(line).Append('\n');
@@ -108,6 +155,13 @@ public sealed partial class AssistantHybridTool(AppDbContext db, ClimateTrendSto
         Line(fieldName is not null ? uk ? $"### Гібриди для поля «{fieldName}»" : $"### Hybrids for {fieldName}"
             : crops.Count == 1 ? uk ? $"### Гібриди: {CropName(crops[0], uk)}" : $"### {CropName(crops[0], uk)} hybrids"
             : uk ? "### Гібриди" : "### Hybrids");
+        if (source is { } from) Line(from switch
+        {
+            PlanCropSource.CurrentPlan => uk ? "*За поточним планом поля.*" : "*Based on your current field plan.*",
+            PlanCropSource.SuggestedPlans => uk ? "*За запропонованими планами.*" : "*Based on the suggested plans.*",
+            PlanCropSource.SavedPlan => uk ? "*За збереженим планом.*" : "*Based on your saved plan.*",
+            _ => uk ? "*За останнім сезоном поля.*" : "*Based on the field's last season.*",
+        });
         if (dryness is not null)
         {
             var level = uk ? dryness.Level switch { CropHybrid.High => "високий", CropHybrid.Medium => "помірний", _ => "низький" } : dryness.Level;
@@ -206,6 +260,12 @@ public sealed partial class AssistantHybridTool(AppDbContext db, ClimateTrendSto
     [GeneratedRegex(@"посух|засух|посушл|спек|жар[уиа]|drought|dry|heat|hot\b|arid")]
     private static partial Regex DroughtRegex();
 }
+
+/// <summary>The plan a field's hybrid answer follows when the message names no crop; the answer says which.</summary>
+public enum PlanCropSource { CurrentPlan, SuggestedPlans, SavedPlan, LastSeason }
+
+/// <param name="ProfileIds">public.crop_profiles ids in plan order, without repeats.</param>
+public sealed record PlanCropChoice(PlanCropSource Source, long[] ProfileIds);
 
 /// <summary>
 /// How dry a field's next months look in the climate trend model: months of moderate drought or worse (D1+), the
