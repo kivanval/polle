@@ -7,7 +7,7 @@ from datetime import date
 import numpy as np
 
 from app.models.agronomy import AppliedFertilizer, CropProfile
-from app.models.planning import ScheduledFertilizerApplication, ScheduledIrrigationApplication
+from app.models.planning import IrrigationApplication, ScheduledFertilizerApplication
 from app.models.topology import Field
 from app.models.types import (
     DayOffset,
@@ -49,7 +49,7 @@ class SimulationCandidate:
 
     fertilizer: AppliedFertilizer | None
     fertilizer_application: ScheduledFertilizerApplication | None
-    irrigation_application: ScheduledIrrigationApplication | None
+    irrigation_application: IrrigationApplication | None
 
     notes: tuple[Note, ...]
 

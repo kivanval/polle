@@ -184,6 +184,13 @@ class YieldUnit(DomainValue[float]):
 
 
 class Percent(DomainValue[float]):
+    @classmethod
+    def from_fraction(cls, fraction: float, *, decimals: int | None = 2) -> Self:
+        value = fraction * 100.0
+        if decimals is not None:
+            value = round(value, decimals)
+        return cls(value)
+
     @property
     def as_fraction(self) -> float:
         return self.real / 100.0

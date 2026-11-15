@@ -49,6 +49,7 @@ class Fertilizer:
 class AppliedFertilizer:
     product: Fertilizer
     rate: Rate[Kilogram, AreaHa]
+    target_percentage: Percent | None
 
 
 @dataclass(frozen=True)

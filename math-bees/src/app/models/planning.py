@@ -21,6 +21,7 @@ from app.models.types import (
     MonthlyNutrientDynamics,
     MonthlyWaterDynamics,
     Note,
+    Percent,
     Rate,
     RotationMonths,
     SystemName,
@@ -122,12 +123,14 @@ class VariantProfile:
 class ScheduledFertilizerApplication:
     material_id: MaterialId
     rate_kg_ha: Rate[Kilogram, AreaHa]
+    target_percentage: Percent | None
 
 
 @dataclass(frozen=True, slots=True)
-class ScheduledIrrigationApplication:
+class IrrigationApplication:
     material_id: MaterialId
     amount_mm: WaterMm
+    target_percentage: Percent | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,7 +139,7 @@ class CropScheduleItem:
     plant_date: date
     clearance_date: date | None
     fertilizer_application: ScheduledFertilizerApplication | None
-    irrigation_application: ScheduledIrrigationApplication | None
+    irrigation_application: IrrigationApplication | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,7 +148,7 @@ class PlannedCrop:
     plant_date: date
     clearance_date: date | None
     fertilizer_application: ScheduledFertilizerApplication | None
-    irrigation_application: ScheduledIrrigationApplication | None
+    irrigation_application: IrrigationApplication | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,8 +169,10 @@ class PlantingVariant:
     monthly_nutrients: dict[YearMonth, MonthlyNutrientDynamics]
 
     fertilizer: AppliedFertilizer | None
+    irrigation_application: IrrigationApplication | None
 
     yield_multipliers: tuple[YieldMultiplier, ...]
+
     notes: tuple[Note, ...]
 
     @property

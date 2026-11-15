@@ -51,6 +51,7 @@ def _to_planting_variant(
         monthly_water=cand.monthly_water,
         monthly_nutrients=cand.monthly_nutrients,
         fertilizer=cand.fertilizer,
+        irrigation_application=cand.irrigation_application,
         notes=cand.notes,
         yield_multipliers=cand.yield_multipliers,
     )

@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: Arable Planning Solver API
-  version: 2.4.0
+  version: 2.5.0
   description: API for optimizing crop rotation and schedule for a single arable field using asynchronous tasks.
 
 paths:
@@ -330,6 +330,12 @@ components:
           type: number
           minimum: 0
           description: Physical application rate in kg per hectare.
+        target_percentage:
+          type: number
+          minimum: 0
+          maximum: 100
+          nullable: true
+          description: Target nutrient deficit replenishment percentage (0 to 100) selected by the solver or user.
 
     IrrigationApplication:
       type: object
@@ -342,7 +348,14 @@ components:
           description: ID of the applied irrigation water material.
         amount_mm:
           type: number
+          minimum: 0
           description: Total irrigation water allowance for the crop cycle in millimeters (mm).
+        target_percentage:
+          type: number
+          minimum: 0
+          maximum: 100
+          nullable: true
+          description: Target refill percentage (0 to 100) of Readily Available Water (RAW) per irrigation event. Defaults to 100 when omitted.
 
     CropProfileCycleFinancials:
       type: object
@@ -401,6 +414,8 @@ components:
           type: number
         fertilizer_application:
           $ref: '#/components/schemas/FertilizerApplication'
+        irrigation_application:
+          $ref: '#/components/schemas/IrrigationApplication'
         monthly_dynamics:
           $ref: '#/components/schemas/CropProfileCycleMonthlyDynamics'
         notes:

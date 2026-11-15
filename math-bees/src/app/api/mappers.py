@@ -17,14 +17,17 @@ from app.autogen.api.schemas import (
     RiskSettings,
     SolverResultStatus,
 )
+from app.autogen.api.schemas import (
+    IrrigationApplication as IrrigationApplicationDTO,
+)
 from app.models.planning import (
     CropScheduleItem,
     Horizon,
+    IrrigationApplication,
     PlantingVariant,
     ScheduledFertilizerApplication,
-    ScheduledIrrigationApplication,
 )
-from app.models.types import CropProfileId, FieldId, Kilogram, MaterialId, Rate, WaterMm
+from app.models.types import CropProfileId, FieldId, Kilogram, MaterialId, Percent, Rate, WaterMm
 from app.models.year_month import YearMonth
 from app.solver.result import SolverResult
 from app.solver.settings import FertilizerSetting, IrrigationSetting, RiskSetting
@@ -36,6 +39,14 @@ from app.solver.strategy import (
 
 def _parse_year_month(ym_str: str) -> YearMonth:
     return YearMonth.from_str(ym_str)
+
+
+def _to_percent(val: float | None) -> Percent | None:
+    return Percent(float(val)) if val is not None else None
+
+
+def _percent_to_float(pct: Percent | None) -> float | None:
+    return float(pct.real) if pct is not None else None
 
 
 _RESOLUTION_LEVELS: dict[str, tuple[float, ...]] = {
@@ -164,14 +175,16 @@ def map_evaluate_request_to_domain(
                     real=float(crop.fertilizer_application.rate_kg_ha),
                     target_type=Kilogram,
                 ),
+                target_percentage=_to_percent(crop.fertilizer_application.target_percentage),
             )
             if crop.fertilizer_application is not None
             else None
         )
         irr_app = (
-            ScheduledIrrigationApplication(
+            IrrigationApplication(
                 material_id=MaterialId(str(crop.irrigation_application.material_id)),
                 amount_mm=WaterMm(float(crop.irrigation_application.amount_mm)),
+                target_percentage=_to_percent(crop.irrigation_application.target_percentage),
             )
             if crop.irrigation_application is not None
             else None
@@ -266,8 +279,19 @@ def _map_to_crop_profile(variant: PlantingVariant) -> CropProfileCycle:
         FertilizerApplication(
             material_id=str(variant.fertilizer.product.id),
             rate_kg_ha=float(variant.fertilizer.rate.real),
+            target_percentage=_percent_to_float(variant.fertilizer.target_percentage),
         )
         if variant.fertilizer is not None
+        else None
+    )
+
+    irrigation_app = (
+        IrrigationApplicationDTO(
+            material_id=str(variant.irrigation_application.material_id),
+            amount_mm=float(variant.irrigation_application.amount_mm.real),
+            target_percentage=_percent_to_float(variant.irrigation_application.target_percentage),
+        )
+        if variant.irrigation_application is not None
         else None
     )
 
@@ -289,6 +313,7 @@ def _map_to_crop_profile(variant: PlantingVariant) -> CropProfileCycle:
         if variant.yield_multipliers
         else 1.0,
         fertilizer_application=fertilizer_app,
+        irrigation_application=irrigation_app,
         monthly_dynamics=monthly_dynamics,
         notes=[
             CropNote(

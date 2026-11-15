@@ -15,6 +15,7 @@ from app.models.types import (
     Note,
     NoteCategory,
     NoteImportance,
+    Percent,
     Rate,
     SoilTexture,
     Year,
@@ -363,6 +364,7 @@ class NutrientBalanceStep(SimulationStep):
                         applied_fertilizer = AppliedFertilizer(
                             product=active_product,
                             rate=_rate_kg_ha(target_rate_kg_ha),
+                            target_percentage=Percent.from_fraction(float(level)),
                         )
                         total_n_app = target_rate_kg_ha * n_frac
                         total_p_app = target_rate_kg_ha * p_frac
@@ -523,8 +525,6 @@ class NutrientBalanceStep(SimulationStep):
             k_satisfied_ratio = min(1.0, total_k_app / k_removal) if k_deficit > 0 else 1.0
             k_factor = raw_texture_baseline + (1.0 - raw_texture_baseline) * k_satisfied_ratio
 
-        # Resolve final yield multiplier via Liebig's Law of the Minimum:
-        # The most limiting nutrient (N, P, or K) dictates the overall growth factor.
         fert_yield_mult = min(n_factor, p_factor, k_factor)
 
         if actual_n_fixation > ZERO_NUTRIENT_VALUE and fert_yield_mult < FULL_YIELD_MULTIPLIER:
@@ -726,6 +726,7 @@ class ScenarioNutrientStep(NutrientBalanceStep):
                 applied_fertilizer = AppliedFertilizer(
                     product=fert_product,
                     rate=scheduled_fert.rate_kg_ha,
+                    target_percentage=scheduled_fert.target_percentage,
                 )
 
         if not curr_cand.stage_offsets:
@@ -765,6 +766,12 @@ class ScenarioNutrientStep(NutrientBalanceStep):
             total_p_app = rate_kg_ha * fert_product.p_percent.as_fraction
             total_k_app = rate_kg_ha * fert_product.k_percent.as_fraction
 
+        level_pct = (
+            round(scheduled_fert.target_percentage.real)
+            if scheduled_fert is not None and scheduled_fert.target_percentage is not None
+            else None
+        )
+
         curr_cand, fert_yield_mult, actual_n_fixation = self._compute_nutrition_response(
             candidate=curr_cand,
             context=context,
@@ -781,7 +788,7 @@ class ScenarioNutrientStep(NutrientBalanceStep):
             max_n_fix_fraction=max_n_fix_fraction,
             raw_texture_baseline=raw_texture_baseline,
             is_unfertilized=not is_applied,
-            level_pct=None,
+            level_pct=level_pct,
             abort_on_fatal=False,
         )
 

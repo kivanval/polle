@@ -9,13 +9,14 @@ from numba import njit
 
 from app.models.agronomy import CropProfile, CropProfileStage
 from app.models.fao56 import KC_BARE_SOIL
-from app.models.planning import SolverContext
+from app.models.planning import IrrigationApplication, SolverContext
 from app.models.types import (
     DeathNote,
     MonthlyWaterDynamics,
     Note,
     NoteCategory,
     NoteImportance,
+    Percent,
     StageCategory,
     WaterMm,
     YieldMultiplier,
@@ -416,7 +417,6 @@ class SoilWaterBucketStep(SimulationStep):
             ky = s_info.ky
 
             if stage_pot > 0.0:
-                # Quantify stage yield penalty via FAO-33 water stress (Ky) response function
                 deficit_ratio = max(MIN_DEFICIT_RATIO, 1.0 - (stage_act / stage_pot))
                 stage_factor = max(MIN_STAGE_FACTOR, 1.0 - ky * deficit_ratio)
             else:
@@ -528,6 +528,15 @@ class SoilWaterBucketStep(SimulationStep):
                 continue
             seen_fingerprints.add(fingerprint)
 
+            irr_app = None
+            if irrigation.apply and irrigation.material_id and total_irr > 0.0:
+                irr_app = IrrigationApplication(
+                    material_id=irrigation.material_id,
+                    amount_mm=WaterMm(total_irr),
+                    target_percentage=Percent.from_fraction(float(irr_target)),
+                )
+
+            variant = replace(variant, irrigation_application=irr_app)
             generated_variants.append(variant)
 
         return generated_variants
@@ -539,6 +548,7 @@ def _simulate_capped_irrigation_bucket_and_stress(
     taw: float,
     raw: float,
     max_irr_mm: float,
+    irr_target: float,
     potential_etc: np.ndarray,
     precip: np.ndarray,
     irr_eligible_mask: np.ndarray,
@@ -551,6 +561,7 @@ def _simulate_capped_irrigation_bucket_and_stress(
 
     current_moisture = taw
     remaining_irr = max_irr_mm
+    target_moisture = (taw - raw) + (raw * irr_target)
 
     for i in range(total_days):
         rain = precip[i]
@@ -562,11 +573,12 @@ def _simulate_capped_irrigation_bucket_and_stress(
 
         if (
             remaining_irr > 0.0
+            and irr_target > 0.0
             and irr_eligible_mask[i]
             and pot_etc > 0
             and current_moisture < taw - raw
         ):
-            needed = taw - current_moisture
+            needed = target_moisture - current_moisture
             if needed > 0:
                 applied = needed if needed <= remaining_irr else remaining_irr
                 irr_applied[i] = applied
@@ -601,10 +613,12 @@ class ScenarioWaterStep(SoilWaterBucketStep):
         if inputs is None:
             return [curr_cand]
 
-        max_irr_mm = (
-            float(candidate.irrigation_application.amount_mm.real)
-            if candidate.irrigation_application is not None
-            else 0.0
+        irr_app = candidate.irrigation_application
+        max_irr_mm = float(irr_app.amount_mm.real) if irr_app is not None else 0.0
+        irr_target = (
+            irr_app.target_percentage.as_fraction
+            if irr_app is not None and irr_app.target_percentage is not None
+            else 1.0
         )
 
         irr_applied, actual_etc, _daily_ks, is_stressed = (
@@ -613,6 +627,7 @@ class ScenarioWaterStep(SoilWaterBucketStep):
                 taw=inputs.taw_mm,
                 raw=inputs.raw_mm,
                 max_irr_mm=max_irr_mm,
+                irr_target=irr_target,
                 potential_etc=inputs.potential_etc,
                 precip=inputs.precip_slice,
                 irr_eligible_mask=inputs.irr_eligible_mask,
