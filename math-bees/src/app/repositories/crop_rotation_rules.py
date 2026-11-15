@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from functools import partial
-from typing import Protocol, TypeAlias
+from typing import Protocol
 
 from sqlalchemy import Engine, text
 
@@ -22,9 +22,9 @@ class CropRotationRuleRepository(Protocol):
 class CropRotationRuleRepositoryCacheGetIntervalsKey: ...
 
 
-class CropRotationRuleRepositoryCacheGetIntervals(Cache[
-    CropRotationRuleRepositoryCacheGetIntervalsKey, RotationIntervalsMap
-]):...
+class CropRotationRuleRepositoryCacheGetIntervals(
+    Cache[CropRotationRuleRepositoryCacheGetIntervalsKey, RotationIntervalsMap]
+): ...
 
 
 class SqlCropRotationRuleRepository(CropRotationRuleRepository):

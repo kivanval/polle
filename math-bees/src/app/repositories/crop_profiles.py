@@ -4,7 +4,7 @@ import json
 import logging
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Protocol, TypeAlias
+from typing import Any, Protocol
 
 from sqlalchemy import Engine, text
 
@@ -356,9 +356,9 @@ class CropProfileRepositoryCacheGetByIdKey:
     crop_profile_id: CropProfileId
 
 
-class CropProfileRepositoryCacheGetById(Cache[
-    CropProfileRepositoryCacheGetByIdKey, CropProfile
-]):...
+class CropProfileRepositoryCacheGetById(
+    Cache[CropProfileRepositoryCacheGetByIdKey, CropProfile]
+): ...
 
 
 class SqlCropProfileRepository(CropProfileRepository):

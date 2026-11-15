@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import partial
-from typing import Protocol, TypeAlias
+from typing import Protocol
 
 from sqlalchemy import Engine, text
 
@@ -20,9 +20,9 @@ class FertilizersRepository(Protocol):
 class FertilizersRepositoryCacheGetAllKey: ...
 
 
-class FertilizersRepositoryCacheGetAll(Cache[
-    FertilizersRepositoryCacheGetAllKey, list[Fertilizer]
-]):...
+class FertilizersRepositoryCacheGetAll(
+    Cache[FertilizersRepositoryCacheGetAllKey, list[Fertilizer]]
+): ...
 
 
 @dataclass(frozen=True)
@@ -30,9 +30,9 @@ class FertilizersRepositoryCacheGetByIdKey:
     id: MaterialId
 
 
-class FertilizersRepositoryCacheGetById(Cache[
-    FertilizersRepositoryCacheGetByIdKey, Fertilizer
-]):...
+class FertilizersRepositoryCacheGetById(
+    Cache[FertilizersRepositoryCacheGetByIdKey, Fertilizer]
+): ...
 
 
 class SqlFertilizersRepository(FertilizersRepository):

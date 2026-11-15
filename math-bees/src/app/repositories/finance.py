@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from functools import partial
-from typing import Any, Protocol, TypeAlias
+from typing import Any, Protocol
 
 from app.autogen.clients.finance.api.default import (
     get_crop_profile_opex_v2,
@@ -110,9 +110,9 @@ class FinanceRepositoryCacheGetMaterialPricesKey:
     end_year: int
 
 
-class FinanceRepositoryCacheGetMaterialPrices(Cache[
-    FinanceRepositoryCacheGetMaterialPricesKey, dict[MaterialId, AnnualRates]
-]):...
+class FinanceRepositoryCacheGetMaterialPrices(
+    Cache[FinanceRepositoryCacheGetMaterialPricesKey, dict[MaterialId, AnnualRates]]
+): ...
 
 
 @dataclass(frozen=True)
@@ -122,9 +122,9 @@ class FinanceRepositoryCacheGetCropProfileOpexsKey:
     end_year: int
 
 
-class FinanceRepositoryCacheGetCropProfileOpexs(Cache[
-    FinanceRepositoryCacheGetCropProfileOpexsKey, dict[CropProfileId, AnnualRates]
-]):...
+class FinanceRepositoryCacheGetCropProfileOpexs(
+    Cache[FinanceRepositoryCacheGetCropProfileOpexsKey, dict[CropProfileId, AnnualRates]]
+): ...
 
 
 class HttpFinanceRepository(FinanceRepository):

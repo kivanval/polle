@@ -5,7 +5,7 @@ import logging
 from dataclasses import dataclass
 from datetime import date
 from functools import partial
-from typing import Any, Protocol, TypeAlias
+from typing import Any, Protocol
 
 from app.autogen.clients.field_topology.api.default import get_field_by_id_and_month
 from app.autogen.clients.field_topology.client import AuthenticatedClient
@@ -309,7 +309,7 @@ class FieldsRepositoryCacheGetByIdKey:
     year_month: YearMonth
 
 
-class FieldsRepositoryCacheGetById(Cache[FieldsRepositoryCacheGetByIdKey, Field]):...
+class FieldsRepositoryCacheGetById(Cache[FieldsRepositoryCacheGetByIdKey, Field]): ...
 
 
 class HttpFieldsRepository:

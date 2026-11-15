@@ -170,7 +170,9 @@ class CroppingStudio:
             risk=strategy.risk,
         )
 
-    def _simulate_all_windows(self, context: SolverContext, climate: ClimateArrays) -> list[PlantingVariant]:
+    def _simulate_all_windows(
+        self, context: SolverContext, climate: ClimateArrays
+    ) -> list[PlantingVariant]:
         """Generates every planting window and simulates it: CPU-bound, so it runs in a worker thread."""
         initial_candidates = CandidateGenerator.generate_all_windows(
             context=context,
@@ -230,7 +232,9 @@ class CroppingStudio:
                 )
             )
 
-        return await asyncio.to_thread(self._simulate_scenario, context, climate, horizon, resolved_crops)
+        return await asyncio.to_thread(
+            self._simulate_scenario, context, climate, horizon, resolved_crops
+        )
 
     def _simulate_scenario(
         self,

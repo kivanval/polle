@@ -5,7 +5,6 @@ from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
 from typing import Any
 
-import dishka
 import httpx
 from cashews import Cache as CashewCache
 from dishka import Provider, Scope, provide
@@ -27,7 +26,7 @@ from app.config import (
     SolverConfig,
 )
 from app.infrastructure.broker import create_broker
-from app.infrastructure.caching import Cache, create_caching
+from app.infrastructure.caching import create_caching
 from app.infrastructure.database import create_db_engine
 from app.infrastructure.dispatcher import SolverDispatcher
 from app.infrastructure.logging import setup_logging
@@ -55,21 +54,31 @@ from app.repositories.climate import (
 )
 from app.repositories.crop_profiles import (
     CropProfileRepository,
-    SqlCropProfileRepository, CropProfileRepositoryCacheGetById, CropProfileRepositoryCacheGetAll,
+    CropProfileRepositoryCacheGetAll,
+    CropProfileRepositoryCacheGetById,
+    SqlCropProfileRepository,
 )
 from app.repositories.crop_rotation_rules import (
     CropRotationRuleRepository,
-    SqlCropRotationRuleRepository, CropRotationRuleRepositoryCacheGetIntervals,
+    CropRotationRuleRepositoryCacheGetIntervals,
+    SqlCropRotationRuleRepository,
 )
-from app.repositories.fertilizers import FertilizersRepository, SqlFertilizersRepository, \
-    FertilizersRepositoryCacheGetAll, FertilizersRepositoryCacheGetById
+from app.repositories.fertilizers import (
+    FertilizersRepository,
+    FertilizersRepositoryCacheGetAll,
+    FertilizersRepositoryCacheGetById,
+    SqlFertilizersRepository,
+)
 from app.repositories.fields import (
     FieldsRepository,
-    HttpFieldsRepository, FieldsRepositoryCacheGetById,
+    FieldsRepositoryCacheGetById,
+    HttpFieldsRepository,
 )
 from app.repositories.finance import (
     FinanceRepository,
-    HttpFinanceRepository, FinanceRepositoryCacheGetMaterialPrices, FinanceRepositoryCacheGetCropProfileOpexs,
+    FinanceRepositoryCacheGetCropProfileOpexs,
+    FinanceRepositoryCacheGetMaterialPrices,
+    HttpFinanceRepository,
 )
 from app.solver.base import Component
 from app.solver.components.crop_rotation import CropRotationComponent
@@ -145,7 +154,9 @@ class CacheProvider(Provider):
     crop_profile_repository_cache_get_by_id = provide(CropProfileRepositoryCacheGetById)
     crop_profile_repository_cache_get_all = provide(CropProfileRepositoryCacheGetAll)
 
-    crop_rotation_rule_repository_cache_get_intervals = provide(CropRotationRuleRepositoryCacheGetIntervals)
+    crop_rotation_rule_repository_cache_get_intervals = provide(
+        CropRotationRuleRepositoryCacheGetIntervals
+    )
 
     fertilizers_repository_cache_get_all = provide(FertilizersRepositoryCacheGetAll)
     fertilizers_repository_cache_get_by_id = provide(FertilizersRepositoryCacheGetById)
@@ -155,8 +166,9 @@ class CacheProvider(Provider):
     climate_repository_cache_get_by_field_id = provide(ClimateRepositoryCacheGetByFieldId)
 
     finance_repository_cache_get_material_prices = provide(FinanceRepositoryCacheGetMaterialPrices)
-    finance_repository_cache_get_crop_profile_opexs = provide(FinanceRepositoryCacheGetCropProfileOpexs)
-
+    finance_repository_cache_get_crop_profile_opexs = provide(
+        FinanceRepositoryCacheGetCropProfileOpexs
+    )
 
 
 class ClientProvider(Provider):

@@ -57,19 +57,36 @@ def _studio(monkeypatch: pytest.MonkeyPatch) -> CroppingStudio:
 
     context = MagicMock()
     context.crop_profiles = []
-    climate = {key: None for key in ("min_temps", "max_temps", "mean_temps", "precipitations", "et0s", "horizon_start", "horizon_end")}
+    climate = {
+        key: None
+        for key in (
+            "min_temps",
+            "max_temps",
+            "mean_temps",
+            "precipitations",
+            "et0s",
+            "horizon_start",
+            "horizon_end",
+        )
+    }
 
     async def prepared(*_args: Any, **_kwargs: Any) -> tuple[Any, Any]:
         return context, climate
 
     monkeypatch.setattr(studio, "_prepare_environment", prepared)
-    monkeypatch.setattr(studio_module.CandidateGenerator, "generate_all_windows", staticmethod(_busy))
-    monkeypatch.setattr(studio_module.CandidateGenerator, "generate_for_scenario", staticmethod(_busy))
+    monkeypatch.setattr(
+        studio_module.CandidateGenerator, "generate_all_windows", staticmethod(_busy)
+    )
+    monkeypatch.setattr(
+        studio_module.CandidateGenerator, "generate_for_scenario", staticmethod(_busy)
+    )
     monkeypatch.setattr(studio_module, "evaluate_carryover_dynamics", lambda **_kwargs: [])
     return studio
 
 
-def test_optimization_preprocessing_leaves_the_event_loop_free(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_optimization_preprocessing_leaves_the_event_loop_free(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     studio = _studio(monkeypatch)
     ticks = asyncio.run(_ticks_while(studio.prepare(MagicMock(), MagicMock(), MagicMock())))
     assert ticks >= 5, f"the event loop stalled during candidate generation ({ticks} ticks)"
@@ -77,5 +94,7 @@ def test_optimization_preprocessing_leaves_the_event_loop_free(monkeypatch: pyte
 
 def test_scenario_evaluation_leaves_the_event_loop_free(monkeypatch: pytest.MonkeyPatch) -> None:
     studio = _studio(monkeypatch)
-    ticks = asyncio.run(_ticks_while(studio.evaluate_scenario(MagicMock(), MagicMock(), MagicMock(), [])))
+    ticks = asyncio.run(
+        _ticks_while(studio.evaluate_scenario(MagicMock(), MagicMock(), MagicMock(), []))
+    )
     assert ticks >= 5, f"the event loop stalled during scenario simulation ({ticks} ticks)"
