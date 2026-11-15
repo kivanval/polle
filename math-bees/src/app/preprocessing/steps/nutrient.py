@@ -53,6 +53,8 @@ ZERO_RATE_KG_HA: Final[Rate[Kilogram, AreaHa]] = Rate(real=0.0, target_type=Kilo
 
 
 def _rate_kg_ha(val: float) -> Rate[Kilogram, AreaHa]:
+    if val == 0.0:
+        return ZERO_RATE_KG_HA
     rounded = round(val, RATE_ROUND_DECIMALS)
     if rounded == 0.0:
         return ZERO_RATE_KG_HA
@@ -60,10 +62,14 @@ def _rate_kg_ha(val: float) -> Rate[Kilogram, AreaHa]:
 
 
 class NutrientBalanceStep(SimulationStep):
+    def __init__(self):
+        super().__init__()
+        self._fert_cache: dict[tuple[Year, bool, bool, bool], list[Fertilizer]] = {}
+
     def apply(
-        self,
-        candidate: SimulationCandidate,
-        context: SolverContext,
+            self,
+            candidate: SimulationCandidate,
+            context: SolverContext,
     ) -> list[SimulationCandidate]:
         if candidate.is_dead:
             return [candidate]
@@ -86,14 +92,15 @@ class NutrientBalanceStep(SimulationStep):
         ) = self._calculate_base_requirements(candidate)
 
         if context.replenishment.fertilizers.apply:
-            candidate, valid_fertilizers = self._filter_best_fertilizers(
-                candidate, context, n_deficit, p_deficit, k_deficit
-            )
+            plant_year = Year(candidate.plant_date.year)
+            cache_key = (plant_year, n_deficit > 0, p_deficit > 0, k_deficit > 0)
+            if cache_key not in self._fert_cache:
+                self._fert_cache[cache_key] = self._filter_best_fertilizers(
+                    context, plant_year, n_deficit, p_deficit, k_deficit
+                )
+            valid_fertilizers = self._fert_cache[cache_key]
         else:
             valid_fertilizers = []
-
-        if candidate.is_dead:
-            return [candidate]
 
         return self._generate_fertilizer_variants(
             candidate=candidate,
@@ -112,10 +119,10 @@ class NutrientBalanceStep(SimulationStep):
 
     @staticmethod
     def _check_removal_rates(
-        candidate: SimulationCandidate,
-        context: SolverContext,
-        *,
-        abort_on_fatal: bool = True,
+            candidate: SimulationCandidate,
+            context: SolverContext,
+            *,
+            abort_on_fatal: bool = True,
     ) -> tuple[SimulationCandidate, bool]:
         profile = candidate.profile
         n_rate, p_rate, k_rate = (
@@ -134,7 +141,7 @@ class NutrientBalanceStep(SimulationStep):
         elements_slug = "-".join(missing_elements)
 
         cand = candidate.with_risk(
-            note=Note(
+            Note(
                 NoteCategory.DATA_MISSING,
                 NoteImportance.RISK,
                 f"Missing nutrient removal rates for: {elem_list}",
@@ -149,7 +156,7 @@ class NutrientBalanceStep(SimulationStep):
 
     @staticmethod
     def _calculate_base_requirements(
-        candidate: SimulationCandidate,
+            candidate: SimulationCandidate,
     ) -> tuple[float, float, float, float, float, float, float, float]:
         profile = candidate.profile
         harvest_count = max(1, len(candidate.harvest_events))
@@ -206,31 +213,27 @@ class NutrientBalanceStep(SimulationStep):
 
     @staticmethod
     def _filter_best_fertilizers(
-        candidate: SimulationCandidate,
-        context: SolverContext,
-        n_deficit: float,
-        p_deficit: float,
-        k_deficit: float,
-    ) -> tuple[SimulationCandidate, list[Fertilizer]]:
-        valid_fertilizers: list[Fertilizer] = []
-        for fert in context.fertilizers:
-            has_relevant = (
-                (n_deficit > 0 and fert.n_percent.as_fraction > 0)
-                or (p_deficit > 0 and fert.p_percent.as_fraction > 0)
-                or (k_deficit > 0 and fert.k_percent.as_fraction > 0)
-            )
-            if has_relevant:
-                valid_fertilizers.append(fert)
+            context: SolverContext,
+            plant_year: Year,
+            n_deficit: float,
+            p_deficit: float,
+            k_deficit: float,
+    ) -> list[Fertilizer]:
+        valid_fertilizers = [
+            fert
+            for fert in context.fertilizers
+            if (n_deficit <= 0 or fert.n_percent.as_fraction > 0)
+               and (p_deficit <= 0 or fert.p_percent.as_fraction > 0)
+               and (k_deficit <= 0 or fert.k_percent.as_fraction > 0)
+        ]
 
         if not valid_fertilizers and context.fertilizers:
             valid_fertilizers = context.fertilizers
 
         if not valid_fertilizers:
-            return candidate, []
+            return []
 
-        plant_year = Year(candidate.plant_date.year)
         best_by_profile: dict[tuple[bool, bool, bool, SoilImpact], tuple[Fertilizer, float]] = {}
-        skipped_fertilizers: list[str] = []
 
         for fert in valid_fertilizers:
             n_frac = fert.n_percent.as_fraction
@@ -247,7 +250,6 @@ class NutrientBalanceStep(SimulationStep):
                 if context.risk.allow_missing_data:
                     price = ZERO_COST_CENTS
                 else:
-                    skipped_fertilizers.append(str(fert.id))
                     continue
             else:
                 if plant_year in price_dict:
@@ -263,38 +265,27 @@ class NutrientBalanceStep(SimulationStep):
             profile_key = (n_frac > 0, p_frac > 0, k_frac > 0, fert.soil_impact)
 
             if (
-                profile_key not in best_by_profile
-                or effective_price < best_by_profile[profile_key][1]
+                    profile_key not in best_by_profile
+                    or effective_price < best_by_profile[profile_key][1]
             ):
                 best_by_profile[profile_key] = (fert, effective_price)
 
-        final_fertilizers = [f for f, _p in best_by_profile.values()]
-
-        if skipped_fertilizers:
-            candidate = candidate.with_risk(
-                note=Note(
-                    NoteCategory.DATA_MISSING,
-                    NoteImportance.WARN,
-                    f"Skipped fertilizers due to missing prices: {', '.join(skipped_fertilizers)}",
-                )
-            )
-
-        return candidate, final_fertilizers
+        return [f for f, _p in best_by_profile.values()]
 
     @staticmethod
     def _generate_fertilizer_variants(
-        candidate: SimulationCandidate,
-        context: SolverContext,
-        valid_fertilizers: list[Fertilizer],
-        n_deficit: float,
-        p_deficit: float,
-        k_deficit: float,
-        n_removal: float,
-        p_removal: float,
-        k_removal: float,
-        max_n_fixation: float,
-        max_n_fix_fraction: float,
-        has_missing_data: bool,
+            candidate: SimulationCandidate,
+            context: SolverContext,
+            valid_fertilizers: list[Fertilizer],
+            n_deficit: float,
+            p_deficit: float,
+            k_deficit: float,
+            n_removal: float,
+            p_removal: float,
+            k_removal: float,
+            max_n_fixation: float,
+            max_n_fix_fraction: float,
+            has_missing_data: bool,
     ) -> list[SimulationCandidate]:
         generated_variants: list[SimulationCandidate] = []
         fertilizer_settings = context.replenishment.fertilizers
@@ -324,9 +315,9 @@ class NutrientBalanceStep(SimulationStep):
                     k_frac = fert_product.k_percent.as_fraction
 
                     will_apply = (
-                        (n_deficit > 0 and n_frac > 0)
-                        or (p_deficit > 0 and p_frac > 0)
-                        or (k_deficit > 0 and k_frac > 0)
+                            (n_deficit > 0 and n_frac > 0)
+                            or (p_deficit > 0 and p_frac > 0)
+                            or (k_deficit > 0 and k_frac > 0)
                     )
                     if not will_apply:
                         continue
@@ -394,7 +385,6 @@ class NutrientBalanceStep(SimulationStep):
                 )
 
                 if curr_cand.is_dead:
-                    generated_variants.append(curr_cand)
                     continue
 
                 variant = NutrientBalanceStep._finalize_nutrition_candidate(
@@ -416,11 +406,11 @@ class NutrientBalanceStep(SimulationStep):
 
     @staticmethod
     def _apply_fertilizer_notes(
-        candidate: SimulationCandidate,
-        fert_product: Fertilizer | None,
-        n_deficit: float,
-        p_deficit: float,
-        k_deficit: float,
+            candidate: SimulationCandidate,
+            fert_product: Fertilizer | None,
+            n_deficit: float,
+            p_deficit: float,
+            k_deficit: float,
     ) -> SimulationCandidate:
         if fert_product is None:
             return candidate
@@ -429,71 +419,45 @@ class NutrientBalanceStep(SimulationStep):
         p_frac = fert_product.p_percent.as_fraction
         k_frac = fert_product.k_percent.as_fraction
 
-        cand = candidate
+        new_notes = []
         if n_deficit > 0 and n_frac == 0:
-            cand = cand.with_risk(
-                Note(
-                    NoteCategory.AGRONOMIC,
-                    NoteImportance.WARN,
-                    "The selected fertilizer does not provide enough Nitrogen",
-                )
-            )
+            new_notes.append(Note(NoteCategory.AGRONOMIC, NoteImportance.WARN, "The selected fertilizer does not provide enough Nitrogen"))
         if p_deficit > 0 and p_frac == 0:
-            cand = cand.with_risk(
-                Note(
-                    NoteCategory.AGRONOMIC,
-                    NoteImportance.WARN,
-                    "The selected fertilizer does not provide enough Phosphorus",
-                )
-            )
+            new_notes.append(Note(NoteCategory.AGRONOMIC, NoteImportance.WARN, "The selected fertilizer does not provide enough Phosphorus"))
         if k_deficit > 0 and k_frac == 0:
-            cand = cand.with_risk(
-                Note(
-                    NoteCategory.AGRONOMIC,
-                    NoteImportance.WARN,
-                    "The selected fertilizer does not provide enough Potassium",
-                )
-            )
+            new_notes.append(Note(NoteCategory.AGRONOMIC, NoteImportance.WARN, "The selected fertilizer does not provide enough Potassium"))
 
         if fert_product.soil_impact == SoilImpact.ACIDIFIES:
-            cand = cand.with_risk(
-                Note(
-                    NoteCategory.SOIL_HEALTH,
-                    NoteImportance.INFO,
-                    f"Applying {fert_product.id} will make the soil more acidic over time",
-                )
-            )
+            new_notes.append(Note(NoteCategory.SOIL_HEALTH, NoteImportance.INFO, f"Applying {fert_product.id} will make the soil more acidic over time"))
         elif fert_product.soil_impact == SoilImpact.ALKALINIZES:
-            cand = cand.with_risk(
-                Note(
-                    NoteCategory.SOIL_HEALTH,
-                    NoteImportance.INFO,
-                    f"Applying {fert_product.id} will make the soil more alkaline over time",
-                )
-            )
+            new_notes.append(Note(NoteCategory.SOIL_HEALTH, NoteImportance.INFO, f"Applying {fert_product.id} will make the soil more alkaline over time"))
+
+        cand = candidate
+        for note in new_notes:
+            cand = cand.with_risk(note)
 
         return cand
 
     @staticmethod
     def _compute_nutrition_response(
-        candidate: SimulationCandidate,
-        context: SolverContext,
-        fert_product: Fertilizer | None,
-        total_n_app: float,
-        total_p_app: float,
-        total_k_app: float,
-        n_removal: float,
-        p_removal: float,
-        k_removal: float,
-        p_deficit: float,
-        k_deficit: float,
-        max_n_fixation: float,
-        max_n_fix_fraction: float,
-        raw_texture_baseline: float,
-        is_unfertilized: bool,
-        level_pct: int | None,
-        *,
-        abort_on_fatal: bool = True,
+            candidate: SimulationCandidate,
+            context: SolverContext,
+            fert_product: Fertilizer | None,
+            total_n_app: float,
+            total_p_app: float,
+            total_k_app: float,
+            n_removal: float,
+            p_removal: float,
+            k_removal: float,
+            p_deficit: float,
+            k_deficit: float,
+            max_n_fixation: float,
+            max_n_fix_fraction: float,
+            raw_texture_baseline: float,
+            is_unfertilized: bool,
+            level_pct: int | None,
+            *,
+            abort_on_fatal: bool = True,
     ) -> tuple[SimulationCandidate, float, float]:
         actual_n_fixation = ZERO_NUTRIENT_VALUE
         if max_n_fixation > ZERO_NUTRIENT_VALUE:
@@ -503,7 +467,7 @@ class NutrientBalanceStep(SimulationStep):
                 n_fert_suppression = max(
                     MIN_RESIDUAL_BNF_FRACTION,
                     1.0 - (MAX_FERTILIZER_BNF_SUPPRESSION * n_coverage_ratio),
-                )
+                    )
 
             actual_n_fixation = max_n_fixation * n_fert_suppression
 
@@ -551,7 +515,7 @@ class NutrientBalanceStep(SimulationStep):
                 fatal = abort_on_fatal and is_critical and not context.risk.allow_agronomic_risks
 
             cand = cand.with_risk(
-                note=Note(NoteCategory.AGRONOMIC, importance, msg),
+                Note(NoteCategory.AGRONOMIC, importance, msg),
                 fatal_if=fatal,
                 death_note=DeathNote(
                     f"NutrientBalance:CriticalDeficit({yield_pct}%)", is_static=False
@@ -562,17 +526,17 @@ class NutrientBalanceStep(SimulationStep):
 
     @staticmethod
     def _finalize_nutrition_candidate(
-        candidate: SimulationCandidate,
-        fert_yield_mult: float,
-        actual_n_fixation: float,
-        applied_fertilizer: AppliedFertilizer | None,
-        total_n_app: float,
-        total_p_app: float,
-        total_k_app: float,
-        n_removal: float,
-        p_removal: float,
-        k_removal: float,
-        has_missing_data: bool,
+            candidate: SimulationCandidate,
+            fert_yield_mult: float,
+            actual_n_fixation: float,
+            applied_fertilizer: AppliedFertilizer | None,
+            total_n_app: float,
+            total_p_app: float,
+            total_k_app: float,
+            n_removal: float,
+            p_removal: float,
+            k_removal: float,
+            has_missing_data: bool,
     ) -> SimulationCandidate:
         start_ym = YearMonth(candidate.plant_date.year, candidate.plant_date.month)
         clearance_date = candidate.clearance_date or (
@@ -645,19 +609,19 @@ class NutrientBalanceStep(SimulationStep):
 
     @staticmethod
     def _distribute_monthly_dynamics(
-        total_n_app: float,
-        total_p_app: float,
-        total_k_app: float,
-        n_removal: float,
-        p_removal: float,
-        k_removal: float,
-        actual_n_fixation: float,
-        has_missing_data: bool,
-        active_months: list[YearMonth],
-        harvest_months_counts: Counter[YearMonth],
-        start_ym: YearMonth,
-        active_count: int,
-        harvest_events_count: int,
+            total_n_app: float,
+            total_p_app: float,
+            total_k_app: float,
+            n_removal: float,
+            p_removal: float,
+            k_removal: float,
+            actual_n_fixation: float,
+            has_missing_data: bool,
+            active_months: list[YearMonth],
+            harvest_months_counts: Counter[YearMonth],
+            start_ym: YearMonth,
+            active_count: int,
+            harvest_events_count: int,
     ) -> dict[YearMonth, MonthlyNutrientDynamics]:
         if has_missing_data:
             return {}
@@ -700,9 +664,9 @@ class NutrientBalanceStep(SimulationStep):
 
 class ScenarioNutrientStep(NutrientBalanceStep):
     def apply(
-        self,
-        candidate: SimulationCandidate,
-        context: SolverContext,
+            self,
+            candidate: SimulationCandidate,
+            context: SolverContext,
     ) -> list[SimulationCandidate]:
         curr_cand, has_missing_data = self._check_removal_rates(
             candidate, context, abort_on_fatal=False
@@ -717,7 +681,7 @@ class ScenarioNutrientStep(NutrientBalanceStep):
             )
             if fert_product is None:
                 curr_cand = curr_cand.with_risk(
-                    note=Note(
+                    Note(
                         NoteCategory.DATA_MISSING,
                         NoteImportance.RISK,
                         f"The planned fertilizer material '{scheduled_fert.material_id}' was not found in the catalog",
