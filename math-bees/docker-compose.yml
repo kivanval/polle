@@ -30,9 +30,7 @@ services:
       dockerfile: Dockerfile-worker
       additional_contexts:
         api: ../api
-    # At most 4 tasks per worker process (taskiq's default is 100): a process no longer takes the whole queue while
-    # the others idle, and its CP-SAT solves can't fill the thread pool an evaluation's simulation needs.
-    command: ["taskiq", "worker", "app.worker:broker", "--max-async-tasks", "4"]
+    command: ["taskiq", "worker", "app.worker:broker"]
     env_file:
       - .env
     environment:

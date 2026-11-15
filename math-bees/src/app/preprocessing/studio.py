@@ -41,39 +41,6 @@ class ClimateArrays(TypedDict):
     horizon_end: date
 
 
-def _build_climate_arrays(context: SolverContext) -> ClimateArrays:
-    """Fills the horizon's daily climate arrays and simulates the field's fallow dynamics into `context.field`."""
-    horizon_start = date(context.horizon.start.year, context.horizon.start.month, 1)
-    horizon_end = date(
-        context.horizon.end.year, context.horizon.end.month, context.horizon.end.days_in_month
-    )
-    total_horizon_days = (horizon_end - horizon_start).days + 1
-
-    climate_arrays: ClimateArrays = {
-        "min_temps": np.empty(total_horizon_days, dtype=np.float32),
-        "max_temps": np.empty(total_horizon_days, dtype=np.float32),
-        "mean_temps": np.empty(total_horizon_days, dtype=np.float32),
-        "precipitations": np.empty(total_horizon_days, dtype=np.float32),
-        "et0s": np.empty(total_horizon_days, dtype=np.float32),
-        "horizon_start": horizon_start,
-        "horizon_end": horizon_end,
-    }
-
-    for day_offset in range(total_horizon_days):
-        current_date = horizon_start + timedelta(days=day_offset)
-        record = context.field.climate.records.get(current_date)
-        if record:
-            climate_arrays["min_temps"][day_offset] = float(record.temp_min_c)
-            climate_arrays["max_temps"][day_offset] = float(record.temp_max_c)
-            climate_arrays["mean_temps"][day_offset] = float(record.temp_mean_c)
-            climate_arrays["precipitations"][day_offset] = float(record.precipitation_mm)
-            climate_arrays["et0s"][day_offset] = record.et0_mm
-
-    context.field = simulate_fallow_dynamics(context.field, horizon_start, total_horizon_days)
-
-    return climate_arrays
-
-
 class CroppingStudio:
     def __init__(
         self,
@@ -145,9 +112,34 @@ class CroppingStudio:
             fertilizers=fertilizers,
         )
 
-        # Day-by-day climate arrays and the fallow simulation are CPU-bound Python: off the event loop, so other tasks in
-        # this worker (an evaluation behind a batch of optimizations) keep running.
-        climate_arrays = await asyncio.to_thread(_build_climate_arrays, context)
+        horizon_start = date(context.horizon.start.year, context.horizon.start.month, 1)
+        horizon_end = date(
+            context.horizon.end.year, context.horizon.end.month, context.horizon.end.days_in_month
+        )
+        total_horizon_days = (horizon_end - horizon_start).days + 1
+
+        climate_arrays: ClimateArrays = {
+            "min_temps": np.empty(total_horizon_days, dtype=np.float32),
+            "max_temps": np.empty(total_horizon_days, dtype=np.float32),
+            "mean_temps": np.empty(total_horizon_days, dtype=np.float32),
+            "precipitations": np.empty(total_horizon_days, dtype=np.float32),
+            "et0s": np.empty(total_horizon_days, dtype=np.float32),
+            "horizon_start": horizon_start,
+            "horizon_end": horizon_end,
+        }
+
+        for day_offset in range(total_horizon_days):
+            current_date = horizon_start + timedelta(days=day_offset)
+            record = context.field.climate.records.get(current_date)
+            if record:
+                climate_arrays["min_temps"][day_offset] = float(record.temp_min_c)
+                climate_arrays["max_temps"][day_offset] = float(record.temp_max_c)
+                climate_arrays["mean_temps"][day_offset] = float(record.temp_mean_c)
+                climate_arrays["precipitations"][day_offset] = float(record.precipitation_mm)
+                climate_arrays["et0s"][day_offset] = record.et0_mm
+
+        context.field = simulate_fallow_dynamics(context.field, horizon_start, total_horizon_days)
+
         return context, climate_arrays
 
     async def prepare(
@@ -159,19 +151,6 @@ class CroppingStudio:
         logger.info("Preparing Cropping Canvas for CP-SAT solver..")
         context, climate = await self._prepare_environment(field, horizon, strategy)
 
-        variants = await asyncio.to_thread(self._simulate_all_windows, context, climate)
-
-        return CroppingCanvas(
-            horizon=horizon,
-            field=context.field,
-            variants=variants,
-            rotation_intervals=context.rotation_intervals,
-            material_prices=context.material_prices,
-            risk=strategy.risk,
-        )
-
-    def _simulate_all_windows(self, context: SolverContext, climate: ClimateArrays) -> list[PlantingVariant]:
-        """Generates every planting window and simulates it: CPU-bound, so it runs in a worker thread."""
         initial_candidates = CandidateGenerator.generate_all_windows(
             context=context,
             horizon_start=climate["horizon_start"],
@@ -191,7 +170,15 @@ class CroppingStudio:
             len(variants),
             len(death_notes),
         )
-        return variants
+
+        return CroppingCanvas(
+            horizon=horizon,
+            field=context.field,
+            variants=variants,
+            rotation_intervals=context.rotation_intervals,
+            material_prices=context.material_prices,
+            risk=strategy.risk,
+        )
 
     async def evaluate_scenario(
         self,
@@ -230,16 +217,6 @@ class CroppingStudio:
                 )
             )
 
-        return await asyncio.to_thread(self._simulate_scenario, context, climate, horizon, resolved_crops)
-
-    def _simulate_scenario(
-        self,
-        context: SolverContext,
-        climate: ClimateArrays,
-        horizon: Horizon,
-        resolved_crops: list[PlannedCrop],
-    ) -> list[PlantingVariant]:
-        """Simulates the farmer's own crops and their carryover: CPU-bound, so it runs in a worker thread."""
         scenario_candidates = CandidateGenerator.generate_for_scenario(
             context=context,
             horizon_start=climate["horizon_start"],
