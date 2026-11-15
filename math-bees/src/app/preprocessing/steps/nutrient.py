@@ -450,7 +450,7 @@ class NutrientBalanceStep(SimulationStep):
                 Note(
                     NoteCategory.SOIL_HEALTH,
                     NoteImportance.INFO,
-                    f"Applying {fert_product.id} will make the soil more acidic over time",
+                    f"Applying selected fertilizer will make the soil more acidic over time",
                 )
             )
         elif fert_product.soil_impact == SoilImpact.ALKALINIZES:
@@ -458,7 +458,7 @@ class NutrientBalanceStep(SimulationStep):
                 Note(
                     NoteCategory.SOIL_HEALTH,
                     NoteImportance.INFO,
-                    f"Applying {fert_product.id} will make the soil more alkaline over time",
+                    f"Applying selected fertilizer will make the soil more alkaline over time",
                 )
             )
 
