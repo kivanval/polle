@@ -68,7 +68,7 @@ public static class StrategyChoices
         if (choices is null || choices.Length == 0) return (DefaultPicks, errors);
         if (choices.Length > StrategyCatalog.MaxStrategiesPerRun)
         {
-            errors["strategies"] = [$"Choose at most {StrategyCatalog.MaxStrategiesPerRun} strategies at a time."];
+            errors["strategies"] = [$"Choose at most {StrategyCatalog.MaxStrategiesPerRun} plans at a time."];
             return ([], errors);
         }
         var picks = new List<StrategyPick>();
@@ -76,7 +76,7 @@ public static class StrategyChoices
         {
             var pick = PickOf(choices[index], out var error);
             if (error is null && pick!.Key.StartsWith(StrategyCatalog.CustomPrefix, StringComparison.Ordinal) && picks.Any(item => item.Key == pick.Key))
-                error = "You already have a custom strategy with these settings.";
+                error = "You already have a custom plan with these settings.";
             if (error is not null) errors[$"strategies[{index}]"] = [error];
             else if (picks.All(item => item.Key != pick!.Key)) picks.Add(pick!);
         }
@@ -144,7 +144,7 @@ public sealed record StrategyRunResponse(Guid Id, Guid FieldId, string StartMont
         var state = unreadable ? StrategyJobs.Failed : job.State;
         // The solver's own failure text stays in the database for debugging; the farmer sees plain words.
         return new(job.Key, name, summary, state, result,
-            state == StrategyJobs.Failed ? "This strategy couldn't be prepared." : null, StrategySettings.For(job.Key));
+            state == StrategyJobs.Failed ? "This plan couldn't be prepared." : null, StrategySettings.For(job.Key));
     }
 
     /// <summary>The farmer's own name and description where given, else the catalog's wording for the key.</summary>

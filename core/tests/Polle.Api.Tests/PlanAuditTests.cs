@@ -5,8 +5,9 @@ using Polle.Domain.Agriculture;
 namespace Polle.Api.Tests;
 
 /// <summary>
-/// "Your current plan" always gets a full audit (summary, agronomic risks, monthly water balance and N-P-K per crop) from
-/// the farmer's crops and the field's settings, even when the solver leaves it unscored.
+/// "Your current plan" always gets figures (summary, monthly water balance and N-P-K per crop) from the farmer's crops and
+/// the field's settings, even when the solver leaves it unscored. The audit raises no risks or warnings of its own: the
+/// cards show only felder's.
 /// </summary>
 public sealed class PlanAuditTests
 {
@@ -36,9 +37,9 @@ public sealed class PlanAuditTests
         new(40, 160, 16, 29), new(30, 140, 15, 28), new(35, 90, 10, 22), new(30, 50, 5, 14), new(35, 20, 0, 6), new(35, 10, -5, 1),
     ];
 
-    private static PlanAuditInput Input(IReadOnlyList<AuditPlanting> plantings, AuditField? field = null, IReadOnlyList<AuditMonthClimate>? climate = null,
-        Dictionary<(long, long), int>? rotation = null) => new("2027-01", "2031-12",
-        field ?? new AuditField(10, FieldConditions.DroughtProne, 40, 20, 100, null), plantings,
+    private static PlanAuditInput Input(IReadOnlyList<AuditPlanting> plantings, AuditField? field = null, IReadOnlyList<AuditMonthClimate>? climate = null)
+        => new("2027-01", "2031-12",
+        field ?? new AuditField(10, FieldConditions.DroughtProne, null), plantings,
         new Dictionary<long, AuditProfile> { [101] = WheatProfile, [102] = SunflowerProfile, [103] = PeasProfile },
         new Dictionary<long, IReadOnlyDictionary<int, long>>
         {
@@ -48,11 +49,10 @@ public sealed class PlanAuditTests
             [SunflowerSeedMaterial] = new Dictionary<int, long> { [2028] = 600_000 },
         },
         new Dictionary<long, IReadOnlyDictionary<int, long>> { [101] = new Dictionary<int, long> { [2028] = 30_000 } },
-        rotation ?? new Dictionary<(long, long), int> { [(Wheat, Wheat)] = 24, [(Sunflower, Sunflower)] = 72 },
         climate ?? Continental());
 
     [Fact]
-    public void TheCurrentPlanGetsASummaryRisksWaterByMonthAndNutrientsForEachCrop()
+    public void TheCurrentPlanGetsASummaryWaterByMonthAndNutrientsForEachCrop()
     {
         var result = PlanAudit.Build(Input([
             new(101, new DateOnly(2027, 10, 1), null),
@@ -78,9 +78,35 @@ public sealed class PlanAuditTests
         Assert.All(result.Cycles, cycle => Assert.True(cycle.Nutrients.NitrogenRemovedKgHa > 0 && cycle.Nutrients.PhosphorusRemovedKgHa > 0
             && cycle.Nutrients.PotassiumRemovedKgHa > 0));
         Assert.All(result.Cycles, cycle => Assert.Contains(cycle.Notes, note => note.StartsWith("Fertilizer need: the plan adds no fertilizer.")));
-        // Agronomic risks: the dry summer hits the sunflower.
-        Assert.Contains(result.Cycles[1].Risks, risk => risk.StartsWith("Drought"));
-        Assert.Contains(result.Risks, risk => risk.StartsWith("Drought"));
+    }
+
+    /// <summary>
+    /// A plan the audit could once have flagged on every count: a drought-hit sunflower, wheat sown again two months after
+    /// itself, a sunflower sown in frost, peas without a product to sell, harvests that outrun the soil and no climate for one
+    /// run. Only felder judges a plan, so none of it becomes a risk, warning or data gap here.
+    /// </summary>
+    [Fact]
+    public void TheAuditRaisesNoRisksOrWarningsOfItsOwn()
+    {
+        AuditPlanting[] plan =
+        [
+            new(101, new DateOnly(2027, 10, 1), new DateOnly(2028, 7, 20)), new(101, new DateOnly(2028, 9, 25), null),
+            new(102, new DateOnly(2029, 1, 10), null), new(102, new DateOnly(2029, 4, 20), null), new(103, new DateOnly(2030, 4, 1), null),
+            new(999, new DateOnly(2030, 9, 1), null),
+        ];
+
+        foreach (var result in new[] { PlanAudit.Build(Input(plan))!, PlanAudit.Build(Input(plan) with { Climate = null })! })
+        {
+            Assert.Empty(result.Risks);
+            Assert.Empty(result.Warnings);
+            Assert.Empty(result.DataGaps);
+            Assert.All(result.Cycles, cycle =>
+            {
+                Assert.Empty(cycle.Risks);
+                Assert.Empty(cycle.Warnings);
+                Assert.All(cycle.NoteDetails, note => Assert.Equal(StrategyResultMapper.Info, note.Importance));
+            });
+        }
     }
 
     [Fact]
@@ -88,12 +114,11 @@ public sealed class PlanAuditTests
     {
         var plan = new AuditPlanting[] { new(102, new DateOnly(2028, 4, 20), null) };
         var dry = PlanAudit.Build(Input(plan))!.Cycles[0];
-        var wet = PlanAudit.Build(Input(plan, new AuditField(10, FieldConditions.DroughtLow, null, null, null, 0),
+        var wet = PlanAudit.Build(Input(plan, new AuditField(10, FieldConditions.DroughtLow, 0),
             Continental().Select(month => month with { RainMm = 250 }).ToArray()))!.Cycles[0];
 
         Assert.True(dry.YieldPercent < 100);
         Assert.Equal(100, wet.YieldPercent);
-        Assert.DoesNotContain(wet.Risks, risk => risk.StartsWith("Drought"));
         Assert.True(wet.RevenueUsd > dry.RevenueUsd);
     }
 
@@ -122,80 +147,23 @@ public sealed class PlanAuditTests
     }
 
     [Fact]
-    public void TheDroughtNoteSaysWhereTheNeedAndTheRainComeFrom()
-    {
-        var sunflower = PlanAudit.Build(Input([new(102, new DateOnly(2028, 4, 20), null)]))!.Cycles[0];
-        var drought = Assert.Single(sunflower.Risks, risk => risk.StartsWith("Drought:"));
-
-        Assert.Contains("the Sunflower needs about", drought);
-        Assert.Contains("the field's ten-year average weather", drought);
-        Assert.Contains("rain plus the water stored in the soil covers about", drought);
-        Assert.Contains("The plan has no irrigation", drought);
-    }
-
-    [Fact]
-    public void ACropTooSoonAfterItselfIsARotationRisk()
-    {
-        var result = PlanAudit.Build(Input([
-            new(101, new DateOnly(2027, 10, 1), new DateOnly(2028, 7, 20)),
-            new(101, new DateOnly(2028, 9, 25), null),
-        ]))!;
-
-        Assert.DoesNotContain(result.Cycles[0].Risks, risk => risk.StartsWith("Crop rotation"));
-        Assert.Contains(result.Cycles[1].Risks, risk => risk.StartsWith("Crop rotation: Wheat comes back after 2 months"));
-    }
-
-    [Fact]
-    public void AnEarlierPlantingBeforeTheHorizonStillCountsForRotation()
-    {
-        var result = PlanAudit.Build(Input([
-            new(102, new DateOnly(2026, 4, 20), new DateOnly(2026, 9, 10)),
-            new(102, new DateOnly(2028, 4, 20), null),
-        ]))!;
-
-        Assert.Single(result.Cycles);
-        Assert.Contains(result.Cycles[0].Risks, risk => risk.StartsWith("Crop rotation: Sunflower comes back after 19 months"));
-    }
-
-    [Fact]
-    public void SowingInFrostIsAWrongMonthRisk()
-    {
-        var result = PlanAudit.Build(Input([new(102, new DateOnly(2028, 1, 10), null)]))!;
-
-        Assert.Contains(result.Cycles[0].Risks, risk => risk.StartsWith("Sowing month"));
-    }
-
-    [Fact]
-    public void HarvestsThatOutrunTheSoilTestAreSoilDepletion()
-    {
-        var result = PlanAudit.Build(Input([new(101, new DateOnly(2027, 10, 1), null), new(102, new DateOnly(2028, 9, 1), null)],
-            new AuditField(10, FieldConditions.DroughtLow, 30, 5, 400, 0)))!;
-
-        Assert.Contains(result.Cycles.SelectMany(cycle => cycle.NoteDetails), note => note.Category == "soil_health" && note.Message.Contains("nitrogen"));
-        Assert.Contains(result.Cycles.SelectMany(cycle => cycle.NoteDetails), note => note.Category == "soil_health" && note.Message.Contains("phosphorus"));
-        Assert.DoesNotContain(result.Cycles.SelectMany(cycle => cycle.NoteDetails), note => note.Category == "soil_health" && note.Message.Contains("potassium"));
-    }
-
-    [Fact]
-    public void LegumesFixNitrogenAndMissingFiguresAreWarnings()
+    public void LegumesFixNitrogenAndACropWithNothingToSellEarnsNothing()
     {
         var result = PlanAudit.Build(Input([new(103, new DateOnly(2028, 4, 1), null)]))!;
         var peas = result.Cycles[0];
 
         Assert.Equal(80, peas.Nutrients.NitrogenFixedKgHa);
-        Assert.Contains(peas.Warnings, warning => warning.Contains("no product to sell"));
         Assert.Equal(0, peas.RevenueUsd);
     }
 
     [Fact]
-    public void WithoutClimateTheAuditStillAnswersAndSaysWhy()
+    public void WithoutClimateTheAuditStillAnswers()
     {
         var result = PlanAudit.Build(Input([new(101, new DateOnly(2027, 10, 1), null)]) with { Climate = null })!;
 
         Assert.Single(result.Cycles);
         Assert.Empty(result.Cycles[0].MonthlyWater);
         Assert.Null(result.WaterUseMm);
-        Assert.Contains(result.DataGaps, gap => gap.Contains("climate"));
         Assert.True(result.Cycles[0].Nutrients.NitrogenRemovedKgHa > 0);
     }
 
@@ -234,11 +202,11 @@ public sealed class PlanAuditTests
         [.. cycles.Select(cycle => cycle with { NoteDetails = [], Risks = [], Warnings = [], Notes = [] })], [], [], [], 120, null, null);
 
     [Fact]
-    public void ACropTheSolverLeftOutOfTheEvaluationIsFilledInFromTheAuditWithAWarning()
+    public void ACropTheSolverLeftOutOfTheEvaluationIsFilledInFromTheAuditMarkedEstimated()
     {
         var audit = PlanAudit.Build(Input(ThreeCrops))!;
         Assert.Equal(3, audit.Cycles.Length);
-        var scored = Scored(audit.Cycles[0], audit.Cycles[1]);
+        var scored = Scored(audit.Cycles[0], audit.Cycles[1]) with { Risks = ["Frost shock: seedling"], Warnings = ["Missing price"] };
 
         var result = PlanAudit.Complete(scored, audit);
 
@@ -246,13 +214,13 @@ public sealed class PlanAuditTests
         Assert.Equal(["Wheat", "Sunflower", "Peas"], result.Cycles.Select(cycle => cycle.CropName));
         Assert.Equal([false, false, true], result.Cycles.Select(cycle => cycle.Estimated));
         var peas = result.Cycles[2];
-        Assert.Contains(peas.NoteDetails, note => note is { Category: PlanAudit.UnscoredCategory, Importance: StrategyResultMapper.Warning });
         // The farmer's own sowing day, not just its month.
-        Assert.StartsWith("Estimated: the planner couldn't score the Peas sown on 1 Apr 2029", peas.Warnings[0]);
         Assert.Equal("2029-04-01", peas.PlantingDate);
-        Assert.Contains(result.Warnings, warning => warning.StartsWith("Estimated: the planner couldn't score the Peas"));
-        // The audited crop's own findings come along; the solver's crops keep theirs (none here).
-        Assert.Equal(audit.Cycles[2].Risks, peas.Risks);
+        // Only the solver's risks and warnings: the filled-in crop adds none.
+        Assert.Empty(peas.Risks);
+        Assert.Empty(peas.Warnings);
+        Assert.Equal(["Frost shock: seedling"], result.Risks);
+        Assert.Equal(["Missing price"], result.Warnings);
         Assert.Empty(result.Cycles[0].NoteDetails);
         // Totals add the estimated crop to the solver's.
         Assert.Equal(9000m + peas.RevenueUsd, result.RevenueUsd);

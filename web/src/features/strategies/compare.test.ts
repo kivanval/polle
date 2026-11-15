@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { arrangeCards, badges, baselineIssue, combineRuns, comparableBaseline, deltas, distinctJobs, groupJobs, partlyEstimated, plannedLane, reasonText, sortCards, strategyLane, whyText } from './compare'
+import { arrangeCards, badges, baselineIssue, combineRuns, comparableBaseline, deltas, distinctJobs, evaluationOutdated, groupJobs, partlyEstimated, planFingerprint, plannedLane, reasonText, sortCards, strategyLane, whyText } from './compare'
 import { BASELINE_KEY, type StrategyCycle, type StrategyJob, type StrategyResult, type StrategyRun, type StrategySettings } from './api'
 import type { Crop, Planting } from '@/features/farms/plantings'
 
@@ -108,6 +108,37 @@ describe('arrangeCards', () => {
   })
 })
 
+describe('evaluationOutdated', () => {
+  const run = { createdAtUtc: '2026-11-15T10:00:00Z' }
+  const planting = (createdAtUtc: string, updatedAtUtc = createdAtUtc) => ({ createdAtUtc, updatedAtUtc })
+
+  it('is outdated once a crop was added or changed after the evaluation', () => {
+    expect(evaluationOutdated(run, [planting('2026-11-01T00:00:00Z'), planting('2026-11-15T10:05:00Z')])).toBe(true)
+    expect(evaluationOutdated(run, [planting('2026-11-01T00:00:00Z', '2026-11-15T11:00:00.123456Z')])).toBe(true)
+  })
+
+  it('is current when every crop is older, and reads timestamps without a zone as UTC', () => {
+    expect(evaluationOutdated(run, [planting('2026-11-15T09:59:59Z')])).toBe(false)
+    expect(evaluationOutdated({ createdAtUtc: '2026-11-15T10:00:00' }, [planting('2026-11-15T09:00:00Z')])).toBe(false)
+    expect(evaluationOutdated(undefined, [planting('2026-11-15T11:00:00Z')])).toBe(false)
+  })
+})
+
+describe('planFingerprint', () => {
+  const crop = (id: string, updatedAtUtc = '2026-11-01T00:00:00Z') => ({ id, updatedAtUtc })
+
+  it('stays the same for the same crops in any order', () => {
+    expect(planFingerprint([crop('a'), crop('b')])).toBe(planFingerprint([crop('b'), crop('a')]))
+  })
+
+  it('changes when a crop is removed, added or edited', () => {
+    const before = planFingerprint([crop('a'), crop('b')])
+    expect(planFingerprint([crop('a')])).not.toBe(before)
+    expect(planFingerprint([crop('a'), crop('b'), crop('c')])).not.toBe(before)
+    expect(planFingerprint([crop('a'), crop('b', '2026-11-15T10:00:00Z')])).not.toBe(before)
+  })
+})
+
 describe('current plan', () => {
   const infeasible = result({ status: 'INFEASIBLE', profitUsd: null, cycles: [] })
 
@@ -120,7 +151,12 @@ describe('current plan', () => {
   })
 
   it('explains why the solver did not accept the plan', () => {
-    expect(baselineIssue(job('current-plan', infeasible))).toMatch(/couldn’t score this plan/)
+    expect(baselineIssue(job('current-plan', infeasible))).toMatch(/^This plan breaks one of the planner’s rules \(nutrient balance, water, crop stage lengths or rotation\), so it couldn’t be scored\./)
+    // Short and plain: two sentences, no catalog or weather jargon.
+    const estimated = baselineIssue({ ...job('current-plan', result({})), estimated: true })!
+    expect(estimated.split('. ').length).toBeLessThanOrEqual(2)
+    expect(estimated).toMatch(/rough estimate/)
+    expect(estimated).not.toMatch(/catalog|averaged/)
     expect(baselineIssue(job('current-plan', result({ risks: ['Frost'] })))).toBeNull()
     expect(baselineIssue(job('current-plan', null, 'processing'))).toBeNull()
   })
@@ -130,7 +166,7 @@ describe('current plan', () => {
       cycle('Wheat', '2027-10', '2028-07'), cycle('Sunflower', '2028-09', '2029-01', 2), { ...cycle('Peas', '2029-04', '2029-07', 3), estimated: true },
     ] }))
     expect(partlyEstimated(partial)).toBe(true)
-    expect(baselineIssue(partial)).toMatch(/couldn’t score every crop/)
+    expect(baselineIssue(partial)).toMatch(/^Some crops break the planner’s rules/)
     expect(comparableBaseline(partial)).toBe(partial.result)
     const whole = job('current-plan', result({ status: 'FEASIBLE' }))
     expect(partlyEstimated(whole)).toBe(false)
@@ -141,7 +177,7 @@ describe('current plan', () => {
     const audit = result({ status: 'ESTIMATED', risks: ['Drought: rain covers only 60%'] })
     const estimated = { ...job('current-plan', audit), estimated: true }
     expect(comparableBaseline(estimated)).toBe(audit)
-    expect(baselineIssue(estimated)).toMatch(/our estimate: catalog yields and prices, the field’s usual weather/)
+    expect(baselineIssue(estimated)).toMatch(/so it couldn’t be scored\. Below is our rough estimate instead\.$/)
     expect(arrangeCards([estimated]).shown).toEqual([estimated])
   })
 

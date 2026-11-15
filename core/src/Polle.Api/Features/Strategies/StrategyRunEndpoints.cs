@@ -18,11 +18,11 @@ public sealed class StrategyRunEndpoints : IEndpoint
 {
     /// <summary>In the problem body when the solver, not this API or its database, is what's missing.</summary>
     public const string SolverUnavailableCode = "solver_unavailable";
-    internal const string SolverUnavailableText = "The strategy solver is temporarily unavailable.";
+    internal const string SolverUnavailableText = "The plan solver is temporarily unavailable.";
 
     /// <summary>503 naming the solver, so the client says the strategy service is down rather than the whole workspace.</summary>
     internal static IResult SolverUnavailable() => TypedResults.Problem(statusCode: StatusCodes.Status503ServiceUnavailable,
-        title: "Strategy solver unavailable", detail: $"{SolverUnavailableText} Please try again shortly.",
+        title: "Plan solver unavailable", detail: $"{SolverUnavailableText} Please try again shortly.",
         extensions: new Dictionary<string, object?> { ["code"] = SolverUnavailableCode });
 
     public void MapEndpoint(IEndpointRouteBuilder app)
@@ -41,7 +41,7 @@ public sealed class StrategyRunEndpoints : IEndpoint
     }
 
     private static async Task<IResult> StartAsync(Guid fieldId, StrategyRunRequest request, AppDbContext db, FelderClient solver,
-        SolverMaterials materials, HttpContext context, CancellationToken ct)
+        SolverMaterials materials, NasaPowerDailyClimate climate, HttpContext context, ILogger<StrategyRunEndpoints> log, CancellationToken ct)
     {
         if (!solver.Configured) return SolverUnavailable();
         var errors = StrategyJobs.HorizonErrors(request.StartMonth, request.EndMonth, DateOnly.FromDateTime(DateTime.UtcNow));
@@ -64,7 +64,36 @@ public sealed class StrategyRunEndpoints : IEndpoint
 
         var run = await CreateAsync(fieldId, request.StartMonth!, request.EndMonth!, strategies, db, solver, materials, ct,
             (hasBaseline, now) => StrategyJobs.ForRequest(request.PlanOnly, hasBaseline, strategies, now));
-        return TypedResults.Created($"/api/strategy-runs/{run.Id}", StrategyRunResponse.From(run, CropProfileNames.Empty));
+        if (!request.PlanOnly) return TypedResults.Created($"/api/strategy-runs/{run.Id}", StrategyRunResponse.From(run, CropProfileNames.Empty));
+        // The plan's evaluation is one quick job: wait for it here so the card shows without waiting for the next poll.
+        if (await AwaitQuickResultAsync(run, solver, StrategyJobs.QuickWait, ct, log)) await db.SaveChangesAsync(ct);
+        return TypedResults.Created($"/api/strategy-runs/{run.Id}", await ResponseAsync(db, run, climate, ct, log));
+    }
+
+    /// <summary>
+    /// Asks the solver about the run's submitted jobs every <see cref="StrategyJobs.QuickPollEvery"/> until none is
+    /// processing or <paramref name="wait"/> has passed; true when a job changed (the caller saves). A job not ready by then
+    /// stays processing for the client's polls; a job the solver hasn't accepted yet (deferred) is left to them too.
+    /// </summary>
+    internal static async Task<bool> AwaitQuickResultAsync(StrategyRun run, FelderClient solver, TimeSpan wait, CancellationToken ct,
+        ILogger? log = null)
+    {
+        var deadline = DateTime.UtcNow + wait;
+        var changed = false;
+        while (DateTime.UtcNow < deadline)
+        {
+            var pending = run.Jobs.Where(job => job.State == StrategyJobs.Processing && job.TaskId is not null).ToArray();
+            if (pending.Length == 0) break;
+            await Task.Delay(StrategyJobs.QuickPollEvery, ct);
+            var states = await Task.WhenAll(pending.Select(job => PollAsync(job, solver, ct, log)));
+            foreach (var (job, state) in pending.Zip(states))
+            {
+                if (state is null) continue;
+                StrategyJobs.Apply(job, state, DateTime.UtcNow);
+                changed = true;
+            }
+        }
+        return changed;
     }
 
     /// <summary>
@@ -138,7 +167,8 @@ public sealed class StrategyRunEndpoints : IEndpoint
     /// planted crop with its own simulated money, yield, monthly water and N-P-K and its own notes (drought, fertilizer,
     /// carry-over, rotation), and those are shown as they are. Only when the solver has finished with the farmer's plan
     /// without scoring it (failed, or no crops back) does its card get this API's audit instead (<see cref="PlanAudit"/>),
-    /// so it still has a summary, risks, water balance and N-P-K. When it scored only some of the crops (results stored
+    /// so it still has a summary, water balance and N-P-K. The audit adds no risks or warnings: the card shows only the ones
+    /// felder returned, so an evaluation without risks reads 0 risks. When it scored only some of the crops (results stored
     /// before that update, which dropped crops it couldn't simulate), the missing ones are filled in from the same audit and
     /// marked estimated (<see cref="PlanAudit.Complete"/>).
     /// </summary>
@@ -181,7 +211,7 @@ public sealed class StrategyRunEndpoints : IEndpoint
         var run =await OwnedRunAsync(db, context, runId, ct);
         var job = run?.Jobs.SingleOrDefault(candidate => candidate.Key == key);
         if (run is null || job is null) return TypedResults.NotFound();
-        if (!StrategyJobs.Retryable(job)) return TypedResults.Problem(statusCode: 409, title: "Only a strategy that couldn't be prepared can be retried.");
+        if (!StrategyJobs.Retryable(job)) return TypedResults.Problem(statusCode: 409, title: "Only a plan that couldn't be prepared can be retried.");
         // The outline may have been redrawn since the run started.
         var boundary = await db.Fields.AsNoTracking().Where(field => field.Id == run.FieldId).Select(field => field.Boundary).SingleAsync(ct);
         if (!FieldSoil.Available(boundary, LandMask.Default)) return NoSoil();

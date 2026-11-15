@@ -7,10 +7,11 @@ describe('month fields', () => {
     expect(joinMonth(2027, 3)).toBe('2027-03')
   })
 
-  it('offers this year through thirty years ahead', () => {
+  it('offers five years back through ten years ahead', () => {
     const years = yearOptions(2026)
     expect(years[0]).toBe(2021)
-    expect(years.at(-1)).toBe(2056)
-    expect(years).toHaveLength(36)
+    expect(years.at(-1)).toBe(2036)
+    expect(years).toHaveLength(16)
+    expect(years).not.toContain(2037)
   })
 })

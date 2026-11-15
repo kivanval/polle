@@ -124,16 +124,19 @@ public sealed record PlantingRequest(
     [property: MaxLength(4000)] string? Notes = null,
     [property: Description("Irrigation planned over the whole season, mm (0–5000); null or 0 is rain-fed.")] double? IrrigationMm = null,
     [property: Description("Fertilizer product from GET /api/fertilizers; null for none. Needs fertilizerRateKgHa.")] long? FertilizerMaterialId = null,
-    [property: Description("Kilograms of the fertilizer product per hectare over the season (above 0, up to 10000).")] double? FertilizerRateKgHa = null);
+    [property: Description("Kilograms of the fertilizer product per hectare over the season (above 0, up to 10000).")] double? FertilizerRateKgHa = null,
+    [property: Description("How far each irrigation refills the readily available water, percent (0–100); null is a full refill. Needs irrigationMm.")] double? IrrigationTargetPercent = null,
+    [property: Description("Share of the crop's nutrient deficit the fertilizer covers, percent (0–100); null for none. Needs fertilizerMaterialId.")] double? FertilizerTargetPercent = null);
 public sealed record PlantingResponse(Guid Id, Guid FieldId, long CropProfileId, long CropId, int SeasonYear,
     DateOnly PlantingDate, DateOnly? HarvestingDate, string? Notes, DateTime CreatedAtUtc, DateTime UpdatedAtUtc,
     [property: Description("Derived from today's UTC date: planned, current or historical. Not a stored flag.")] string Status,
-    double? IrrigationMm = null, long? FertilizerMaterialId = null, double? FertilizerRateKgHa = null)
+    double? IrrigationMm = null, long? FertilizerMaterialId = null, double? FertilizerRateKgHa = null,
+    double? IrrigationTargetPercent = null, double? FertilizerTargetPercent = null)
 {
     public static PlantingResponse From(FieldPlanting planting, DateOnly today) => new(planting.Id, planting.FieldId, planting.CropProfileId, planting.CropProfile.CropId,
         planting.SeasonYear, planting.PlantingDate, planting.HarvestingDate, planting.Notes, planting.CreatedAtUtc, planting.UpdatedAtUtc,
         planting.PlantingDate > today ? "planned" : planting.HarvestingDate is { } end && end < today ? "historical" : "current",
-        planting.IrrigationMm, planting.FertilizerMaterialId, planting.FertilizerRateKgHa);
+        planting.IrrigationMm, planting.FertilizerMaterialId, planting.FertilizerRateKgHa, planting.IrrigationTargetPercent, planting.FertilizerTargetPercent);
 }
 
 /// <summary>A fertilizer product a planting can name, with its N, P₂O₅ and K₂O content as on the label, percent.</summary>

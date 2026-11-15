@@ -89,8 +89,8 @@ export function RotationPage() {
 function Heading({ summary }: { summary: ReturnType<typeof rotationSummary> | null }) {
   return <div className="workspace-heading"><span className="mono section-label">PLANNING</span><h1>Every field’s seasons, side by side.</h1>
     <p>{summary && summary.fields
-      ? `${plural(summary.withPlan, 'field')} of ${summary.fields} ${summary.withPlan === 1 ? 'has' : 'have'} a plan. Open a field to edit its crops, ask the solver for rotation strategies, and compare them with your own plan.`
-      : 'Each field’s crop plan on one timeline, with rotation strategies from the solver to compare against your own.'}</p></div>
+      ? `${plural(summary.withPlan, 'field')} of ${summary.fields} ${summary.withPlan === 1 ? 'has' : 'have'} a plan. Open a field to edit its crops, ask the solver to suggest rotation plans, and compare them with your own plan.`
+      : 'Each field’s crop plan on one timeline, with rotation plans the solver suggests to compare against your own.'}</p></div>
 }
 
 const SAVED_SHOWN = 3
@@ -134,7 +134,7 @@ function FarmRotation({ farm, fields, plantings, saved, crops, cropsReady, onPla
                 {!field.soilAvailable && <span className="rotation-chip is-warn" title="This field lies outside mapped land, so the solver can’t model it.">
                   <AlertTriangle size={11} aria-hidden="true" />No soil data</span>}
               </span>
-              {strategies.length > 0 && <ul className="rotation-saved" aria-label={`Saved strategies for ${field.name}`}>
+              {strategies.length > 0 && <ul className="rotation-saved" aria-label={`Saved plans for ${field.name}`}>
                 {strategies.slice(0, SAVED_SHOWN).map(item => <li key={item.id}>
                   <button type="button" className="rotation-saved-link" disabled={!cropsReady} onClick={() => onPlan(field.id, item.id)}
                     title={`Open ${item.name}, ${monthText(item.startMonth)} – ${monthText(item.endMonth)}`}>
@@ -146,7 +146,7 @@ function FarmRotation({ farm, fields, plantings, saved, crops, cropsReady, onPla
             </div>
             <FieldTimeline compact label={`Crop plan of ${field.name}`} range={range} lanes={[{ key: 'plan', bars: planBars(fieldPlantings, crops) }]} />
             <button type="button" className="button button-dark rotation-plan" disabled={!cropsReady} onClick={() => onPlan(field.id)}
-              aria-label={`Plan and strategies for ${field.name}`}><LayoutList size={15} />Plan</button>
+              aria-label={`Plan and suggestions for ${field.name}`}><LayoutList size={15} />Plan</button>
           </li>
         })}</ul>
       </>}

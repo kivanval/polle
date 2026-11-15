@@ -20,6 +20,18 @@ const shiftDay = (iso: string, days: number) => {
 export const dayAfter = (iso: string) => shiftDay(iso, 1)
 export const dayBefore = (iso: string) => shiftDay(iso, -1)
 
+/**
+ * Where "Add a crop" starts: the day after the last harvest. When the last crop is still growing (no harvest date) it
+ * holds the field from its sowing on, so no day is suggested and the farmer picks a free one before it; the form checks
+ * the dates against every crop on the field.
+ */
+export function newCropSlot(periods: Planting[]): Slot {
+  const last = periods.reduce<Planting | undefined>((latest, planting) => !latest || planting.plantingDate > latest.plantingDate ? planting : latest, undefined)
+  const start = last?.harvestingDate ? dayAfter(last.harvestingDate) : ''
+  const season = Math.min(Math.max(start ? Number(start.slice(0, 4)) : thisYear, EARLIEST_SEASON), LATEST_SEASON)
+  return { season: { value: season, min: EARLIEST_SEASON, max: Math.max(LATEST_SEASON, season) }, plantingDate: start, maxHarvest: null }
+}
+
 const dateFormat = new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 export const formatDate = (iso: string) => dateFormat.format(new Date(`${iso}T00:00:00Z`))
 

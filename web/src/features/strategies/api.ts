@@ -36,7 +36,15 @@ export type StrategyCycle = {
   costBreakdown?: CostBreakdown | null
   /** The current plan only: the solver left this crop out, so its figures are the API's audit from the crop catalog. */
   estimated?: boolean
+  /** The water allowance the solver planned the crop with and its refill level; null or absent when rain-fed or on older results. */
+  irrigation?: CycleIrrigation | null
 } & FutureFlags
+
+/**
+ * `amountMm`: water over the whole cycle, mm. `targetPercent`: how far each irrigation refills the readily available
+ * water (0-100); null when the solver didn't say, which it reads as a full refill.
+ */
+export type CycleIrrigation = { materialId: string | null; amountMm: number; targetPercent: number | null }
 
 /** Costs over the whole field, US dollars: machinery and labour, seed, irrigation water and fertilizer. */
 export type CostBreakdown = { operatingUsd: number; plantingUsd: number; waterUsd: number; fertilizerUsd: number }
@@ -44,7 +52,9 @@ export type CostBreakdown = { operatingUsd: number; plantingUsd: number; waterUs
 /** materialId and name are null when only the amounts are known; a name is missing when the product isn't in the materials list. */
 export type CycleFertilizer = { materialId: string | null; name: string | null; applications: FertilizerApplication[]
   /** Kilograms of the product itself per hectare over the cycle; null or absent on results from before the solver reported it. */
-  rateKgHa?: number | null }
+  rateKgHa?: number | null
+  /** The share of the crop's nutrient deficit the fertilizer covers, 0-100; null or absent when the solver didn't say. */
+  targetPercent?: number | null }
 /** N, P and K one month's fertilizer adds, kg/ha. */
 export type FertilizerApplication = { month: string; nitrogenKgHa: number; phosphorusKgHa: number; potassiumKgHa: number }
 
@@ -123,8 +133,15 @@ export type SavedStrategy = {
 }
 
 export const BASELINE_KEY = 'current-plan'
-// Each poll makes the API check every processing job with the solver, so keep it unhurried.
+// Each poll makes the API check every processing job with the solver. The first checks come every second, so a plan the
+// solver scores in a moment shows at once; a run still processing after them is checked unhurriedly.
+const FAST_POLL_MS = 1000
+const FAST_POLLS = 15
 const POLL_MS = 5000
+
+/** How long to wait before checking a run again: false once nothing is processing. `updates` counts the answers so far. */
+export const pollDelay = (run: StrategyRun | undefined, updates: number): number | false =>
+  !run?.jobs.some(job => job.state === 'processing') ? false : updates < FAST_POLLS ? FAST_POLL_MS : POLL_MS
 
 export const strategyKeys = {
   run: (runId: string) => ['strategy-runs', runId] as const,
@@ -157,7 +174,7 @@ export function useStrategyRun(runId: string | null) {
     enabled: Boolean(runId),
     // A run the server doesn't have (a remembered id after a reload) won't appear later; other failures may pass.
     retry: (failures, error) => !(error instanceof ApiError && error.status === 404) && !(error instanceof ServerChallengeError) && failures < 3,
-    refetchInterval: query => query.state.data?.jobs.some(job => job.state === 'processing') ? POLL_MS : false,
+    refetchInterval: query => pollDelay(query.state.data, query.state.dataUpdateCount),
   })
 }
 

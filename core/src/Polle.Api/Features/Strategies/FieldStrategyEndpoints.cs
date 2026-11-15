@@ -47,7 +47,7 @@ public sealed class FieldStrategyEndpoints : IEndpoint
             .SingleOrDefaultAsync(candidate => candidate.Id == request.RunId && candidate.FieldId == fieldId && candidate.Field.Farm.OwnerUserId == userId, ct);
         var job = run?.Jobs.SingleOrDefault(candidate => candidate.Key == request.JobKey);
         if (run is null || job is null) return TypedResults.NotFound();
-        if (job.State != StrategyJobs.Ready || job.ResultJson is null) return TypedResults.Problem(statusCode: 409, title: "This strategy isn't ready yet.");
+        if (job.State != StrategyJobs.Ready || job.ResultJson is null) return TypedResults.Problem(statusCode: 409, title: "This plan isn't ready yet.");
 
         var baseline = ReadyBaseline(run);
         // Strategies and the plan's evaluation run separately; the plan's score counts only for the same field and months.
@@ -80,13 +80,13 @@ public sealed class FieldStrategyEndpoints : IEndpoint
             .SingleOrDefaultAsync(candidate => candidate.Id == strategyId && candidate.Field.Farm.OwnerUserId == userId, ct);
         if (strategy is null) return TypedResults.NotFound();
         var plan = StrategyPlan.Plantings(StrategyResultMapper.Map(strategy.ResultJson, CropProfileNames.Empty)?.Cycles ?? []);
-        if (plan.Count == 0) return TypedResults.Problem(statusCode: 409, title: "This strategy has no crops to plant.");
+        if (plan.Count == 0) return TypedResults.Problem(statusCode: 409, title: "This plan has no crops to plant.");
         // A saved strategy can outlive a crop removed from the catalog; planting it would break the foreign key.
         var profileIds = plan.Select(item => item.CropProfileId).Distinct().ToArray();
         var known = await db.CropProfiles.AsNoTracking().CountAsync(profile => profileIds.Contains(profile.Id), ct);
         if (known < profileIds.Length)
-            return TypedResults.Problem(statusCode: 409, title: "This strategy uses a crop that is no longer in the catalog.",
-                detail: "Suggest strategies again to get a plan with the current crops.",
+            return TypedResults.Problem(statusCode: 409, title: "This plan uses a crop that is no longer in the catalog.",
+                detail: "Suggest plans again to get one with the current crops.",
                 extensions: new Dictionary<string, object?> { ["code"] = "strategy_crop_removed" });
         var start = StrategyPlan.First(strategy.StartMonth);
 
@@ -103,11 +103,14 @@ public sealed class FieldStrategyEndpoints : IEndpoint
         await db.SaveChangesAsync(ct);
         foreach (var item in plan)
         {
-            var request = new PlantingRequest(item.CropProfileId, item.SeasonYear, item.Sown, item.Harvested, null, item.IrrigationMm, item.FertilizerMaterialId, item.FertilizerRateKgHa);
+            var request = new PlantingRequest(item.CropProfileId, item.SeasonYear, item.Sown, item.Harvested, null, item.IrrigationMm, item.FertilizerMaterialId,
+                item.FertilizerRateKgHa, item.IrrigationTargetPercent, item.FertilizerTargetPercent);
             if (await PlantingEndpoints.RelatedOverlapAsync(db, strategy.FieldId, null, request, ct) is { } related) return related;
-            db.FieldPlantings.Add(new FieldPlanting { FieldId = strategy.FieldId, CropProfileId = item.CropProfileId, SeasonYear = item.SeasonYear,
-                PlantingDate = item.Sown, HarvestingDate = item.Harvested, IrrigationMm = item.IrrigationMm,
-                FertilizerMaterialId = item.FertilizerMaterialId, FertilizerRateKgHa = item.FertilizerRateKgHa });
+            var planting = new FieldPlanting { FieldId = strategy.FieldId, CropProfileId = item.CropProfileId, SeasonYear = item.SeasonYear,
+                PlantingDate = item.Sown, HarvestingDate = item.Harvested };
+            // The strategy's water, fertilizer and their target levels, so "Evaluate my plan" scores the copy as the strategy.
+            PlantingEndpoints.ApplyInputs(planting, request);
+            db.FieldPlantings.Add(planting);
         }
         await db.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);

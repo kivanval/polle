@@ -13,7 +13,7 @@ export const SOURCE_GROUPS: Group[] = [
   {
     id: 'earth', title: 'NASA Earth observation', summary: 'Weather at each field and the satellite layers of the climate map.',
     sources: [
-      { name: 'NASA POWER', url: 'https://power.larc.nasa.gov/', use: 'Daily temperature and rain at each field over ten years, the weather strategies are scored against.' },
+      { name: 'NASA POWER', url: 'https://power.larc.nasa.gov/', use: 'Daily temperature and rain at each field over ten years, the weather suggested plans are scored against.' },
       { name: 'NASA GIBS', url: 'https://www.earthdata.nasa.gov/engage/open-data-services-software/earthdata-developer-portal/gibs-api', use: 'Satellite map tiles and their colour maps, read to give a value at a picked place.' },
       { name: 'NASA SMAP', url: 'https://smap.jpl.nasa.gov/', use: 'Root-zone soil moisture layer on the climate map.' },
       { name: 'NASA MODIS', url: 'https://modis.gsfc.nasa.gov/', use: 'Vegetation (NDVI) and land surface temperature layers on the climate map.' },
@@ -42,6 +42,14 @@ export const SOURCE_GROUPS: Group[] = [
       { name: 'Nominatim', url: 'https://nominatim.org/', use: 'Searching for a place and naming a picked point.' },
       { name: 'CARTO', url: 'https://carto.com/attributions', use: 'The base map style.' },
       { name: 'Esri World Imagery', url: 'https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9', use: 'The satellite photo and its place labels.' },
+    ],
+  },
+  {
+    id: 'photos', title: 'Photography', summary: 'Real photographs from Wikimedia Commons behind the site’s landscapes, cropped, resized and colour-graded for the layout.',
+    sources: [
+      { name: 'Patchwork Road in Biei, Hokkaido, by 663highland (CC BY 2.5)', url: 'https://commons.wikimedia.org/wiki/File:140724_Biei_Hokkaido_Japan01s8.jpg', use: 'The landing page hero and the platform preview. Its field outlines are examples, not live data.' },
+      { name: 'Fields in Gladbeck, Nottuln, by Dietmar Rabich (CC BY-SA 4.0)', url: 'https://commons.wikimedia.org/wiki/File:Nottuln,_Gladbeck,_Felder_--_2024_--_0119-23.jpg', use: 'The sunrise beside the log-in and sign-up forms.' },
+      { name: 'Moravská Zebra, strip fields near Bošovice, by Konstantin zhdanov (CC BY-SA 4.0)', url: 'https://commons.wikimedia.org/wiki/File:Moravsk%C3%A1_Zebra.jpg', use: 'The contour-farming photo on empty workspace pages.' },
     ],
   },
 ]

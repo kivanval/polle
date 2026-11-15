@@ -186,17 +186,25 @@ public sealed class AssistantDialogTests
 
         var text = StrategyRunDigest.Text(run, "Північне", 40, period, uk: true, started: true);
 
-        Assert.Contains("поля «Північне» з 2026-12 на 5 років (до 2031-11)", text);
+        Assert.StartsWith("### Плани для поля «Північне» · 2026-12 – 2031-11\n", text);
+        Assert.Contains("**Період:** з 2026-12 на 5 років (до 2031-11).", text);
         Assert.Contains("Початок не вказано", text);
-        Assert.Contains("Готово 3 з 4", text);
-        Assert.Contains("Ваш поточний план (оцінка", text);
-        Assert.Contains("• Full inputs: прибуток $9,000, +$7,000 до поточного плану", text);
-        Assert.Contains("полив 300 мм (120,000 м³)", text);
-        Assert.Contains("Рекомендую «Full inputs»", text);
-        Assert.Contains("менше ризиків — «Control»", text);
-        Assert.Contains("Головні ризики «Full inputs»: Heat at flowering · Rotation", text);
-        Assert.Contains("Ще рахуються: Cash grab", text);
-        Assert.True(text.IndexOf("Full inputs:", StringComparison.Ordinal) < text.IndexOf("Control:", StringComparison.Ordinal));
+        Assert.Contains("**Готово:** 3 з 4", text);
+        Assert.Contains("*Оцінка за довідником культур", text);
+        Assert.Contains("- Прибуток: **$2,000**", text);
+        Assert.Contains("1. **Full inputs**: прибуток **$9,000** (+$7,000 до поточного плану)", text);
+        Assert.Contains("   - Витрати $1,000 · полив 300 мм (120,000 м³) · ризиків 2", text);
+        Assert.Contains("   - Культури: Maize → Soybean", text);
+        Assert.Contains("Рекомендую **«Full inputs»**", text);
+        Assert.Contains("Менше ризиків — «Control»", text);
+        Assert.Contains("- Головні ризики «Full inputs»: Heat at flowering · Rotation", text);
+        Assert.Contains("- Ще рахуються: Cash grab", text);
+        // Sections in order, each its own block after a blank line.
+        var sections = new[] { "\n\n**Поточний план**\n", "\n\n**Найкращі варіанти**\n", "\n\n**Недоступні / ще рахуються**\n", "\n\n**Рекомендація**\n" };
+        var positions = sections.Select(section => text.IndexOf(section, StringComparison.Ordinal)).ToArray();
+        Assert.All(positions, position => Assert.True(position > 0));
+        Assert.Equal(positions.Order(), positions);
+        Assert.True(text.IndexOf("**Full inputs**", StringComparison.Ordinal) < text.IndexOf("**Control**", StringComparison.Ordinal));
     }
 
     [Fact]
@@ -207,10 +215,14 @@ public sealed class AssistantDialogTests
 
         var text = StrategyRunDigest.Text(run, "North", 40, new ResolvedPeriod("2027-01", 5, false, false), uk: false, started: false, new DateOnly(2026, 11, 10));
 
+        Assert.StartsWith("### Plans for North · 2027-01 – 2031-12\n", text);
         Assert.Contains("from 2027-01 for 5 years (to 2031-12)", text);
         Assert.Contains("calculation from 2026-11-10", text);
-        Assert.Contains("I'd choose Control", text);
+        Assert.Contains("I'd choose **Control**", text);
+        Assert.Contains("Your plan has no crops sown in this period", text);
+        Assert.DoesNotContain("Unavailable / In progress", text);
         Assert.DoesNotContain("No period given", text);
+        Assert.DoesNotContain("strateg", text, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]

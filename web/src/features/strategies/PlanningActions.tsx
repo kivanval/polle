@@ -23,8 +23,8 @@ export function PlanningActions({ disabled, describedBy, suggesting, evaluating,
     <button type="button" className="button button-secondary" disabled={disabled} aria-describedby={describedBy} onClick={onEvaluate}>
       {evaluating ? <TractorSpinner size={15} /> : <ClipboardCheck size={15} />}<span>{evaluating ? 'Evaluating…' : 'Evaluate my plan'}</span></button>
     <button type="submit" className="button button-dark" disabled={disabled} aria-describedby={describedBy}>
-      {suggesting ? <TractorSpinner size={15} /> : <Sprout size={15} />}<span>Suggest strategies</span></button>
-    <button type="button" className="button button-quiet button-icon" aria-label="Choose which strategies to compare" title="Choose strategies"
+      {suggesting ? <TractorSpinner size={15} /> : <Sprout size={15} />}<span>Suggest plans</span></button>
+    <button type="button" className="button button-quiet button-icon" aria-label="Choose which plans to suggest" title="Choose plans"
       aria-haspopup="dialog" aria-expanded={customizing} onClick={onCustomize}><Settings size={15} /></button>
     {choiceLabel !== null && <span className="strategy-note strategy-choice-count">{choiceLabel}</span>}
   </>

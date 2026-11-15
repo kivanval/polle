@@ -4,7 +4,7 @@ const usd = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD',
 const number = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 })
 
 /** The API's 422 message for a field with no soil data, shown before the farmer even asks for strategies. */
-export const NO_SOIL_MESSAGE = 'We have no soil data for this field’s location, so strategies can’t be modelled. You can still record its crops.'
+export const NO_SOIL_MESSAGE = 'We have no soil data for this field’s location, so plans can’t be suggested. You can still record its crops.'
 
 export const money = (value: number | null) => value === null ? '—' : usd.format(value)
 export const signedMoney = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : '±'}${usd.format(Math.abs(value))}`
@@ -58,8 +58,8 @@ export const DEFAULT_HORIZON_YEARS = 5
 
 /**
  * Default horizon: next month through December five years later, as Zhenya recommends for rotations. Ending in
- * December keeps late-autumn crops and leaves no bare tail on the timeline; at most 71 months, well inside the thirty
- * years the form and the API allow.
+ * December keeps late-autumn crops and leaves no bare tail on the timeline; it ends at most six years from now, inside
+ * the ten years ahead the form offers.
  */
 export function defaultHorizon(today = new Date()) {
   const next = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() + 1, 1))

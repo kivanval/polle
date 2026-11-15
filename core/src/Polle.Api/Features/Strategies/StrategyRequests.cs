@@ -26,7 +26,8 @@ public static class StrategyRequests
     }
 
     /// <summary>
-    /// The farmer's plantings sown inside the horizon with the water and fertilizer each one records (a crop without them
+    /// The farmer's plantings sown inside the horizon with the water and fertilizer each one records, and the target levels
+    /// a plan copied from a strategy keeps (target_percentage, left out when unknown) (a crop without them
     /// goes out rain-fed and unfertilized, with no fertilizer_application or irrigation_application), agronomic risks and
     /// soil depletion allowed so the plan is scored as entered. Irrigation is sent only with the water material to price it
     /// with. A crop with a harvest date sends it as its clearance date, so felder checks the season against it. Null when
@@ -41,9 +42,10 @@ public static class StrategyRequests
             .OrderBy(planting => planting.PlantingDate)
             .Select(planting => new ScenarioPlannedCrop(planting.CropProfileId.ToString(CultureInfo.InvariantCulture), planting.PlantingDate,
                 planting is { FertilizerMaterialId: { } product, FertilizerRateKgHa: > 0 }
-                    ? new FelderFertilizerApplication(product.ToString(CultureInfo.InvariantCulture), planting.FertilizerRateKgHa) : null,
+                    ? new FelderFertilizerApplication(product.ToString(CultureInfo.InvariantCulture), planting.FertilizerRateKgHa,
+                        StrategyResultMapper.Percent(planting.FertilizerTargetPercent)) : null,
                 planting.IrrigationMm is > 0 && !string.IsNullOrWhiteSpace(irrigationMaterial)
-                    ? new FelderIrrigationApplication(irrigationMaterial, planting.IrrigationMm.Value) : null,
+                    ? new FelderIrrigationApplication(irrigationMaterial, planting.IrrigationMm.Value, StrategyResultMapper.Percent(planting.IrrigationTargetPercent)) : null,
                 planting.HarvestingDate))
             .ToArray();
         return schedule.Length == 0 ? null : new EvaluateScenarioRequest(fieldId.ToString(), new PlanningHorizon(startMonth, endMonth),

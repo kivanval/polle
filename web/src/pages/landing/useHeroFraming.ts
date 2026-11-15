@@ -6,10 +6,11 @@ type Point = [number, number]
 export type HeroFraming = { viewBox: string; fields: string[] }
 
 /** Art-directed order: the most legible, characteristic fields first. */
-const priority = ['long-rows', 'centre-green', 'river-rows', 'north-stubble', 'east-rows', 'south-stubble', 'meadow']
+const priority = ['golden-barley', 'hillside-wheat', 'shaded-fallow', 'green-lea', 'bright-oats', 'lone-tree', 'ridge-plot',
+  'long-strip', 'pale-stubble']
 /** Fields whose strokes sit close enough to read as one dense cluster; never shown together. */
-const neighbours = [['river-rows', 'meadow'], ['meadow', 'long-rows'], ['east-rows', 'meadow'], ['east-rows', 'long-rows'],
-  ['centre-green', 'south-stubble'], ['north-stubble', 'river-rows']]
+const neighbours = [['golden-barley', 'lone-tree'], ['golden-barley', 'long-strip'], ['golden-barley', 'pale-stubble'],
+  ['golden-barley', 'green-lea'], ['lone-tree', 'long-strip'], ['lone-tree', 'pale-stubble'], ['long-strip', 'pale-stubble']]
 const maxFields = 3
 const clearance = 20
 /** How far (image px) the cover crop may move from centre along its free axis to keep fields whole. */

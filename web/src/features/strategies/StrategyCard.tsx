@@ -57,7 +57,7 @@ export function StrategyCard({ job, baseline, badges, variations = [], range, sa
     </div>
     <h4>{job.name}</h4>
     <p className="strategy-summary">{job.summary}</p>
-    {job.settings && <ul className="strategy-settings" aria-label={isBaseline ? 'How your plan is scored' : 'What this strategy may do'}>
+    {job.settings && <ul className="strategy-settings" aria-label={isBaseline ? 'How your plan is scored' : 'What this plan may do'}>
       {settingsText(job.settings).map(text => <li key={text}><span>{text}</span></li>)}
     </ul>}
     {variations.length > 0 && <details className="strategy-variations">
@@ -74,7 +74,7 @@ export function StrategyCard({ job, baseline, badges, variations = [], range, sa
   // A failed job, and also a state or a missing result this app does not expect: never read as a ready plan.
   if (job.state !== 'ready' || !job.result) return <article className={`strategy-card ${isBaseline ? 'is-baseline' : ''}`}>
     {head}
-    <p className="strategy-problem" role="status">{isBaseline ? 'Your plan couldn’t be scored just now.' : 'This strategy couldn\'t be prepared.'}</p>
+    <p className="strategy-problem" role="status">{isBaseline ? 'Your plan couldn’t be scored just now.' : 'This plan couldn\'t be prepared.'}</p>
     {onRetry && job.state === 'failed' && <div className="strategy-actions"><button type="button" className="button button-quiet" disabled={busy} onClick={onRetry}>
       {busy ? <TractorSpinner size={14} /> : <RotateCcw size={14} />}<span>Retry</span></button></div>}
   </article>
@@ -94,7 +94,7 @@ export function StrategyCard({ job, baseline, badges, variations = [], range, sa
     <div className="strategy-actions" />
   </article>
   if (!usable(job) && !isBaseline) return <article className="strategy-card">
-    {head}<p className="strategy-problem">This strategy doesn’t fit this field with these limits.</p>
+    {head}<p className="strategy-problem">This plan doesn’t fit this field with these limits.</p>
   </article>
 
   const change = isBaseline ? null : deltas(result, baseline)
@@ -124,7 +124,7 @@ export function StrategyCard({ job, baseline, badges, variations = [], range, sa
     <div className="strategy-actions">
       {onSave && (saved
         ? <span className="strategy-saved"><Check size={14} /><span>Saved</span></span>
-        : <button type="button" className="button button-dark" disabled={busy} onClick={onSave}>{busy ? <TractorSpinner size={14} /> : <Save size={14} />}<span>Save strategy</span></button>)}
+        : <button type="button" className="button button-dark" disabled={busy} onClick={onSave}>{busy ? <TractorSpinner size={14} /> : <Save size={14} />}<span>Save plan</span></button>)}
       {onUse && <button type="button" className="button button-quiet" disabled={busy} onClick={onUse}><CalendarCheck size={14} /><span>Use this plan</span></button>}
       {onDetails && <button type="button" className="button button-quiet" onClick={onDetails}><Maximize2 size={14} /><span>Details</span></button>}
     </div>

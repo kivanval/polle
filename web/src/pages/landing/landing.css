@@ -1,6 +1,6 @@
 .hero { min-height: 790px; height: min(920px, 100svh); position: relative; overflow: clip; color: var(--paper); background: #18291d; }
 .hero-visual { position: absolute; inset: 0; will-change: transform; }
-.hero-visual::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,19,12,.42), transparent 18%), linear-gradient(90deg, rgba(9,24,15,.19), transparent 70%), linear-gradient(0deg, rgba(8,19,12,.25), transparent 35%); }
+.hero-visual::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(8,19,12,.42), transparent 18%), linear-gradient(90deg, rgba(9,24,15,.6), rgba(9,24,15,.32) 45%, transparent 78%), linear-gradient(0deg, rgba(8,19,12,.35), transparent 35%); }
 .site-header { position: relative; z-index: 5; display: flex; align-items: center; justify-content: space-between; height: 94px; border-bottom: 1px solid #ffffff55; }
 .desktop-nav { margin-left: auto; display: flex; gap: 42px; font-size: 12px; margin-right: 70px; }
 .desktop-nav a { position: relative; }

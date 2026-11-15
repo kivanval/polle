@@ -74,6 +74,28 @@ export function combineRuns(planRun: StrategyRun | undefined, strategiesRun: Str
   return { planJob, planRun: source, strategyJobs, baseline: otherMonths ? null : comparableBaseline(planJob), otherMonths }
 }
 
+/**
+ * The plan's evaluation is older than the field's crops: one was added or changed after the run that scored the plan
+ * (e.g. "Use this plan" replaced them), so its score no longer describes the plan.
+ */
+export function evaluationOutdated(planRun: Pick<StrategyRun, 'createdAtUtc'> | undefined, plantings: readonly Pick<Planting, 'createdAtUtc' | 'updatedAtUtc'>[]): boolean {
+  const evaluated = planRun ? utc(planRun.createdAtUtc) : Number.NaN
+  if (!Number.isFinite(evaluated)) return false
+  return plantings.some(planting => Math.max(utc(planting.createdAtUtc) || 0, utc(planting.updatedAtUtc) || 0) > evaluated)
+}
+
+/**
+ * The field's crops as one string that changes whenever a crop is added, edited or removed, so the view can tell the
+ * plan changed after its evaluation even when the change left no newer timestamp behind (a deleted crop).
+ */
+export function planFingerprint(plantings: readonly Pick<Planting, 'id' | 'updatedAtUtc'>[]): string {
+  return plantings.map(planting => `${planting.id}@${planting.updatedAtUtc}`).sort().join('|')
+}
+
+/** Milliseconds of a UTC timestamp from the API; one without a zone is still UTC, never the browser's local time. */
+const utc = (value: string | null | undefined) =>
+  !value ? Number.NaN : Date.parse(/(Z|[+-]\d\d:?\d\d)$/i.test(value) || !value.includes('T') ? value : `${value}Z`)
+
 /** The solver scored the current plan but left some crops out, which the API filled in from its audit. */
 export const partlyEstimated = (job: StrategyJob): boolean =>
   job.state === 'ready' && !job.estimated && hasFigures(job.result) && job.result.cycles.some(cycle => cycle.estimated)
@@ -85,14 +107,17 @@ export const partlyEstimated = (job: StrategyJob): boolean =>
  */
 export function baselineIssue(job: StrategyJob): string | null {
   if (job.state !== 'ready') return null
-  if (job.estimated) return 'The planner couldn’t score this plan as entered, so these figures are our estimate: catalog yields and prices, '
-    + 'the field’s usual weather (averaged over past years), your soil and the water and fertilizer you entered. Check the risks below.'
-  if (!hasFigures(job.result)) return 'The planner couldn’t score this plan as entered, so it has no figures to compare yet. It scores your crops with the water and '
-    + 'fertilizer you entered and only with complete crop data: a crop with missing yield or price figures, or one that can’t grow here in the month it is sown, stops it.'
-  if (partlyEstimated(job)) return 'The planner couldn’t score every crop of this plan, so the crops marked Estimated use catalog yields and prices, '
-    + 'the field’s usual weather (averaged over past years), your soil and the water and fertilizer you entered. Check their warnings below.'
+  if (job.estimated) return ESTIMATED_PLAN_TEXT
+  if (!hasFigures(job.result)) return 'This plan breaks one of the planner’s rules (nutrient balance, water, crop stage lengths or rotation), '
+    + 'so it couldn’t be scored. Check the crops’ dates, water and fertilizer, then evaluate it again.'
+  if (partlyEstimated(job)) return 'Some crops break the planner’s rules (nutrient balance, water, crop stage lengths or rotation), '
+    + 'so the ones marked Estimated show our rough estimate instead.'
   return null
 }
+
+/** Why the current plan's figures are an estimate, in two short sentences. */
+export const ESTIMATED_PLAN_TEXT = 'This plan breaks one of the planner’s rules (nutrient balance, water, crop stage lengths or rotation), '
+  + 'so it couldn’t be scored. Below is our rough estimate instead.'
 
 const metrics: { badge: Badge; key: SortKey; value: (result: StrategyResult) => number | null; best: 'max' | 'min' }[] = [
   { badge: 'Highest profit', key: 'profit', value: result => result.profitUsd, best: 'max' },

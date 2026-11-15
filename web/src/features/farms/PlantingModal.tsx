@@ -6,7 +6,7 @@ import type { Field } from './api'
 import { problemMessage } from './api'
 import { CropPicker } from './CropPicker'
 import { formatDate, overlaps, periodText, type Slot } from './periods'
-import { cropName, profileOf, useDeletePlanting, useFertilizers, useSavePlanting, type Crop, type Planting } from './plantings'
+import { cropName, profileOf, targetLevels, useDeletePlanting, useFertilizers, useSavePlanting, type Crop, type Planting } from './plantings'
 import { SeasonDates } from './SeasonDates'
 import '@/styles/catalog.css'
 
@@ -16,6 +16,8 @@ type FormValues = {
   cropId: number | null; profileId: number | null; plantingDate: string; harvestingDate: string
   /** Text as typed; empty is none. */
   irrigationMm: string; fertilizerId: string; fertilizerRate: string
+  /** The solver's target levels, percent as typed; empty leaves the planner's default. */
+  irrigationTarget: string; fertilizerTarget: string
 }
 
 const amount = new Intl.NumberFormat('en', { maximumFractionDigits: 0 })
@@ -37,8 +39,8 @@ function seasonOf(sown: string, harvested: string, planting?: Planting) {
  * must end before the next crop starts (`slot.maxHarvest`). A crop with several growing profiles asks which one. The
  * water and fertilizer planned for the season go with the crop, and "Evaluate my plan" scores it with them.
  */
-export function PlantingModal({ field, crops, periods, planting, slot, focusHarvest, onClose }: {
-  field: Field; crops: Crop[]; periods: Planting[]; planting?: Planting; slot?: Slot; focusHarvest?: boolean; onClose: () => void
+export function PlantingModal({ field, crops, periods, planting, slot, onClose }: {
+  field: Field; crops: Crop[]; periods: Planting[]; planting?: Planting; slot?: Slot; onClose: () => void
 }) {
   const savePlanting = useSavePlanting(field.farmId)
   const deletePlanting = useDeletePlanting(field.farmId)
@@ -48,7 +50,9 @@ export function PlantingModal({ field, crops, periods, planting, slot, focusHarv
     profileId: existing?.profile.id ?? null, plantingDate: planting?.plantingDate ?? slot?.plantingDate ?? '', harvestingDate: planting?.harvestingDate ?? '',
     irrigationMm: planting?.irrigationMm ? String(planting.irrigationMm) : '',
     fertilizerId: planting?.fertilizerMaterialId ? String(planting.fertilizerMaterialId) : '',
-    fertilizerRate: planting?.fertilizerRateKgHa ? String(planting.fertilizerRateKgHa) : '' })
+    fertilizerRate: planting?.fertilizerRateKgHa ? String(planting.fertilizerRateKgHa) : '',
+    irrigationTarget: planting?.irrigationTargetPercent != null ? String(planting.irrigationTargetPercent) : '',
+    fertilizerTarget: planting?.fertilizerTargetPercent != null ? String(planting.fertilizerTargetPercent) : '' })
   const [error, setError] = useState('')
   const busy = savePlanting.isPending || deletePlanting.isPending
   const crop = crops.find(candidate => candidate.id === values.cropId) ?? null
@@ -66,13 +70,24 @@ export function PlantingModal({ field, crops, periods, planting, slot, focusHarv
     const irrigation = typed(values.irrigationMm), rate = typed(values.fertilizerRate)
     if (values.irrigationMm.trim() && (irrigation === null || irrigation < 0 || irrigation > 5000)) { setError('Irrigation over the season must be between 0 and 5000 mm.'); return }
     if (values.fertilizerId && (rate === null || rate <= 0 || rate > 10000)) { setError('Add how many kilograms of the fertilizer go on each hectare (up to 10000).'); return }
+    const refill = typed(values.irrigationTarget), cover = typed(values.fertilizerTarget)
+    const outOfRange = (text: string, value: number | null) => text.trim() !== '' && (value === null || value < 0 || value > 100)
+    if (outOfRange(values.irrigationTarget, refill)) { setError('The irrigation level must be between 0 and 100%.'); return }
+    if (outOfRange(values.fertilizerTarget, cover)) { setError('The fertilizer level must be between 0 and 100%.'); return }
     const clash = periods.find(other => other.id !== planting?.id && overlaps(values.plantingDate, end, other.plantingDate, other.harvestingDate))
+    // A crop left without a harvest date runs on with no end, so one sown ahead of another crop needs its harvest date.
+    if (clash && !end && clash.plantingDate > values.plantingDate) {
+      setError(`${cropName(crops, clash.cropId)} is sown on ${formatDate(clash.plantingDate)}. Add a harvest date before it.`); return
+    }
     if (clash) { setError(`These dates overlap ${cropName(crops, clash.cropId)} (${periodText(clash)}). One crop grows on a field at a time.`); return }
+    const water = irrigation && irrigation > 0 ? irrigation : null
+    const product = values.fertilizerId ? Number(values.fertilizerId) : null
     try {
       await savePlanting.mutateAsync({ fieldId: field.id, plantingId: planting?.id, input: {
         cropProfileId: values.profileId, seasonYear: seasonOf(values.plantingDate, values.harvestingDate, planting), plantingDate: values.plantingDate,
-        harvestingDate: end, notes: planting?.notes ?? null, irrigationMm: irrigation && irrigation > 0 ? irrigation : null,
-        fertilizerMaterialId: values.fertilizerId ? Number(values.fertilizerId) : null, fertilizerRateKgHa: values.fertilizerId ? rate : null } })
+        harvestingDate: end, notes: planting?.notes ?? null, irrigationMm: water,
+        fertilizerMaterialId: product, fertilizerRateKgHa: product !== null ? rate : null,
+        ...targetLevels(water, refill, product, cover) } })
       onClose()
     } catch (reason) { setError(problemMessage(reason)) }
   }
@@ -98,7 +113,7 @@ export function PlantingModal({ field, crops, periods, planting, slot, focusHarv
     <form id={`planting-form-${id}`} className="catalog-form" onSubmit={submit} noValidate>
       <div className="catalog-field is-wide">
         <label htmlFor={`crop-${id}`}>Crop</label>
-        <CropPicker id={`crop-${id}`} crops={crops} value={crop} disabled={busy || crops.length === 0} autoFocus={!focusHarvest && !planting}
+        <CropPicker id={`crop-${id}`} crops={crops} value={crop} disabled={busy || crops.length === 0} autoFocus={!planting}
           onChange={picked => { setValues(current => ({ ...current, cropId: picked.id, profileId: picked.profiles.length === 1 ? picked.profiles[0].id : null })); setError('') }} />
       </div>
       {crop && crop.profiles.length > 1 && <div className="catalog-field is-wide">
@@ -112,7 +127,7 @@ export function PlantingModal({ field, crops, periods, planting, slot, focusHarv
       <div className="catalog-field is-wide">
         <SeasonDates id={id} sown={values.plantingDate} harvested={values.harvestingDate} maxHarvest={slot?.maxHarvest ?? null}
           occupied={periods.filter(other => other.id !== planting?.id).map(other => ({ from: other.plantingDate, to: other.harvestingDate, label: cropName(crops, other.cropId) }))}
-          disabled={busy} focusHarvest={focusHarvest}
+          disabled={busy}
           onChange={dates => { setValues(current => ({ ...current,
             ...(dates.sown !== undefined && { plantingDate: dates.sown }), ...(dates.harvested !== undefined && { harvestingDate: dates.harvested }) })); setError('') }} />
         <p className="crop-form-hint">Leave the harvest date empty while the crop is still growing.</p>
@@ -124,10 +139,16 @@ export function PlantingModal({ field, crops, periods, planting, slot, focusHarv
         <p id={`irrigation-hint-${id}`} className="crop-form-hint">{water && water > 0 && area
           ? `About ${amount.format(water * 10 * area)} m³ of water over ${amount.format(area)} ha.` : '1 mm is 10 m³ of water per hectare.'}</p>
       </div>
+      {water !== null && water > 0 && <div className="catalog-field">
+        <label htmlFor={`irrigation-target-${id}`}>Refill the root zone to, %<span className="optional"> optional</span></label>
+        <input id={`irrigation-target-${id}`} className="is-numeric" type="number" inputMode="decimal" min={0} max={100} step="any" placeholder="100, a full refill"
+          value={values.irrigationTarget} disabled={busy} aria-describedby={`irrigation-target-hint-${id}`} onChange={event => change({ irrigationTarget: event.target.value })} />
+        <p id={`irrigation-target-hint-${id}`} className="crop-form-hint">How far each watering tops up the water the roots can easily take up. A plan copied from a suggestion brings its level.</p>
+      </div>}
       <div className="catalog-field">
         <label htmlFor={`fertilizer-${id}`}>Fertilizer<span className="optional"> optional</span></label>
         <select id={`fertilizer-${id}`} value={values.fertilizerId} disabled={busy || fertilizers.isPending}
-          onChange={event => change({ fertilizerId: event.target.value, ...(event.target.value ? {} : { fertilizerRate: '' }) })}>
+          onChange={event => change({ fertilizerId: event.target.value, ...(event.target.value ? {} : { fertilizerRate: '', fertilizerTarget: '' }) })}>
           <option value="">{fertilizers.isPending ? 'Loading…' : 'None'}</option>
           {/* A saved product the list no longer has stays choosable, so saving doesn't drop it unseen. */}
           {values.fertilizerId && fertilizers.data && !fertilizers.data.some(item => String(item.id) === values.fertilizerId)
@@ -143,6 +164,12 @@ export function PlantingModal({ field, crops, periods, planting, slot, focusHarv
           value={values.fertilizerRate} disabled={busy} aria-describedby={`fertilizer-hint-${id}`} onChange={event => change({ fertilizerRate: event.target.value })} />
         <p id={`fertilizer-hint-${id}`} className="crop-form-hint">{perHectare && perHectare > 0 && area
           ? `About ${amount.format(perHectare * area)} kg of the product for the whole field (${amount.format(area)} ha).` : 'Kilograms of the product itself, as bought, not of N, P or K.'}</p>
+      </div>}
+      {values.fertilizerId && <div className="catalog-field is-wide">
+        <label htmlFor={`fertilizer-target-${id}`}>Cover the crop’s nutrient shortfall, %<span className="optional"> optional</span></label>
+        <input id={`fertilizer-target-${id}`} className="is-numeric" type="number" inputMode="decimal" min={0} max={100} step="any" placeholder="Planner’s default"
+          value={values.fertilizerTarget} disabled={busy} aria-describedby={`fertilizer-target-hint-${id}`} onChange={event => change({ fertilizerTarget: event.target.value })} />
+        <p id={`fertilizer-target-hint-${id}`} className="crop-form-hint">The share of the N-P-K the crop lacks that this fertilizer is dosed to cover. A plan copied from a suggestion brings its level.</p>
       </div>}
     </form>
     {error && <p className="field-error catalog-form-error" role="alert">{error}</p>}

@@ -68,6 +68,14 @@ internal static class AgricultureValidation
         {
             errors["fertilizerMaterialId"] = ["Choose the fertilizer product."];
         }
+        if (request.IrrigationTargetPercent is { } refill && (double.IsNaN(refill) || refill < 0 || refill > 100))
+        {
+            errors["irrigationTargetPercent"] = ["The irrigation target must be between 0 and 100%."];
+        }
+        if (request.FertilizerTargetPercent is { } cover && (double.IsNaN(cover) || cover < 0 || cover > 100))
+        {
+            errors["fertilizerTargetPercent"] = ["The fertilizer target must be between 0 and 100%."];
+        }
         if (request.PlantingDate is { } planted && request.HarvestingDate is { } harvested && harvested < planted)
         {
             errors["harvestingDate"] = ["Harvesting date cannot precede planting date."];

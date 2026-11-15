@@ -72,7 +72,7 @@ public sealed partial class AssistantStrategyTool(AppDbContext db, FelderClient 
             .ToListAsync(ct);
         var (status, picked, choices) = PickField(message, fields, page?.FarmId ?? previous?.FarmId, page?.FieldId, previous?.FieldId);
         if (picked is null) return new(status == "ambiguous"
-            ? uk ? $"Для якого поля рахувати стратегії: {string.Join(", ", choices)}?" : $"Which field should I calculate strategies for: {string.Join(", ", choices)}?"
+            ? uk ? $"Для якого поля підібрати плани: {string.Join(", ", choices)}?" : $"Which field should I suggest plans for: {string.Join(", ", choices)}?"
             : uk ? "Не знайшов вашого поля. Додайте поле на мапі або відкрийте сторінку господарства з потрібним полем." : "I couldn't find a field of yours. Draw one on the map or open the farm with that field.");
 
         var latest = await db.StrategyRuns.Include(run => run.Jobs).Where(run => run.FieldId == picked.Id)
@@ -85,11 +85,11 @@ public sealed partial class AssistantStrategyTool(AppDbContext db, FelderClient 
         var started = false;
         if (run is null)
         {
-            if (!solver.Configured) return new(uk ? "Розрахунок стратегій зараз недоступний: солвер не налаштований на сервері." : "Strategy calculations are unavailable right now: the solver isn't configured on the server.");
+            if (!solver.Configured) return new(uk ? "Підбір планів зараз недоступний: солвер не налаштований на сервері." : "Plan suggestions are unavailable right now: the solver isn't configured on the server.");
             var boundary = await db.Fields.AsNoTracking().Where(field => field.Id == picked.Id).Select(field => field.Boundary).SingleAsync(ct);
             if (!FieldSoil.Available(boundary, LandMask.Default)) return new(uk
-                ? $"Для поля «{picked.Name}» немає даних про ґрунт у цьому місці, тож стратегії не змоделювати."
-                : $"There's no soil data for {picked.Name}'s location, so strategies can't be modelled.");
+                ? $"Для поля «{picked.Name}» немає даних про ґрунт у цьому місці, тож плани не змоделювати."
+                : $"There's no soil data for {picked.Name}'s location, so plans can't be modelled.");
             if (StrategyJobs.HorizonErrors(period.StartMonth, period.EndMonth, today).Count > 0)
                 return new(uk ? "Не вдалося скласти період розрахунку. Напишіть, наприклад: «з жовтня 2027 на 10 років»." : "I couldn't build a planning period. Try e.g. \"from October 2027 for 10 years\".");
             run = await StrategyRunEndpoints.CreateAsync(picked.Id, period.StartMonth, period.EndMonth, StrategyChoices.Picks(null).Picks, db, solver, materials, ct);
@@ -161,7 +161,11 @@ public sealed partial class AssistantStrategyTool(AppDbContext db, FelderClient 
 
 public sealed record AssistantStrategyField(Guid Id, Guid FarmId, string FarmName, string Name, double AreaHectares, Guid? ParentFieldId);
 
-/// <summary>A strategy run as the assistant's answer: what was calculated, each strategy's figures, and which to choose.</summary>
+/// <summary>
+/// A run of suggested plans as the assistant's answer, in the small Markdown the chat renders (a heading, bold, italics
+/// and lists): a heading with the field and period, then Current plan, Best options, Unavailable / In progress and
+/// Recommendation, each its own block, so the answer reads as sections rather than one paragraph.
+/// </summary>
 public static class StrategyRunDigest
 {
     private const int MaxListed = 5, MaxRisks = 3;
@@ -169,18 +173,20 @@ public static class StrategyRunDigest
     public static string Text(StrategyRunResponse run, string fieldName, double areaHectares, ResolvedPeriod period, bool uk, bool started, DateOnly? computedOn = null)
     {
         var text = new StringBuilder();
+        void Line(string line = "") => text.Append(line).Append('\n');
+        void Section(string title) { if (text.Length > 0) Line(); Line($"**{title}**"); }
+
+        Line(uk ? $"### Плани для поля «{fieldName}» · {period.StartMonth} – {period.EndMonth}" : $"### Plans for {fieldName} · {period.StartMonth} – {period.EndMonth}");
         var span = uk ? $"з {period.StartMonth} на {period.Years} {UkYears(period.Years)} (до {period.EndMonth})"
             : $"from {period.StartMonth} for {period.Years} {(period.Years == 1 ? "year" : "years")} (to {period.EndMonth})";
-        text.Append(uk ? $"Рахую стратегії для поля «{fieldName}» {span}." : $"Strategies for field {fieldName} {span}.");
-        if (period.AssumedText(uk) is { } assumed) text.Append(' ').Append(assumed);
+        Line((uk ? $"**Період:** {span}." : $"**Period:** {span}.") + (period.AssumedText(uk) is { } assumed ? $" {assumed}" : ""));
         var baseline = run.Jobs.FirstOrDefault(job => job.Key == StrategyCatalog.BaselineKey);
         var strategyCount = run.Jobs.Count(job => job.Key != StrategyCatalog.BaselineKey);
-        if (computedOn is { } day) text.Append(uk ? $" Беру розрахунок від {day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}; напишіть «перерахуй», щоб порахувати заново."
-            : $" Using the calculation from {day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}; say \"recalculate\" for a fresh one.");
-        else if (started) text.Append(uk
-            ? $" Запустив солвер: {(baseline is null ? "" : "ваш поточний план і ")}{strategyCount} {(strategyCount == 1 ? "стратегія" : strategyCount < 5 ? "стратегії" : "стратегій")}."
-            : $" I started the solver: {(baseline is null ? "" : "your current plan and ")}{strategyCount} {(strategyCount == 1 ? "strategy" : "strategies")}.");
-        if (baseline is null) text.Append(uk ? " У вашому плані немає посівів у цьому періоді, тож порівнюю лише стратегії." : " Your plan has no crops sown in this period, so only the strategies are compared.");
+        if (computedOn is { } day) Line(uk ? $"*Беру розрахунок від {day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}; напишіть «перерахуй», щоб порахувати заново.*"
+            : $"*Using the calculation from {day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)}; say \"recalculate\" for a fresh one.*");
+        else if (started) Line(uk
+            ? $"*Запустив солвер: {(baseline is null ? "" : "ваш поточний план і ")}{strategyCount} {UkPlans(strategyCount)}.*"
+            : $"*I started the solver: {(baseline is null ? "" : "your current plan and ")}{strategyCount} suggested {(strategyCount == 1 ? "plan" : "plans")}.*");
 
         var mine = baseline is { State: StrategyJobs.Ready, Result: { Cycles.Length: > 0 } scored } ? scored : null;
         var usable = run.Jobs.Where(job => job.Key != StrategyCatalog.BaselineKey && job is { State: StrategyJobs.Ready, Result: { Cycles.Length: > 0 } result }
@@ -189,48 +195,68 @@ public static class StrategyRunDigest
         var failed = run.Jobs.Where(job => job.Key != StrategyCatalog.BaselineKey && job.State == StrategyJobs.Failed).Select(job => job.Name).ToArray();
         var noPlan = run.Jobs.Where(job => job.Key != StrategyCatalog.BaselineKey && job.State == StrategyJobs.Ready && !usable.Contains(job)).Select(job => job.Name).ToArray();
         var total = run.Jobs.Length;
-        text.Append('\n').Append(uk ? $"Готово {total - pending.Length} з {total}." : $"{total - pending.Length} of {total} ready.");
+        Line(uk ? $"**Готово:** {total - pending.Length} з {total}" : $"**Ready:** {total - pending.Length} of {total}");
 
-        if (mine is not null)
-            text.Append('\n').Append(uk ? $"• Ваш поточний план{(baseline!.Estimated ? " (оцінка за довідником культур і кліматом поля)" : "")}: прибуток {Money(mine.ProfitUsd)}, витрати {Money(mine.CostsUsd)}, ризиків {mine.Risks.Length}."
-                : $"• Your current plan{(baseline!.Estimated ? " (estimated from the crop catalog and the field's climate)" : "")}: profit {Money(mine.ProfitUsd)}, costs {Money(mine.CostsUsd)}, {mine.Risks.Length} risks.");
+        Section(uk ? "Поточний план" : "Current plan");
+        if (baseline is null) Line(uk ? "У вашому плані немає посівів у цьому періоді, тож порівнюю лише запропоновані плани." : "Your plan has no crops sown in this period, so only the suggested plans are compared.");
+        else if (mine is null) Line(uk ? "Ще не оцінено: натисніть «Evaluate my plan» у «Plan & suggestions» поля." : "Not scored yet: press Evaluate my plan in the field's Plan & suggestions.");
+        else
+        {
+            if (baseline.Estimated) Line(uk ? "*Оцінка за довідником культур і кліматом поля.*" : "*Estimated from the crop catalog and the field's climate.*");
+            Line(uk ? $"- Прибуток: **{Money(mine.ProfitUsd)}**" : $"- Profit: **{Money(mine.ProfitUsd)}**");
+            Line(uk ? $"- Витрати: {Money(mine.CostsUsd)}" : $"- Costs: {Money(mine.CostsUsd)}");
+            Line(uk ? $"- Ризиків: {mine.Risks.Length}" : $"- Risks: {mine.Risks.Length}");
+            if (usable.Length == 0 && mine.Risks.Length > 0)
+                Line((uk ? "- Ризики: " : "- Main risks: ") + string.Join(" · ", mine.Risks.Take(MaxRisks)));
+        }
+
+        Section(uk ? "Найкращі варіанти" : "Best options");
+        if (usable.Length == 0)
+            Line(pending.Length > 0 ? uk ? "Ще жоден план не готовий." : "No plan is ready yet."
+                : uk ? "Жоден варіант не знайшов плану в цих межах для поля." : "No option found a plan within these limits for the field.");
+        var rank = 0;
         foreach (var job in usable.Take(MaxListed))
         {
             var result = job.Result!;
             var versus = mine?.ProfitUsd is { } own && result.ProfitUsd is { } profit
-                ? uk ? $", {Signed(profit - own)} до поточного плану" : $", {Signed(profit - own)} vs your plan" : "";
+                ? uk ? $" ({Signed(profit - own)} до поточного плану)" : $" ({Signed(profit - own)} vs your plan)" : "";
             var water = $"{Number(result.IrrigationMm)} {(uk ? "мм" : "mm")} ({Number(result.IrrigationMm * 10 * areaHectares)} {(uk ? "м³" : "m³")})";
-            text.Append('\n').Append(uk
-                ? $"• {job.Name}: прибуток {Money(result.ProfitUsd)}{versus}; витрати {Money(result.CostsUsd)}; полив {water}; ризиків {result.Risks.Length}; культури: {Crops(result)}."
-                : $"• {job.Name}: profit {Money(result.ProfitUsd)}{versus}; costs {Money(result.CostsUsd)}; irrigation {water}; {result.Risks.Length} risks; crops: {Crops(result)}.");
+            Line(uk ? $"{++rank}. **{job.Name}**: прибуток **{Money(result.ProfitUsd)}**{versus}" : $"{++rank}. **{job.Name}**: profit **{Money(result.ProfitUsd)}**{versus}");
+            Line(uk ? $"   - Витрати {Money(result.CostsUsd)} · полив {water} · ризиків {result.Risks.Length}"
+                : $"   - Costs {Money(result.CostsUsd)} · irrigation {water} · {result.Risks.Length} {(result.Risks.Length == 1 ? "risk" : "risks")}");
+            Line(uk ? $"   - Культури: {Crops(result)}" : $"   - Crops: {Crops(result)}");
+        }
+
+        if (noPlan.Length + failed.Length + pending.Length > 0)
+        {
+            Section(uk ? "Недоступні / ще рахуються" : "Unavailable / In progress");
+            if (noPlan.Length > 0) Line((uk ? "- Без плану в цих межах: " : "- No plan within the limits: ") + string.Join(", ", noPlan));
+            if (failed.Length > 0) Line((uk ? "- Не вдалося підготувати: " : "- Couldn't be prepared: ") + string.Join(", ", failed));
+            if (pending.Length > 0) Line(uk
+                ? $"- Ще рахуються: {string.Join(", ", pending)}. Спитайте мене ще раз за хвилину або відкрийте «Plan & suggestions» поля — картки з’являться там."
+                : $"- Still calculating: {string.Join(", ", pending)}. Ask me again in a minute, or open the field's Plan & suggestions to watch the cards fill in.");
         }
 
         if (usable.Length > 0)
         {
+            Section(uk ? "Рекомендація" : "Recommendation");
             var best = usable[0];
             var safest = usable.OrderBy(job => job.Result!.Risks.Length).ThenByDescending(job => job.Result!.ProfitUsd ?? decimal.MinValue).First();
             var driest = usable.OrderBy(job => job.Result!.IrrigationMm).ThenByDescending(job => job.Result!.ProfitUsd ?? decimal.MinValue).First();
-            text.Append('\n').Append(uk ? $"Рекомендую «{best.Name}»: найвищий прибуток {Money(best.Result!.ProfitUsd)}." : $"I'd choose {best.Name}: the highest profit, {Money(best.Result!.ProfitUsd)}.");
+            Line(uk ? $"Рекомендую **«{best.Name}»**: найвищий прибуток {Money(best.Result!.ProfitUsd)}." : $"I'd choose **{best.Name}**: the highest profit, {Money(best.Result!.ProfitUsd)}.");
             if (safest != best && safest.Result!.Risks.Length < best.Result.Risks.Length)
-                text.Append(' ').Append(uk ? $"Якщо важливіше менше ризиків — «{safest.Name}» ({safest.Result.Risks.Length} ризиків, прибуток {Money(safest.Result.ProfitUsd)})."
-                    : $"For fewer risks, {safest.Name} ({safest.Result.Risks.Length} risks, profit {Money(safest.Result.ProfitUsd)}).");
+                Line(uk ? $"- Менше ризиків — «{safest.Name}» ({safest.Result.Risks.Length} ризиків, прибуток {Money(safest.Result.ProfitUsd)})."
+                    : $"- For fewer risks: {safest.Name} ({safest.Result.Risks.Length} risks, profit {Money(safest.Result.ProfitUsd)}).");
             if (driest != best && driest.Result!.IrrigationMm < best.Result.IrrigationMm)
-                text.Append(' ').Append(uk ? $"Найменше води — «{driest.Name}» ({Number(driest.Result.IrrigationMm)} мм)." : $"Least water: {driest.Name} ({Number(driest.Result.IrrigationMm)} mm).");
+                Line(uk ? $"- Найменше води — «{driest.Name}» ({Number(driest.Result.IrrigationMm)} мм)." : $"- Least water: {driest.Name} ({Number(driest.Result.IrrigationMm)} mm).");
             var risks = best.Result.Risks.Take(MaxRisks).ToArray();
-            if (risks.Length > 0) text.Append('\n').Append(uk ? $"Головні ризики «{best.Name}»: " : $"Main risks of {best.Name}: ").Append(string.Join(" · ", risks)).Append('.');
+            if (risks.Length > 0) Line((uk ? $"- Головні ризики «{best.Name}»: " : $"- Main risks of {best.Name}: ") + string.Join(" · ", risks));
         }
-        else if (pending.Length == 0)
-            text.Append('\n').Append(uk ? "Жодна стратегія не знайшла плану в цих межах для поля." : "No strategy found a plan within these limits for the field.");
-        if (mine is not null && usable.Length == 0 && mine.Risks.Length > 0)
-            text.Append('\n').Append(uk ? "Ризики поточного плану: " : "Risks of your current plan: ").Append(string.Join(" · ", mine.Risks.Take(MaxRisks))).Append('.');
-
-        if (noPlan.Length > 0) text.Append('\n').Append(uk ? "Без плану в цих межах: " : "No plan within the limits: ").Append(string.Join(", ", noPlan)).Append('.');
-        if (failed.Length > 0) text.Append('\n').Append(uk ? "Не вдалося підготувати: " : "Couldn't be prepared: ").Append(string.Join(", ", failed)).Append('.');
-        if (pending.Length > 0) text.Append('\n').Append(uk
-            ? $"Ще рахуються: {string.Join(", ", pending)}. Спитайте мене ще раз за хвилину або відкрийте «Plan & strategies» поля — картки з’являться там."
-            : $"Still calculating: {string.Join(", ", pending)}. Ask me again in a minute, or open the field's Plan & strategies to watch the cards fill in.");
-        return text.ToString();
+        return text.ToString().TrimEnd();
     }
+
+    private static string UkPlans(int count) => (count % 100) is >= 11 and <= 14 ? "запропонованих планів"
+        : (count % 10) switch { 1 => "запропонований план", 2 or 3 or 4 => "запропоновані плани", _ => "запропонованих планів" };
 
     private static string Crops(StrategyResult result) =>
         string.Join(" → ", result.Cycles.Take(6).Select(cycle => cycle.CropName)) + (result.Cycles.Length > 6 ? " …" : "");

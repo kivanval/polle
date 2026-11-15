@@ -12,7 +12,7 @@ import './landing.css'
 const workflow = [
   { title: 'Start with your land', text: 'Create your farms, map field boundaries, and log your current crops.' },
   { title: 'Pull climate & soil data', text: 'Automatic 10-year climate and drought context from open Earth observation datasets, plus a soil estimate you can correct.' },
-  { title: 'Plan the next season', text: 'Compare optimized crop rotation strategies grounded in your local field conditions.' },
+  { title: 'Plan the next season', text: 'Compare optimized crop rotation plans grounded in your local field conditions.' },
 ]
 const copyrightYear = new Date().getFullYear()
 
@@ -61,12 +61,12 @@ export function LandingPage() {
       <div className="platform-layout">
         <div ref={atlas} className={`atlas-preview ${showBoundaries ? 'show-boundaries' : ''}`}>
           {/* Layer control precedes the outlines in the DOM so keyboard focus reaches the mode switch first. */}
-          <div className={`layer-control ${boundaries ? 'on-boundaries' : ''}`} role="group" aria-label="Illustrative map layers"><button aria-pressed={!boundaries} onClick={() => setBoundaries(false)}>Landscape</button><button aria-pressed={boundaries} onClick={() => setBoundaries(true)}>Field boundaries</button></div>
+          <div className={`layer-control ${boundaries ? 'on-boundaries' : ''}`} role="group" aria-label="Preview map layers"><button aria-pressed={!boundaries} onClick={() => setBoundaries(false)}>Landscape</button><button aria-pressed={boundaries} onClick={() => setBoundaries(true)}>Field boundaries</button></div>
           {/* The scan mounts with the boundaries layer, so every switch back replays one satellite pass over the outlines. */}
           <FieldLines scan={showBoundaries} onSelect={showBoundaries ? setSelectedField : undefined} selected={selectedField} />
           <div className="atlas-caption">
             {showBoundaries && <p className="atlas-readout" aria-live="polite">{selectedField ? <><strong>{fieldLabel(selectedField)}</strong>Example outline, not a saved field</> : 'Select a field to inspect its outline'}</p>}
-            <span className="mono">Illustrative preview · Not live field data</span>
+            <span className="mono">Biei, Hokkaido · Photo 663highland, CC BY 2.5 · Not live field data</span>
           </div>
         </div>
         <ol className="workflow">{workflow.map((step, index) => <li key={step.title}><span className="workflow-number mono">0{index + 1}</span><div><h3>{step.title}</h3><p>{step.text}</p></div></li>)}</ol>
@@ -77,7 +77,7 @@ export function LandingPage() {
     <section className="earth-section" id="earth-intelligence" aria-labelledby="earth-heading"><div className="wrap section-pad">
       <div className="earth-top"><span className="mono section-label">02 / FROM ORBIT TO OPPORTUNITY</span><Globe2 size={23} strokeWidth={1} aria-hidden="true" /></div>
       <div className="earth-layout"><div className="earth-copy"><h2 id="earth-heading">A planet of data.<br /><em>A field of possibilities.</em></h2><p>Changing rainfall. Shifting seasons. Soil under pressure. Understanding the bigger picture starts with observations beyond the farm gate.</p><p>Polle connects open NASA and NOAA datasets with your land, turning environmental context into crop rotation plans you can compare.</p><a className="text-link light" href="https://www.earthdata.nasa.gov/" target="_blank" rel="noreferrer">Explore NASA Earthdata <ArrowUpRight size={17} /></a></div>
-        <div className="data-sources"><div className="data-source"><span className="mono">01 / ATMOSPHERE</span><h3>Climate through time</h3><p>Ten years of NASA POWER daily temperature and rainfall at each field set the weather your crop rotation strategies are scored against.</p><a href="https://power.larc.nasa.gov/" target="_blank" rel="noreferrer">About NASA POWER <ArrowUpRight size={14} /></a></div>
+        <div className="data-sources"><div className="data-source"><span className="mono">01 / ATMOSPHERE</span><h3>Climate through time</h3><p>Ten years of NASA POWER daily temperature and rainfall at each field set the weather your suggested crop rotation plans are scored against.</p><a href="https://power.larc.nasa.gov/" target="_blank" rel="noreferrer">About NASA POWER <ArrowUpRight size={14} /></a></div>
           <div className="data-source"><span className="mono">02 / SOIL & LAND</span><h3>A closer look below</h3><p>NASA SMAP root-zone soil moisture is a layer on the climate map, beside MODIS vegetation and surface temperature. It is shown for context and not yet used in field scoring.</p><a href="https://smap.jpl.nasa.gov/" target="_blank" rel="noreferrer">About NASA SMAP <ArrowUpRight size={14} /></a></div>
           <p className="source-note mono">Live: NASA POWER field climate · NOAA CPC drought · NASA GIBS map layers</p></div>
       </div>

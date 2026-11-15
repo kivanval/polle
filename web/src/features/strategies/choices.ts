@@ -132,10 +132,10 @@ export function defaultCustomDescription(custom: CustomStrategy): string {
 
 /** The line beside Add strategy: why it is off, or what adding does. */
 export function addHint({ full, duplicate, twin }: { full: boolean; duplicate: boolean; twin?: string }) {
-  if (full) return `Up to ${MAX_STRATEGIES} strategies are compared at a time. Remove one to add another.`
-  if (duplicate) return 'You already have a strategy with these settings.'
-  if (twin) return `Same settings as the ${twin} preset. It is planned as your own strategy beside it.`
-  return 'Adds these settings to your own strategies above.'
+  if (full) return `Up to ${MAX_STRATEGIES} plans are compared at a time. Remove one to add another.`
+  if (duplicate) return 'You already have a plan with these settings.'
+  if (twin) return `Same settings as the ${twin} preset. It is suggested as your own plan beside it.`
+  return 'Adds these settings to your own plans above.'
 }
 
 export const customName = (custom: CustomStrategy) => cleanText(custom.name) ?? defaultCustomName(custom)

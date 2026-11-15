@@ -20,11 +20,30 @@ export type PlantingInput = {
   /** A product from GET /api/fertilizers and kilograms of it per hectare over the season; both null for none. */
   fertilizerMaterialId?: number | null
   fertilizerRateKgHa?: number | null
+  /**
+   * The solver's target levels (0-100): how far each irrigation refills the root zone's readily available water, and
+   * the share of the crop's nutrient shortfall the fertilizer covers. A crop copied from a suggested plan brings the
+   * plan's levels; the farmer can set or change them in the crop form. Null leaves the solver's default.
+   */
+  irrigationTargetPercent?: number | null
+  fertilizerTargetPercent?: number | null
 }
 
-export type Planting = Omit<PlantingInput, 'harvestingDate' | 'notes' | 'irrigationMm' | 'fertilizerMaterialId' | 'fertilizerRateKgHa'> & {
+/**
+ * The target levels saved with a crop: each one only with the input it doses (the database requires irrigation for the
+ * irrigation level and a product for the fertilizer level). An empty level is null, which leaves the planner's default.
+ */
+export function targetLevels(irrigationMm: number | null, irrigationTarget: number | null, fertilizerMaterialId: number | null,
+  fertilizerTarget: number | null): Pick<PlantingInput, 'irrigationTargetPercent' | 'fertilizerTargetPercent'> {
+  return { irrigationTargetPercent: irrigationMm !== null ? irrigationTarget : null,
+    fertilizerTargetPercent: fertilizerMaterialId !== null ? fertilizerTarget : null }
+}
+
+export type Planting = Omit<PlantingInput, 'harvestingDate' | 'notes' | 'irrigationMm' | 'fertilizerMaterialId' | 'fertilizerRateKgHa'
+  | 'irrigationTargetPercent' | 'fertilizerTargetPercent'> & {
   /** Absent from an API older than these fields. */
   irrigationMm?: number | null; fertilizerMaterialId?: number | null; fertilizerRateKgHa?: number | null
+  irrigationTargetPercent?: number | null; fertilizerTargetPercent?: number | null
   id: string
   cropId: number // The profile's crop.
   fieldId: string

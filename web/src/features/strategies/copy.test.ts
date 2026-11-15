@@ -29,6 +29,6 @@ describe('strategy copy reads without semicolons', () => {
     const hints = [addHint({ full: true, duplicate: false }), addHint({ full: false, duplicate: true }),
       addHint({ full: false, duplicate: false, twin: 'Medium' }), addHint({ full: false, duplicate: false })]
     for (const hint of hints) expect(hint).not.toContain(';')
-    expect(hints[2]).toBe('Same settings as the Medium preset. It is planned as your own strategy beside it.')
+    expect(hints[2]).toBe('Same settings as the Medium preset. It is suggested as your own plan beside it.')
   })
 })

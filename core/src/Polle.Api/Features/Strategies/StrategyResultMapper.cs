@@ -48,10 +48,18 @@ public sealed class CropProfileNames(IReadOnlyDictionary<long, CropProfileName> 
 /// <param name="PlantingDate">The sowing day, YYYY-MM-DD; null when only the month is known (results from before felder sent days).</param>
 /// <param name="ClearanceDate">The day the field is cleared, YYYY-MM-DD; null when only the month is known.</param>
 /// <param name="HarvestDates">The harvest days, YYYY-MM-DD; empty when only the months are known.</param>
+/// <param name="YieldPercent">The share of the crop's potential yield left after water, nutrient and other stresses, 0-100.</param>
+/// <param name="Irrigation">The water allowance felder planned the crop with and its refill level; null when rain-fed or from before felder 2.5.</param>
 public sealed record StrategyCycle(long CropProfileId, long CropId, string CropName, string SystemName, string PlantingMonth, string ClearanceMonth,
     string[] HarvestMonths, decimal RevenueUsd, decimal CostsUsd, double YieldPercent, double IrrigationMm, string[] Notes, CycleNutrients Nutrients,
     string[] Risks, string[] Warnings, MonthlyWater[] MonthlyWater, CycleNote[] NoteDetails, CycleFertilizer? Fertilizer = null, decimal? OperatingCostsUsd = null,
-    CostBreakdown? CostBreakdown = null, bool Estimated = false, string? PlantingDate = null, string? ClearanceDate = null, string[]? HarvestDates = null);
+    CostBreakdown? CostBreakdown = null, bool Estimated = false, string? PlantingDate = null, string? ClearanceDate = null, string[]? HarvestDates = null,
+    CycleIrrigation? Irrigation = null);
+
+/// <param name="MaterialId">public.materials id of the irrigation water.</param>
+/// <param name="AmountMm">Water allowance over the whole cycle, mm: what the plan copied from the strategy gives the crop.</param>
+/// <param name="TargetPercent">How far each irrigation refills the readily available water, 0-100; null when felder didn't say (it then means 100).</param>
+public sealed record CycleIrrigation(string? MaterialId, double AmountMm, double? TargetPercent);
 
 /// <summary>Costs over the whole field, US dollars, as felder 2.4 itemises them.</summary>
 /// <param name="OperatingUsd">Machinery, fuel and labour (base OpEx).</param>
@@ -72,7 +80,8 @@ public sealed record CostBreakdown(decimal OperatingUsd, decimal PlantingUsd, de
 /// <param name="Name">The product's name from public.materials; null when the id is unknown there.</param>
 /// <param name="Applications">The months with fertilizer, in order, with the N, P and K they add, kg/ha.</param>
 /// <param name="RateKgHa">Kilograms of the product per hectare over the cycle; null for results from before felder reported it.</param>
-public sealed record CycleFertilizer(string? MaterialId, string? Name, FertilizerApplication[] Applications, double? RateKgHa = null);
+/// <param name="TargetPercent">The share of the crop's nutrient deficit the fertilizer covers, 0-100; null when felder didn't say.</param>
+public sealed record CycleFertilizer(string? MaterialId, string? Name, FertilizerApplication[] Applications, double? RateKgHa = null, double? TargetPercent = null);
 
 /// <param name="Month">YYYY-MM.</param>
 public sealed record FertilizerApplication(string Month, double NitrogenKgHa, double PhosphorusKgHa, double PotassiumKgHa);
@@ -174,8 +183,18 @@ public static partial class StrategyResultMapper
             dynamics is null ? cycle.IrrigationAppliedMm : Sum(dynamics.Irrigation), Messages(Info), nutrients,
             Messages(Risk), Messages(Warning), monthly, notes, FertilizerOf(cycle, profiles), operating,
             money is null ? null : new CostBreakdown(Usd(money.BaseOpexCents), Usd(money.PlantingCostCents), Usd(money.WaterCostCents), Usd(money.FertilizerCostCents)),
-            PlantingDate: cycle.PlantingDay, ClearanceDate: cycle.ClearanceDay, HarvestDates: cycle.HarvestDays);
+            PlantingDate: cycle.PlantingDay, ClearanceDate: cycle.ClearanceDay, HarvestDates: cycle.HarvestDays, Irrigation: IrrigationOf(cycle));
     }
+
+    /// <summary>The cycle's water allowance and refill level (felder 2.5); null when it has none or the amount isn't a positive number.</summary>
+    private static CycleIrrigation? IrrigationOf(CropProfileCycle cycle) =>
+        cycle.IrrigationApplication is { AmountMm: var mm } application && double.IsFinite(mm) && mm > 0
+            ? new CycleIrrigation(string.IsNullOrWhiteSpace(application.MaterialId) ? null : application.MaterialId.Trim(), Math.Round(mm, 1),
+                Percent(application.TargetPercentage))
+            : null;
+
+    /// <summary>A 0-100 level, rounded to one decimal; null when absent or out of range.</summary>
+    internal static double? Percent(double? value) => value is { } level && double.IsFinite(level) && level is >= 0 and <= 100 ? Math.Round(level, 1) : null;
 
     /// <summary>
     /// The product and the months it went on. Null when the cycle got no fertilizer: no product id and no N/P/K applied
@@ -197,7 +216,7 @@ public static partial class StrategyResultMapper
         if (materialId is null && applications.Length == 0) return null;
         var name = long.TryParse(materialId, NumberStyles.Integer, CultureInfo.InvariantCulture, out var id) ? profiles.Material(id) : null;
         var rate = cycle.FertilizerApplication?.RateKgHa is { } kg && kg > 0 ? Math.Round(kg, 1) : (double?)null;
-        return new CycleFertilizer(materialId, name, applications, rate);
+        return new CycleFertilizer(materialId, name, applications, rate, Percent(cycle.FertilizerApplication?.TargetPercentage));
     }
 
     private static MonthlyWater[] MonthlyWaterOf(CropProfileCycleMonthlyDynamics dynamics)

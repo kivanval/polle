@@ -3,8 +3,8 @@ using System.Text.Json.Serialization;
 
 namespace Polle.Api.Features.Strategies;
 
-// Wire shapes of the felder solver API (felder/api/server/openapi.yml, main of 2026-11-13, and the live /openapi.json with
-// its day-precise cycle dates of the same day). Ids are strings there.
+// Wire shapes of the felder solver API (felder/api/server/openapi.yml 2.5.0, main of 2026-11-15: irrigation and
+// fertilizer target levels, and each cycle's irrigation_application). Ids are strings there.
 
 public sealed record PlanningHorizon(
     [property: JsonPropertyName("start_year_month")] string StartYearMonth,
@@ -44,9 +44,15 @@ public sealed record OptimizeFieldRequest(
 /// </summary>
 /// <param name="MaterialId">public.materials id of the irrigation water.</param>
 /// <param name="AmountMm">Total irrigation over the crop cycle, mm.</param>
+/// <param name="TargetPercentage">
+/// felder 2.5 (2026-11-15): how far each irrigation refills the readily available water, 0-100; felder takes 100 when it
+/// is left out. A strategy's cycle reports the level it chose, and the plan copied from it sends that level back.
+/// </param>
 public sealed record FelderIrrigationApplication(
     [property: JsonPropertyName("material_id")] string MaterialId,
-    [property: JsonPropertyName("amount_mm")] double AmountMm);
+    [property: JsonPropertyName("amount_mm")] double AmountMm,
+    [property: JsonPropertyName("target_percentage"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    double? TargetPercentage = null);
 
 /// <summary>
 /// One crop of the plan to evaluate. Since felder's 2026-11-13 evaluation update each crop carries its own fertilizer
@@ -111,7 +117,9 @@ public sealed record CropProfileCycle(
     // felder 2026-11-13 (day precision): YYYY-MM-DD dates replacing the three month fields above.
     [property: JsonPropertyName("plant_date")] string? PlantDate = null,
     [property: JsonPropertyName("clearance_date")] string? ClearanceDate = null,
-    [property: JsonPropertyName("harvest_dates")] string[]? HarvestDates = null)
+    [property: JsonPropertyName("harvest_dates")] string[]? HarvestDates = null,
+    // felder 2.5 (2026-11-15): the cycle's water allowance and the refill level it was planned with; null when rain-fed.
+    [property: JsonPropertyName("irrigation_application")] FelderIrrigationApplication? IrrigationApplication = null)
 {
     /// <summary>The sowing day, YYYY-MM-DD; null for a result stored with months only or a date that doesn't parse.</summary>
     [JsonIgnore] public string? PlantingDay => FelderDates.Day(PlantDate);
@@ -149,9 +157,12 @@ public sealed record CropProfileCycleFinancials(
 }
 
 /// <param name="RateKgHa">Kilograms of the product itself (not of N, P or K) per hectare over the cycle.</param>
+/// <param name="TargetPercentage">felder 2.5 (2026-11-15): the share of the crop's nutrient deficit the fertilizer covers, 0-100; null when not given.</param>
 public sealed record FelderFertilizerApplication(
     [property: JsonPropertyName("material_id")] string? MaterialId,
-    [property: JsonPropertyName("rate_kg_ha")] double? RateKgHa);
+    [property: JsonPropertyName("rate_kg_ha")] double? RateKgHa,
+    [property: JsonPropertyName("target_percentage"), JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    double? TargetPercentage = null);
 
 /// <summary>Per-month figures of one cycle, keyed by YYYY-MM.</summary>
 /// <param name="IrrigationAppliedMm">The first 2.3 name of <paramref name="WaterAppliedMm"/>, kept for results stored with it.</param>

@@ -25,6 +25,19 @@
 .assistant-message p { display: inline-block; margin: 0; padding: 11px 13px; border: 1px solid var(--line); border-radius: 4px 12px 12px; background: var(--paper); font-size: 12px; line-height: 1.6; white-space: pre-wrap; overflow-wrap: anywhere; }
 .assistant-message-user p { display: block; width: fit-content; margin-left: auto; border-color: var(--forest); border-radius: 12px 4px 12px 12px; background: var(--forest); color: var(--paper); }
 .assistant-message:has(.assistant-json) { max-width: 100%; }
+/* An answer drawn from its Markdown: one bubble holding a heading, paragraphs and lists, spaced as sections. */
+.assistant-text { display: inline-block; max-width: 100%; box-sizing: border-box; padding: 11px 13px; border: 1px solid var(--line); border-radius: 4px 12px 12px;
+  background: var(--paper); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.assistant-message .assistant-text p { display: block; margin-block: 0; padding: 0; border: 0; border-radius: 0; background: none; white-space: normal; }
+.assistant-message .assistant-text > :not(:first-child) { margin-top: 10px; }
+/* A list sits right under the line that titles it. */
+.assistant-message .assistant-text > p + :is(ul, ol):not(:first-child) { margin-top: 2px; }
+.assistant-text-heading { margin: 0; font-size: 13px; line-height: 1.4; font-weight: 700; color: var(--ink); }
+.assistant-text ul, .assistant-text ol { margin-block: 0; padding-left: 18px; }
+.assistant-text li + li { margin-top: 4px; }
+.assistant-text li > ul { margin-top: 2px; padding-left: 16px; list-style: circle; color: var(--muted, #5f6b5d); }
+.assistant-text li > ul > li + li { margin-top: 0; }
+.assistant-text strong { font-weight: 700; color: var(--ink); }
 .assistant-json { margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); font-size: 12px; }
 .assistant-json summary { padding: 10px 12px; cursor: pointer; font-weight: 600; }
 .assistant-json-actions { display: flex; justify-content: flex-end; padding: 0 10px 8px; }

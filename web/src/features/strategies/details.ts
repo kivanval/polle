@@ -117,41 +117,52 @@ export type NutrientFlow = { applied: number; fixed: number; removed: number }
 /**
  * One crop's fertilizer as the farmer buys it: the product's name ("Fertilizer" when the catalog has none) and the
  * kilograms of the product itself per hectare over the crop; `rateKgHa` is null on results from before the solver sent it.
+ * `targetPercent` is the share of the crop's nutrient deficit it covers, null when the solver didn't say.
  */
-export type FertilizerPlan = { product: string; rateKgHa: number | null }
+export type FertilizerPlan = { product: string; rateKgHa: number | null; targetPercent: number | null }
 
-/** One step of the strategy summary: a crop with its harvest months in order, profit and fertilizer (null when it gets none). */
-export type SummaryStep = { key: string; cycle: StrategyCycle; harvestMonths: string[]; netUsd: number; fertilizer: FertilizerPlan | null }
+/**
+ * One crop's irrigation: millimetres over its season (the solver's allowance, else what it applied) and how far each
+ * watering refills the readily available water (null when the solver didn't say, which it reads as a full refill).
+ */
+export type WaterPlan = { mm: number; targetPercent: number | null }
+
+/** One step of the plan summary: a crop with its harvest months in order, profit, fertilizer and water (null when it gets none). */
+export type SummaryStep = {
+  key: string; cycle: StrategyCycle; harvestMonths: string[]; netUsd: number; fertilizer: FertilizerPlan | null; water: WaterPlan | null
+}
 
 const productName = (name: string | null | undefined) => name?.trim() || 'Fertilizer'
+const level = (value: number | null | undefined) => typeof value === 'number' && value >= 0 && value <= 100 ? value : null
 
 function fertilizerPlan(cycle: StrategyCycle): FertilizerPlan | null {
   const fertilizer = cycle.fertilizer
   if (!fertilizer) return null
-  return { product: productName(fertilizer.name), rateKgHa: fertilizer.rateKgHa && fertilizer.rateKgHa > 0 ? fertilizer.rateKgHa : null }
+  return { product: productName(fertilizer.name), rateKgHa: fertilizer.rateKgHa && fertilizer.rateKgHa > 0 ? fertilizer.rateKgHa : null,
+    targetPercent: level(fertilizer.targetPercent) }
+}
+
+/** The crop's irrigation: what the solver applied, or its allowance when it reports one without monthly figures; null when rain-fed. */
+export function waterPlan(cycle: Pick<StrategyCycle, 'irrigationMm' | 'irrigation'>): WaterPlan | null {
+  const mm = cycle.irrigationMm > 0 ? cycle.irrigationMm : cycle.irrigation?.amountMm ?? 0
+  return mm > 0 ? { mm, targetPercent: level(cycle.irrigation?.targetPercent) } : null
 }
 
 /** Every crop of the plan as one step of the farmer's action plan, in plan order. */
 export function summarySteps(cycles: readonly StrategyCycle[]): SummaryStep[] {
   return cycles.map((cycle, index) => ({
     key: `${cycle.plantingMonth}-${cycle.cropProfileId}-${index}`, cycle,
-    harvestMonths: [...cycle.harvestMonths].sort(), netUsd: cycle.revenueUsd - cycle.costsUsd, fertilizer: fertilizerPlan(cycle),
+    harvestMonths: [...cycle.harvestMonths].sort(), netUsd: cycle.revenueUsd - cycle.costsUsd, fertilizer: fertilizerPlan(cycle), water: waterPlan(cycle),
   }))
 }
 
 /**
- * What the farmer buys over the whole plan: kilograms of each product for the whole field, largest first.
- * `unknown` counts fertilized crops whose amount the result doesn't have (older results), so the total isn't read as complete.
+ * The share of the crop's potential yield the solver expects after water, nutrient and other stresses, as farm words,
+ * e.g. "88% of potential"; null when the figure isn't a usable percentage.
  */
-export function fertilizerToBuy(cycles: readonly StrategyCycle[], areaHectares: number): { products: { product: string; kg: number }[]; unknown: number } {
-  const totals = new Map<string, number>()
-  let unknown = 0
-  for (const plan of cycles.map(fertilizerPlan)) {
-    if (!plan) continue
-    if (plan.rateKgHa === null || !(areaHectares > 0)) { unknown++; continue }
-    totals.set(plan.product, (totals.get(plan.product) ?? 0) + plan.rateKgHa * areaHectares)
-  }
-  return { products: [...totals].map(([product, kg]) => ({ product, kg })).sort((a, b) => b.kg - a.kg), unknown }
+export function expectedYield(yieldPercent: number | null | undefined): string | null {
+  if (typeof yieldPercent !== 'number' || !Number.isFinite(yieldPercent) || yieldPercent < 0) return null
+  return `${Math.round(Math.min(yieldPercent, 100))}% of potential`
 }
 
 /**
